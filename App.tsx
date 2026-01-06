@@ -3,48 +3,67 @@ import AdminPanel from './components/AdminPanel';
 import TabAnalysisHub from './components/TabAnalysisHub';
 import { UserRole } from './types';
 import { clearAllData } from './services/dataService';
-// Remove imports to prevent crashes
-// import { Database, BarChart3, LogOut, Menu, UserCircle, Trophy, Download, FileSpreadsheet } from 'lucide-react';
 
 // --- SYSTEM VERSION CONTROL ---
-// 每次發布新版若涉及資料結構變更或需要強制用戶更新，請修改此版號
-const APP_VERSION = 'v1.0.2'; 
+const APP_VERSION = 'v1.0.4'; 
 const STORAGE_VERSION_KEY = 'app_system_version';
 
-// Placeholders for future features
+// Placeholders
 const TabPerformance = () => <div className="p-8 text-center text-primary-500 text-xl font-bold">績效分析功能區 (規劃中)</div>;
 const TabExport = () => <div className="p-8 text-center text-primary-500 text-xl font-bold">表單匯出功能區 (規劃中)</div>;
 
-// Navigation Structure Definition
 type NavItem = {
   id: string;
   name: string;
-  icon: string; // Changed to string for emoji
+  icon: string;
   component: React.ReactNode;
 };
 
 const App: React.FC = () => {
-  // Access Control
   const [userRole, setUserRole] = useState<UserRole>(UserRole.GUEST);
   const [userEmail, setUserEmail] = useState<string>('訪客模式');
-
-  // Navigation State
-  const [activeTab, setActiveTab] = useState('ANALYSIS'); // Default to Analysis Hub
+  const [activeTab, setActiveTab] = useState('ANALYSIS'); 
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
-  // --- Version Check Effect ---
+  // --- 1. Version Check & 2. CORRUPTION AUTO-HEALING ---
   useEffect(() => {
+    // A. Version Check
     const savedVersion = localStorage.getItem(STORAGE_VERSION_KEY);
     if (savedVersion !== APP_VERSION) {
       console.log(`Version mismatch: Local(${savedVersion}) vs App(${APP_VERSION}). Cleaning up...`);
-      // 1. Clear Data Cache
       clearAllData(); 
-      // 2. Update Version
       localStorage.setItem(STORAGE_VERSION_KEY, APP_VERSION);
-      // 3. Optional: Clear other stale keys if needed, but keep 'admin_csv_urls' for convenience if possible
-      // 4. Force specific tab or refresh if state is critical
-      // window.location.reload(); // Uncomment if a hard reload is absolutely necessary
+      window.location.reload();
+      return;
     }
+
+    // B. CORRUPTION CHECK (The Recovery Mechanism)
+    // Scan critical keys for HTML error text commonly returned by Google when links expire
+    const dbKeys = ['db_basic_info', 'db_market_data', 'db_price_data', 'db_dividend_data', 'db_size_data'];
+    let hasCorruption = false;
+    let corruptedKeys: string[] = [];
+
+    dbKeys.forEach(key => {
+        const val = localStorage.getItem(key);
+        if (val) {
+            // Check for signs of HTML content inside JSON storage
+            if (val.includes('<!DOCTYPE') || 
+                val.includes('<html') || 
+                val.includes('檔案可能已遭到移動') || 
+                val.includes('File might have been moved')) {
+                console.error(`Detected corruption in ${key}`);
+                localStorage.removeItem(key);
+                hasCorruption = true;
+                corruptedKeys.push(key);
+            }
+        }
+    });
+
+    if (hasCorruption) {
+        alert(`系統偵測到資料損毀 (可能是連結失效導致匯入錯誤內容)。\n\n已自動修復並清除以下資料庫：\n${corruptedKeys.join(', ')}\n\n頁面將自動重新整理。`);
+        window.location.reload();
+    }
+
   }, []);
 
   const handleAdminLoginSuccess = (role: UserRole, email: string) => {
@@ -57,7 +76,6 @@ const App: React.FC = () => {
     setUserEmail('訪客模式');
   };
 
-  // Simplified Menu Structure (No Children)
   const navItems: NavItem[] = [
     {
       id: 'MAINTENANCE',
@@ -85,7 +103,6 @@ const App: React.FC = () => {
     }
   ];
 
-  // Helper to find current component
   const getCurrentComponent = () => {
     const item = navItems.find(i => i.id === activeTab);
     return item ? item.component : <TabAnalysisHub />;
@@ -93,9 +110,8 @@ const App: React.FC = () => {
 
   return (
     <div className="flex h-screen bg-primary-50 overflow-hidden">
-      {/* Sidebar - Blue Series (Deep Blue) */}
+      {/* Sidebar */}
       <div className={`${sidebarOpen ? 'w-60' : 'w-20'} bg-primary-900 text-white transition-all duration-300 flex flex-col shadow-2xl z-20 border-r border-primary-800`}>
-        {/* Sidebar Header */}
         <div className="p-5 flex items-center justify-between border-b border-primary-800">
           <div className={`flex items-center gap-2 ${!sidebarOpen && 'hidden'}`}>
              <span className="text-xl">📈</span>
@@ -106,12 +122,10 @@ const App: React.FC = () => {
           </button>
         </div>
         
-        {/* Navigation Menu */}
         <div className="flex-1 overflow-y-auto py-4">
           <nav className="space-y-1.5 px-2">
             {navItems.map((item) => {
               const isActive = activeTab === item.id;
-              
               return (
                 <button
                   key={item.id}
@@ -130,7 +144,6 @@ const App: React.FC = () => {
           </nav>
         </div>
 
-        {/* User Profile Footer */}
         <div className="p-4 border-t border-primary-800 bg-primary-950/50">
             <div className={`flex items-center ${sidebarOpen ? '' : 'justify-center'}`}>
                 <div className={`w-8 h-8 rounded-full bg-primary-700 flex items-center justify-center border border-primary-600 ${!sidebarOpen && 'mb-2'}`}>
@@ -157,7 +170,6 @@ const App: React.FC = () => {
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col h-screen overflow-hidden relative">
-        {/* Mobile Header */}
         <header className="bg-white shadow-sm border-b border-primary-200 p-4 flex justify-between items-center md:hidden z-10">
             <div className="font-bold text-primary-900 text-lg">ETF 戰情室</div>
             <button onClick={() => setSidebarOpen(!sidebarOpen)} className="text-primary-700"><span className="text-xl">☰</span></button>
@@ -166,7 +178,6 @@ const App: React.FC = () => {
           {getCurrentComponent()}
         </main>
         
-        {/* Version Indicator (Optional: Helps you debug if deployment worked) */}
         <div className="absolute bottom-1 right-1 text-[10px] text-primary-300 pointer-events-none z-0">
             {APP_VERSION}
         </div>

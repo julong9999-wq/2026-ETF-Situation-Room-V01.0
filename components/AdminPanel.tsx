@@ -4,7 +4,8 @@ import {
     Link as LinkIcon,
     Database,
     Trash2,
-    AlertTriangle
+    AlertTriangle,
+    Zap
 } from 'lucide-react';
 import { UserRole } from '../types';
 import { 
@@ -20,7 +21,8 @@ import {
     getDividendData,
     getSizeData,
     getHistoryData,
-    clearAllData
+    clearAllData,
+    injectDemoData
 } from '../services/dataService';
 
 interface AdminPanelProps {
@@ -28,14 +30,14 @@ interface AdminPanelProps {
   onLoginSuccess: (role: UserRole, email: string) => void;
 }
 
-// Default URLs
+// Default URLs - These might expire, so we rely on Demo Data as fallback
 const DEFAULT_URLS = {
-    market: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTNI4hC9iSm84tiDe17UHLA026pZZtT1mD--w7tLs42mRm1AIqVIitlbnVK8AvVxa7jBKqOgECebUrs/pub?output=csv',
-    price: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRDMI5dE6tEEgjsrdP-JTu0lOB43WW-Q9T0-OcASMGmLldv_VYh_O4AGY3vCOfGgxNsWqTfly205M_q/pub?output=csv',
-    basic: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTc6ZANKmAJQCXC9k7np_eIhAwC2hF_w9KSpseD0qogcPP0I2rPPhtesNEbHvG48b_tLh9qeu4tr21Q/pub?output=csv',
-    dividend: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vR5JvOGT3eB4xq9phw2dXHApJKOgQkUZcs69CsJfL0Iw3s6egADwA8HdbimrWUceQZl_73pnsSLVnQw/pub?output=csv',
-    size: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTV4TXRt6GUxvN7ZPQYMfSMzaBskjCLKUQbHOJcOcyCBMwyrDYCbHK4MghK8N-Cfp_we_LkvV-bz9zg/pub?output=csv',
-    history: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQJKO3upGfGOWStHGuktI2c0ULLQrysCe-B2qbSl3HwgZA1x8ZFekV7Vl_XeSoInKGiyoJD88iAB3q3/pub?output=csv'
+    market: '',
+    price: '',
+    basic: '',
+    dividend: '',
+    size: '',
+    history: ''
 };
 
 const URL_STORAGE_KEY = 'admin_csv_urls';
@@ -47,11 +49,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ userRole, onLoginSuccess }) => 
   
   const [urls, setUrls] = useState(DEFAULT_URLS);
 
-  // Load saved URLs on mount
   useEffect(() => {
       const savedUrls = localStorage.getItem(URL_STORAGE_KEY);
       if (savedUrls) {
-          // Merge with defaults to ensure new keys (like 'history') exist if not in old storage
           setUrls({ ...DEFAULT_URLS, ...JSON.parse(savedUrls) });
       }
       loadCounts();
@@ -114,21 +114,31 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ userRole, onLoginSuccess }) => 
       }
   };
 
+  const handleDemoData = () => {
+      if (window.confirm('這將會覆蓋現有資料並寫入測試數據，確定嗎？')) {
+          try {
+            injectDemoData();
+            loadCounts();
+            setStatusMsg({ id: 'DEMO', msg: '測試資料已寫入', type: 'success' });
+            alert("測試資料寫入成功！請前往「資料分析」頁面查看。");
+          } catch(e) {
+            alert("寫入失敗");
+          }
+      }
+  };
+
   const items = [
-    { id: 'market', label: 'a. AP201_國際大盤_自動更新' },
-    { id: 'price', label: 'b. AP202_每日股價_自動更新' },
-    { id: 'basic', label: 'c. AP203_基本資料_匯入網頁' },
-    { id: 'dividend', label: 'd. AP204_除息資料_匯入網頁' },
-    { id: 'size', label: 'e. AP205_規模大小_手動輸入' },
-    { id: 'history', label: 'f. AP206_歷史資料_手動更新' },
+    { id: 'market', label: 'a. 國際大盤 (Market)' },
+    { id: 'price', label: 'b. 每日股價 (Price)' },
+    { id: 'basic', label: 'c. 基本資料 (Basic)' },
+    { id: 'dividend', label: 'd. 除息資料 (Dividend)' },
+    { id: 'size', label: 'e. 規模大小 (Size)' },
+    { id: 'history', label: 'f. 歷史資料 (History)' },
   ];
 
   return (
     <div className="h-full w-full flex flex-col p-4 bg-primary-50">
-        {/* Main Container - Full Width */}
         <div className="flex-1 bg-white rounded-xl shadow-sm border border-primary-200 overflow-hidden flex flex-col relative">
-            
-            {/* Header */}
             <div className="bg-gradient-to-r from-primary-600 to-primary-700 p-5 flex justify-between items-center text-white shadow-md flex-none">
                 <div className="flex items-center gap-3">
                     <div className="bg-white/20 p-2 rounded-lg backdrop-blur-sm">
@@ -136,14 +146,20 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ userRole, onLoginSuccess }) => 
                     </div>
                     <h2 className="text-lg font-bold tracking-wide">資料庫維護中心</h2>
                 </div>
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2">
+                    <button 
+                        onClick={handleDemoData}
+                        className="bg-yellow-400 hover:bg-yellow-300 text-yellow-900 px-3 py-1.5 rounded-lg text-sm font-bold shadow-sm flex items-center gap-1 transition-all"
+                    >
+                        <Zap className="w-4 h-4" />
+                        一鍵生成測試資料
+                    </button>
                     <div className="text-sm font-medium bg-white/20 px-3 py-1 rounded-full border border-white/20">
                         總筆數: {Object.values(counts).reduce((a: number, b: number) => a + b, 0).toLocaleString()}
                     </div>
                 </div>
             </div>
 
-            {/* List Container - Scrollable */}
             <div className="flex-1 overflow-y-auto p-4 bg-primary-50/30">
                 <div className="grid gap-4">
                     {items.map((item) => {
@@ -154,8 +170,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ userRole, onLoginSuccess }) => 
 
                         return (
                             <div key={item.id} className="group bg-white rounded-lg border border-primary-100 p-4 shadow-sm hover:shadow-md hover:border-primary-300 transition-all duration-200 flex flex-col lg:flex-row lg:items-center gap-4">
-                                
-                                {/* 1. Info & Status Indicator */}
                                 <div className="flex items-center gap-3 w-full lg:w-1/3">
                                     <div className={`w-2 h-10 rounded-full ${hasData ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.4)]' : 'bg-gray-300'}`}></div>
                                     <div>
@@ -175,7 +189,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ userRole, onLoginSuccess }) => 
                                     </div>
                                 </div>
 
-                                {/* 2. Input Field */}
                                 <div className="flex-1 w-full relative">
                                     <div className="absolute left-3 top-1/2 -translate-y-1/2 text-primary-300 group-hover:text-primary-500 transition-colors">
                                         <LinkIcon className="w-4 h-4" />
@@ -189,11 +202,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ userRole, onLoginSuccess }) => 
                                     />
                                 </div>
 
-                                {/* 3. Actions */}
                                 <div className="flex items-center gap-2 w-full lg:w-auto justify-end">
-                                    {/* Import Button */}
                                     <button 
-                                        onClick={() => handleImport(item.id as any, item.label.split('_')[1] || item.label)}
+                                        onClick={() => handleImport(item.id as any, item.label)}
                                         disabled={isProcessing}
                                         className={`
                                             h-10 px-5 rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm transition-all active:scale-95 border
@@ -211,7 +222,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ userRole, onLoginSuccess }) => 
                         );
                     })}
 
-                    {/* Danger Zone: Clear Data */}
                     <div className="mt-8 border-t border-red-100 pt-6">
                         <div className="flex items-center justify-between p-4 bg-red-50 rounded-lg border border-red-200">
                             <div className="flex items-center gap-3">

@@ -20,9 +20,9 @@ const TabBasicInfo: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   
   // Filters
-  // Level 1: [全部, 季配, 月配, 債券, 主動, 國際]
+  // Level 1: [全部, 季配(股), 月配(股), 債券(混合), 主動, 國際]
   const [mainFilter, setMainFilter] = useState('全部'); 
-  // Level 2: [ALL, 季一, 季二, 季三, 月配(only for bonds)]
+  // Level 2: Sub filters dependent on Level 1
   const [subFilter, setSubFilter] = useState('ALL'); 
 
   useEffect(() => {
@@ -50,6 +50,7 @@ const TabBasicInfo: React.FC = () => {
             const joined: BasicInfo[] = [];
             
             for (const b of baseList) {
+                // Defensive check to ensure we have a valid object
                 if (!b || typeof b !== 'object' || !b.etfCode) continue;
 
                 const sizeRecs = sMap.get(b.etfCode) || [];
@@ -65,6 +66,7 @@ const TabBasicInfo: React.FC = () => {
                 joined.push({ ...b, size: latestSize, trend });
             }
 
+            // Sort by Code
             joined.sort((a,b) => String(a.etfCode || '').localeCompare(String(b.etfCode || '')));
             setData(joined);
             setError(null);
@@ -85,46 +87,51 @@ const TabBasicInfo: React.FC = () => {
       
       try {
         let result = data;
+        const getStr = (val: string | undefined) => String(val || '');
 
         // --- 第一層過濾 (Level 1) ---
         if (mainFilter !== '全部') {
-            const getStr = (val: string | undefined) => String(val || '');
-
+            
             if (mainFilter === '債券') {
-                // 純粹看 Category 是否包含 "債"
+                // 規則：只要分類含「債」，全部進來。不分頻率。
                 result = result.filter(d => getStr(d.category).includes('債'));
-            } else if (mainFilter === '主動') {
-                // Category 或 Type 包含 "主動" (雙重身分會自動包含)
-                result = result.filter(d => getStr(d.category).includes('主動') || getStr(d.etfType).includes('主動'));
-            } else if (mainFilter === '國際') {
-                // Category 或 Type 包含 "國際" 或 "國外"
-                result = result.filter(d => getStr(d.category).includes('國際') || getStr(d.etfType).includes('國際') || getStr(d.marketType).includes('國外'));
+
             } else if (mainFilter === '季配') {
-                // 篩選所有「配息頻率」含「季」的 ETF (若該ETF同時是主動，也會顯示在這裡)
-                result = result.filter(d => getStr(d.dividendFreq).includes('季'));
+                // 規則：頻率含「季」 且 分類【絕對不能】含「債」
+                result = result.filter(d => 
+                    getStr(d.dividendFreq).includes('季') && 
+                    !getStr(d.category).includes('債')
+                );
+
             } else if (mainFilter === '月配') {
-                // 篩選所有「配息頻率」含「月」的 ETF
-                result = result.filter(d => getStr(d.dividendFreq).includes('月'));
+                // 規則：頻率含「月」 且 分類【絕對不能】含「債」
+                result = result.filter(d => 
+                    getStr(d.dividendFreq).includes('月') && 
+                    !getStr(d.category).includes('債')
+                );
+
+            } else if (mainFilter === '主動') {
+                result = result.filter(d => getStr(d.category).includes('主動') || getStr(d.etfType).includes('主動'));
+
+            } else if (mainFilter === '國際') {
+                result = result.filter(d => getStr(d.category).includes('國際') || getStr(d.etfType).includes('國際') || getStr(d.marketType).includes('國外'));
             }
         }
 
         // --- 第二層過濾 (Level 2) ---
-        // 只有在主按鈕是 '季配' 或 '債券' 時，使用者才會看到第二層按鈕並設定 subFilter
         if (subFilter !== 'ALL') {
             const freqStr = (d: BasicInfo) => String(d.dividendFreq || '');
 
-            if (subFilter === '月配') {
-                // 用於 "債券" -> "月配" 的情境
-                result = result.filter(d => freqStr(d).includes('月'));
-            } else if (subFilter === '季一') {
-                // 1, 4, 7, 10
-                result = result.filter(d => checkSeason(freqStr(d), 'Q1'));
-            } else if (subFilter === '季二') {
-                // 2, 5, 8, 11
-                result = result.filter(d => checkSeason(freqStr(d), 'Q2'));
-            } else if (subFilter === '季三') {
-                // 3, 6, 9, 12
-                result = result.filter(d => checkSeason(freqStr(d), 'Q3'));
+            if (mainFilter === '季配') {
+                // 只有在選「季配股」時，才有季1/2/3的區別
+                if (subFilter === '季一') result = result.filter(d => checkSeason(freqStr(d), 'Q1'));
+                if (subFilter === '季二') result = result.filter(d => checkSeason(freqStr(d), 'Q2'));
+                if (subFilter === '季三') result = result.filter(d => checkSeason(freqStr(d), 'Q3'));
+            } 
+            else if (mainFilter === '債券') {
+                // 在「債券」池中，再濾出月配或季配
+                if (subFilter === '月配') result = result.filter(d => freqStr(d).includes('月'));
+                if (subFilter === '季配') result = result.filter(d => freqStr(d).includes('季'));
             }
         }
         return result;
@@ -153,18 +160,41 @@ const TabBasicInfo: React.FC = () => {
       }
   }
 
-  // UI Logic: When to show Sub Filters
-  const showSubFilters = mainFilter === '季配' || mainFilter === '債券';
+  // UI Helper: Determine which sub-filters to show
+  const getSubFilterOptions = () => {
+      if (mainFilter === '季配') return ['全部', '季一', '季二', '季三'];
+      if (mainFilter === '債券') return ['全部', '月配', '季配']; // Allow filtering bond frequency
+      return [];
+  };
+
+  const subOptions = getSubFilterOptions();
+  const showSubFilters = subOptions.length > 0;
+
+  // Manual Reset Handler
+  const handleForceReset = () => {
+      if(confirm('確定要清除所有資料嗎？您需要重新匯入 CSV。')) {
+          localStorage.clear();
+          window.location.reload();
+      }
+  };
 
   if (loading) return <div className="p-8 text-center text-gray-500 flex items-center justify-center gap-2">資料載入中...</div>;
 
-  if (error) return (
-      <div className="p-8 text-center text-red-500 bg-red-50 rounded-xl border border-red-200 m-4 flex flex-col items-center">
-        <span className="text-2xl mb-2">⚠️</span>
-        <p className="font-bold">資料讀取發生錯誤</p>
-        <p className="text-sm mt-1 text-red-400">{error}</p>
+  if (error || (data.length === 0 && !loading)) {
+      return (
+      <div className="flex flex-col items-center justify-center h-full min-h-[400px] p-8 text-center bg-gray-50 rounded-xl border border-gray-200 m-4">
+        <div className="text-6xl mb-4">📂</div>
+        <h3 className="text-xl font-bold text-gray-700 mb-2">無資料或資料讀取異常</h3>
+        <p className="text-gray-500 mb-6 text-sm">請前往「資料維護」匯入 CSV，或點擊下方按鈕重置系統。</p>
+        <button 
+            onClick={handleForceReset}
+            className="px-6 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors shadow-lg font-bold flex items-center gap-2"
+        >
+            ⚠️ 清除所有資料並重置
+        </button>
       </div>
   );
+  }
 
   return (
     <div className="h-full flex flex-col p-2 space-y-2">
@@ -172,7 +202,7 @@ const TabBasicInfo: React.FC = () => {
       <div className="bg-white p-2 rounded-lg shadow-sm border border-primary-200 flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
             
-            {/* Level 1: Main Buttons */}
+            {/* Level 1: Main Buttons (商品分類層級) */}
             <div className="flex gap-1 shrink-0 bg-primary-50 p-1 rounded-lg">
                 {['全部', '季配', '月配', '債券', '主動', '國際'].map(cat => (
                     <button
@@ -185,18 +215,17 @@ const TabBasicInfo: React.FC = () => {
                                 : 'text-primary-500 hover:bg-primary-100 hover:text-primary-700'}
                         `}
                     >
-                        {cat}
+                        {cat === '季配' ? '季配 (股)' : cat === '月配' ? '月配 (股)' : cat}
                     </button>
                 ))}
             </div>
 
-            {/* Level 2: Sub Buttons (Conditional) */}
+            {/* Level 2: Sub Buttons (細節層級) */}
             {showSubFilters && (
                 <div className="flex items-center animate-in fade-in slide-in-from-left-2 duration-300">
                     <div className="h-6 w-px bg-primary-200 mx-2"></div>
                     <div className="flex gap-1 shrink-0">
-                        {/* Base Sub Filters */}
-                        {['全部', '季一', '季二', '季三'].map(sub => (
+                        {subOptions.map(sub => (
                             <button 
                                 key={sub}
                                 onClick={() => setSubFilter(sub === '全部' ? 'ALL' : sub)} 
@@ -210,21 +239,6 @@ const TabBasicInfo: React.FC = () => {
                                 {sub}
                             </button>
                         ))}
-                        
-                        {/* Extra Sub Filter for Bonds Only */}
-                        {mainFilter === '債券' && (
-                            <button 
-                                onClick={() => setSubFilter('月配')} 
-                                className={`
-                                    px-2 py-1 rounded text-xs whitespace-nowrap transition-colors font-medium
-                                    ${subFilter === '月配' 
-                                        ? 'bg-primary-600 text-white shadow-sm' 
-                                        : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}
-                                `}
-                            >
-                                月配
-                            </button>
-                        )}
                     </div>
                 </div>
             )}
@@ -268,7 +282,13 @@ const TabBasicInfo: React.FC = () => {
                     <tr key={String(row?.etfCode) || `row-${index}`} className="hover:bg-primary-50">
                         <td className="p-3 font-mono font-bold text-primary-700">{row?.etfCode || '-'}</td>
                         <td className="p-3 font-bold text-primary-800">{row?.etfName || '-'}</td>
-                        <td className="p-3"><span className="px-2 py-0.5 bg-gray-100 rounded text-xs text-gray-700 whitespace-nowrap">{row?.category || '-'}</span></td>
+                        <td className="p-3">
+                            <span className={`px-2 py-0.5 rounded text-xs whitespace-nowrap ${
+                                String(row?.category || '').includes('債') ? 'bg-amber-100 text-amber-800' : 'bg-gray-100 text-gray-700'
+                            }`}>
+                                {row?.category || '-'}
+                            </span>
+                        </td>
                         <td className="p-3 text-primary-600 whitespace-nowrap">{row?.dividendFreq || '-'}</td>
                         <td className="p-3 text-primary-600 whitespace-nowrap">{row?.issuer || '-'}</td>
                         <td className="p-3 text-primary-600 whitespace-nowrap">{row?.etfType || '-'}</td>
