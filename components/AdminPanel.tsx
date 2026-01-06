@@ -4,7 +4,8 @@ import {
     Link as LinkIcon,
     Database,
     CheckCircle,
-    AlertCircle
+    AlertCircle,
+    RefreshCw
 } from 'lucide-react';
 import { UserRole } from '../types';
 import { 
@@ -19,23 +20,14 @@ import {
     getPriceData,
     getDividendData,
     getSizeData,
-    getHistoryData
+    getHistoryData,
+    DEFAULT_SYSTEM_URLS // Import the hardcoded system defaults
 } from '../services/dataService';
 
 interface AdminPanelProps {
   userRole: UserRole | null;
   onLoginSuccess: (role: UserRole, email: string) => void;
 }
-
-// NOTE: Fill in these strings if you want to hardcode the URLs
-const DEFAULT_URLS = {
-    market: '',
-    price: '',
-    basic: '',
-    dividend: '',
-    size: '',
-    history: ''
-};
 
 const URL_STORAGE_KEY = 'admin_csv_urls';
 
@@ -44,17 +36,28 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ userRole, onLoginSuccess }) => 
   const [statusMsg, setStatusMsg] = useState<{id: string, msg: string, type: 'success' | 'error' | 'warning'} | null>(null);
   const [counts, setCounts] = useState<Record<string, number>>({});
   
-  const [urls, setUrls] = useState(DEFAULT_URLS);
+  // Initial state uses System Defaults
+  const [urls, setUrls] = useState(DEFAULT_SYSTEM_URLS);
 
   useEffect(() => {
       const savedUrls = localStorage.getItem(URL_STORAGE_KEY);
+      
       if (savedUrls) {
-          // Merge saved URLs with defaults, giving priority to saved ones if they exist
-          setUrls({ ...DEFAULT_URLS, ...JSON.parse(savedUrls) });
+          const parsed = JSON.parse(savedUrls);
+          // Allow override, but fallback to System Defaults if keys missing
+          setUrls({
+              market: parsed.market || DEFAULT_SYSTEM_URLS.market,
+              price: parsed.price || DEFAULT_SYSTEM_URLS.price,
+              basic: parsed.basic || DEFAULT_SYSTEM_URLS.basic,
+              dividend: parsed.dividend || DEFAULT_SYSTEM_URLS.dividend,
+              size: parsed.size || DEFAULT_SYSTEM_URLS.size,
+              history: parsed.history || DEFAULT_SYSTEM_URLS.history
+          });
       } else {
-          // If no local storage, use defaults
-          setUrls(DEFAULT_URLS);
+          // If no local overrides, use the hardcoded system defaults
+          setUrls(DEFAULT_SYSTEM_URLS);
       }
+      
       loadCounts();
   }, []);
 
@@ -72,6 +75,13 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ userRole, onLoginSuccess }) => 
       const newUrls = { ...urls, [type]: value.trim() };
       setUrls(newUrls);
       localStorage.setItem(URL_STORAGE_KEY, JSON.stringify(newUrls));
+  };
+
+  const handleResetToDefault = () => {
+      if(confirm('確定要還原為系統預設連結嗎？')) {
+          setUrls(DEFAULT_SYSTEM_URLS);
+          localStorage.removeItem(URL_STORAGE_KEY);
+      }
   };
 
   const handleImport = async (type: 'market' | 'basic' | 'price' | 'dividend' | 'size' | 'history', name: string) => {
@@ -107,7 +117,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ userRole, onLoginSuccess }) => 
     }
   };
 
-  // Specific labels requested by user
   const items = [
     { id: 'market', label: 'a. AP201_國際大盤_自動更新' },
     { id: 'price', label: 'b. AP202_每日股價_自動更新' },
@@ -128,6 +137,13 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ userRole, onLoginSuccess }) => 
                     <h2 className="text-lg font-bold tracking-wide">資料庫維護中心</h2>
                 </div>
                 <div className="flex items-center gap-2">
+                    <button 
+                        onClick={handleResetToDefault}
+                        className="flex items-center gap-1 bg-white/20 hover:bg-white/30 px-3 py-1 rounded-full text-sm font-medium transition-colors"
+                    >
+                        <RefreshCw className="w-3 h-3" />
+                        還原預設連結
+                    </button>
                     <div className="text-sm font-medium bg-white/20 px-3 py-1 rounded-full border border-white/20">
                         總筆數: {Object.values(counts).reduce((a: number, b: number) => a + b, 0).toLocaleString()}
                     </div>
@@ -174,7 +190,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ userRole, onLoginSuccess }) => 
                                         value={(urls as any)[item.id]}
                                         onChange={(e) => handleInputChange(item.id, e.target.value)}
                                         className="w-full pl-9 pr-3 py-2.5 bg-primary-50/50 border border-primary-100 rounded-lg text-sm text-primary-700 font-mono focus:bg-white focus:border-primary-400 focus:ring-4 focus:ring-primary-100 outline-none transition-all"
-                                        placeholder="請輸入 Google Sheet CSV 連結..."
+                                        placeholder="系統預設連結 (唯讀模式建議)"
                                     />
                                 </div>
 

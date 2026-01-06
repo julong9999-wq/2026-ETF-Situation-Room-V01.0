@@ -2,10 +2,11 @@ import React, { useState, useEffect } from 'react';
 import AdminPanel from './components/AdminPanel';
 import TabAnalysisHub from './components/TabAnalysisHub';
 import { UserRole } from './types';
-import { clearAllData } from './services/dataService';
+import { clearAllData, checkAndFetchSystemData } from './services/dataService';
+import { Loader2 } from 'lucide-react';
 
 // --- SYSTEM VERSION CONTROL ---
-const APP_VERSION = 'V.01.1'; 
+const APP_VERSION = 'V.01.2'; 
 const STORAGE_VERSION_KEY = 'app_system_version';
 
 // Placeholders
@@ -24,47 +25,37 @@ const App: React.FC = () => {
   const [userEmail, setUserEmail] = useState<string>('訪客模式');
   const [activeTab, setActiveTab] = useState('ANALYSIS'); 
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [isInitializing, setIsInitializing] = useState(true);
 
-  // --- 1. Version Check & 2. CORRUPTION AUTO-HEALING ---
+  // --- 1. Version Check, 2. Corruption Healing, 3. AUTO DATA FETCH ---
   useEffect(() => {
-    // A. Version Check
-    const savedVersion = localStorage.getItem(STORAGE_VERSION_KEY);
-    if (savedVersion !== APP_VERSION) {
-      console.log(`Version mismatch: Local(${savedVersion}) vs App(${APP_VERSION}). Cleaning up...`);
-      // Alert user about update
-      alert(`系統更新通知 (${APP_VERSION})\n\n為了確保資料結構正確，系統將自動重整資料庫。\n請稍後重新匯入 CSV。`);
-      
-      clearAllData(); 
-      localStorage.setItem(STORAGE_VERSION_KEY, APP_VERSION);
-      window.location.reload();
-      return;
-    }
+    const initApp = async () => {
+        // A. Version Check
+        const savedVersion = localStorage.getItem(STORAGE_VERSION_KEY);
+        if (savedVersion !== APP_VERSION) {
+            console.log(`Version mismatch: Local(${savedVersion}) vs App(${APP_VERSION}). Cleaning up...`);
+            clearAllData(); 
+            localStorage.setItem(STORAGE_VERSION_KEY, APP_VERSION);
+        }
 
-    // B. CORRUPTION CHECK (The Recovery Mechanism)
-    const dbKeys = ['db_basic_info', 'db_market_data', 'db_price_data', 'db_dividend_data', 'db_size_data'];
-    let hasCorruption = false;
-    let corruptedKeys: string[] = [];
-
-    dbKeys.forEach(key => {
-        const val = localStorage.getItem(key);
-        if (val) {
-            if (val.includes('<!DOCTYPE') || 
-                val.includes('<html') || 
-                val.includes('檔案可能已遭到移動') || 
-                val.includes('File might have been moved')) {
+        // B. Corruption Check
+        const dbKeys = ['db_basic_info', 'db_market_data', 'db_price_data', 'db_dividend_data', 'db_size_data'];
+        dbKeys.forEach(key => {
+            const val = localStorage.getItem(key);
+            if (val && (val.includes('<!DOCTYPE') || val.includes('<html') || val.includes('檔案可能已遭到移動'))) {
                 console.error(`Detected corruption in ${key}`);
                 localStorage.removeItem(key);
-                hasCorruption = true;
-                corruptedKeys.push(key);
             }
-        }
-    });
+        });
 
-    if (hasCorruption) {
-        alert(`系統偵測到資料損毀 (可能是連結失效導致匯入錯誤內容)。\n\n已自動修復並清除以下資料庫：\n${corruptedKeys.join(', ')}\n\n頁面將自動重新整理。`);
-        window.location.reload();
-    }
+        // C. Auto Fetch Data (The new requirement)
+        // We do this every time to ensure fresh data from the Google Sheets "History"
+        await checkAndFetchSystemData();
+        
+        setIsInitializing(false);
+    };
 
+    initApp();
   }, []);
 
   const handleAdminLoginSuccess = (role: UserRole, email: string) => {
@@ -109,6 +100,16 @@ const App: React.FC = () => {
     return item ? item.component : <TabAnalysisHub />;
   };
 
+  if (isInitializing) {
+      return (
+          <div className="flex flex-col items-center justify-center h-screen bg-primary-50 text-primary-700">
+              <Loader2 className="w-12 h-12 animate-spin mb-4 text-primary-600" />
+              <h2 className="text-xl font-bold">系統資料更新中...</h2>
+              <p className="text-sm text-primary-400 mt-2">正在從 Google 雲端資料庫同步最新股市數據</p>
+          </div>
+      );
+  }
+
   return (
     <div className="flex h-screen bg-primary-50 overflow-hidden">
       {/* Sidebar */}
@@ -124,7 +125,6 @@ const App: React.FC = () => {
                     <span className="text-xl">☰</span>
                  </button>
              </div>
-             {/* Version Badge in Sidebar */}
              <div className={`${!sidebarOpen && 'hidden'} px-1`}>
                 <span className="inline-block px-2 py-0.5 rounded bg-primary-800 text-primary-300 text-xs font-mono border border-primary-700">
                     {APP_VERSION}

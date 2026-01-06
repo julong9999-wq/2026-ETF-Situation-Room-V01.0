@@ -10,6 +10,22 @@ const KEYS = {
     HISTORY: 'db_history_data'
 };
 
+// --- SYSTEM DEFAULTS (HARDCODED URLs) ---
+export const DEFAULT_SYSTEM_URLS = {
+    // AP211 (TW) + AP212 (US)
+    market: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQ825Haq0XnlX_UDCtnyd5t94U943OJ_sCJdLj2-6XfbWT4KkLaQ-RWBL_esd4HHaQGJTW3hOV2qtax/pub?gid=779&single=true&output=csv|https://docs.google.com/spreadsheets/d/e/2PACX-1vRuulQ6E-VFeNU6otpWOOlZQOwcG8ybE0EdR_RooQLW1VYi6Xhtcl4KnADees6YIALU29jmBIODPeQQ/pub?gid=7&single=true&output=csv',
+    // AP213 (Price)
+    price: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQaRkESbt4XfeC9uNf56p38DwscoPK0-eFM3J4-Vz8LeVBdgsClDZy0baU-FHyFv5cz-QNCXUVMwBfr/pub?gid=46229&single=true&output=csv',
+    // AP214 (Basic)
+    basic: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTc6ZANKmAJQCXC9k7np_elHAwC2hF_w9KSpseD0qogcPP0I2rPphtesNEbHvg48b_tLh9qeu4tr21Q/pub?output=csv',
+    // AP215 (Dividend)
+    dividend: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vR5JvOGT3eB4xq9phw2dXHAPJKOgQkUZcs69CsJfL0Iw3s6egADwA8HdbimrWUceQZl_73pnsSLVnQw/pub?output=csv',
+    // AP216 (Size)
+    size: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTV4TXRt6GUxvN7ZPQYMfSMzaBskjCLKUQbHOJcOcyCBMwyrDYCbHK4MghK8N-Cfp_we_LkvV-bz9zg/pub?output=csv',
+    // AP217 (History)
+    history: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQJKO3upGfGOWStHGuktl2c0ULLQrysCe-B2qbSl3HwgZA1x8ZFekV7Vl_XeSolnKGiyoJD88iAB3q3/pub?output=csv'
+};
+
 // --- HELPER: ROBUST CSV PARSER ---
 const parseCSV = (text: string): any[] => {
     // 1. Sanity Check: Reject HTML Error Pages immediately
@@ -209,31 +225,49 @@ export const getFillAnalysisData = async (): Promise<FillAnalysisData[]> => {
 }
 
 // --- FETCH & IMPORT ---
-const fetchGoogleSheet = async (url: string): Promise<any[]> => {
-    if (!url) throw new Error("缺少 CSV 連結");
-    if (!url.startsWith('http')) throw new Error("網址格式錯誤");
+const fetchGoogleSheet = async (urlStr: string): Promise<any[]> => {
+    if (!urlStr) throw new Error("缺少 CSV 連結");
 
+    // Support multiple URLs separated by |
+    const urls = urlStr.split('|').map(u => u.trim()).filter(u => u);
+    
     try {
-        const response = await fetch(url);
-        if (!response.ok) {
-             if(response.status === 404) throw new Error("連結失效 (404): 檔案找不到");
-             throw new Error(`連線失敗 (HTTP ${response.status})`);
-        }
+        const fetchPromises = urls.map(async (url) => {
+            if (!url.startsWith('http')) return [];
 
-        const text = await response.text();
+            // Robustness: ensure output=csv if it looks like a google sheet link
+            let fetchUrl = url;
+            if (url.includes('docs.google.com/spreadsheets') && !url.includes('output=csv')) {
+                 if (url.includes('?')) fetchUrl += '&output=csv';
+                 else fetchUrl += '?output=csv';
+            }
 
-        // Double Check for Error Text in Body
-        if (text.includes('檔案可能已遭到移動') || 
-            text.includes('File might have been moved') || 
-            text.includes('<!DOCTYPE html>')) {
-             throw new Error("連結失效：Google 檔案可能已移除或權限不足。");
-        }
+            const response = await fetch(fetchUrl);
+            if (!response.ok) {
+                 if(response.status === 404) console.warn(`連結失效 (404): ${url}`);
+                 return [];
+            }
 
-        const parsed = parseCSV(text);
-        if (parsed.length === 0) {
-            throw new Error("匯入失敗：CSV 內容為空或無法解析。");
+            const text = await response.text();
+
+            // Double Check for Error Text
+            if (text.includes('檔案可能已遭到移動') || 
+                text.includes('File might have been moved') || 
+                text.includes('<!DOCTYPE html>')) {
+                 console.warn(`連結回傳非 CSV 內容: ${url}`);
+                 return [];
+            }
+            return parseCSV(text);
+        });
+
+        const results = await Promise.all(fetchPromises);
+        const flattened = results.flat();
+
+        if (flattened.length === 0) {
+            throw new Error("匯入失敗：所有連結皆無法讀取或內容為空。");
         }
-        return parsed;
+        return flattened;
+
     } catch (error: any) {
         console.error("CSV Fetch Error:", error);
         throw new Error(error.message);
@@ -258,12 +292,12 @@ export const importMarketData = async (url: string) => {
     const newItems = rawData.map(row => ({
         indexName: getProp(row, '指數名稱', 'IndexName') || '',
         code: getProp(row, '代碼', 'Code') || '',
-        date: normalizeDate(getProp(row, '日期 tradetime', '日期')),
+        date: normalizeDate(getProp(row, '日期 tradetime', '日期', 'Date')),
         prevClose: safeFloat(getProp(row, '昨日收盤 closeyest', '昨日收盤')),
         open: safeFloat(getProp(row, '開盤 priceopen', '開盤')),
         high: safeFloat(getProp(row, '高價 high', '高價')),
         low: safeFloat(getProp(row, '低價 low', '低價')),
-        price: safeFloat(getProp(row, '現價 price', '現價')),
+        price: safeFloat(getProp(row, '現價 price', '現價', '收盤價', 'Price', 'Close', '收盤')),
         volume: safeFloat(getProp(row, '成交量 volume', '成交量')),
         change: safeFloat(getProp(row, '漲跌點數', '漲跌')),
         changePercent: safeFloat(getProp(row, '漲跌幅度', '漲跌幅 changepercent', '漲跌幅')),
@@ -286,13 +320,10 @@ export const importMarketData = async (url: string) => {
         }
     });
 
-    if (addedCount === 0 && existingItems.length === dataMap.size) {
-        return { count: existingItems.length, noChange: true };
-    }
-
     const merged = Array.from(dataMap.values()).sort((a: any,b: any) => b.date.localeCompare(a.date));
     localStorage.setItem(KEYS.MARKET, JSON.stringify(merged));
-    return { count: merged.length, noChange: false };
+    
+    return { count: merged.length, noChange: addedCount === 0 && existingItems.length === merged.length };
 };
 
 export const importBasicInfo = async (url: string) => {
@@ -308,16 +339,6 @@ export const importBasicInfo = async (url: string) => {
         size: 0,
         trend: ''
     })).filter(d => d.etfCode !== 'UNKNOWN');
-
-    const existingItems = await getBasicInfo();
-    const isSameLength = existingItems.length === newItems.length;
-    
-    // If length same, assume same for Basic Info to avoid constant re-write (Simple heuristic)
-    if (isSameLength && existingItems.length > 0 && newItems.length > 0) {
-         if (existingItems[0].etfCode === newItems[0].etfCode) {
-             return { count: existingItems.length, noChange: true };
-         }
-    }
 
     localStorage.setItem(KEYS.BASIC, JSON.stringify(newItems)); 
     return { count: newItems.length, noChange: false };
@@ -349,13 +370,9 @@ export const importPriceData = async (url: string) => {
         }
     });
 
-    if (addedCount === 0 && existingItems.length === dataMap.size) {
-        return { count: existingItems.length, noChange: true };
-    }
-
     const merged = Array.from(dataMap.values()).sort((a: any,b: any) => b.date.localeCompare(a.date));
     localStorage.setItem(KEYS.PRICE, JSON.stringify(merged));
-    return { count: merged.length, noChange: false };
+    return { count: merged.length, noChange: addedCount === 0 && existingItems.length === merged.length };
 };
 
 export const importDividendData = async (url: string) => {
@@ -373,7 +390,6 @@ export const importDividendData = async (url: string) => {
     const existingItems = await getDividendData();
     const dataMap = new Map();
     
-    // CRITICAL FIX: Use Code + ExDate + Amount as key to avoid deduplicating multiple entries for same day/month
     existingItems.forEach(i => dataMap.set(`${i.etfCode}_${i.exDate}_${i.amount}`, i));
     
     let addedCount = 0;
@@ -385,13 +401,9 @@ export const importDividendData = async (url: string) => {
         }
     });
     
-    if (addedCount === 0 && existingItems.length === dataMap.size) {
-        return { count: existingItems.length, noChange: true };
-    }
-
     const merged = Array.from(dataMap.values()).sort((a: any,b: any) => b.exDate.localeCompare(a.exDate));
     localStorage.setItem(KEYS.DIVIDEND, JSON.stringify(merged));
-    return { count: merged.length, noChange: false };
+    return { count: merged.length, noChange: addedCount === 0 && existingItems.length === merged.length };
 };
 
 export const importSizeData = async (url: string) => {
@@ -403,13 +415,6 @@ export const importSizeData = async (url: string) => {
         date: new Date().toISOString().split('T')[0] 
     })).filter(d => d.etfCode);
 
-    const existingItems = await getSizeData();
-    if (existingItems.length === newItems.length && existingItems.length > 0) {
-        if(existingItems[0].size === newItems[0].size) {
-            return { count: existingItems.length, noChange: true };
-        }
-    }
-
     localStorage.setItem(KEYS.SIZE, JSON.stringify(newItems));
     return { count: newItems.length, noChange: false };
 };
@@ -420,7 +425,6 @@ export const importHistoryData = async (url: string) => {
         etfCode: getProp(row, 'ETF 代碼', '代碼') || '',
         etfName: getProp(row, 'ETF 名稱', '名稱') || '',
         date: normalizeDate(getProp(row, '日期', 'Date')),
-        // Enhanced aliases for "Monthly Data" which might have different headers
         price: safeFloat(getProp(row, '收盤價', 'Price', 'Close', '收盤', '股價', 'close', 'price', '價格'))
     })).filter(d => d.etfCode && d.date);
 
@@ -437,13 +441,9 @@ export const importHistoryData = async (url: string) => {
         }
     });
 
-    if (addedCount === 0 && existingItems.length === dataMap.size) {
-        return { count: existingItems.length, noChange: true };
-    }
-
     const merged = Array.from(dataMap.values()).sort((a: any,b: any) => b.date.localeCompare(a.date));
     localStorage.setItem(KEYS.HISTORY, JSON.stringify(merged));
-    return { count: merged.length, noChange: false };
+    return { count: merged.length, noChange: addedCount === 0 && existingItems.length === merged.length };
 };
 
 export const clearAllData = () => {
@@ -472,3 +472,30 @@ export const exportToCSV = (filename: string, headers: string[], data: any[]) =>
 export const injectDemoData = () => {
     console.log("Demo data injection removed.");
 }
+
+// --- AUTO INITIALIZATION ---
+export const checkAndFetchSystemData = async () => {
+    // Check if critical data is missing (e.g. market data or basic info)
+    const market = localStorage.getItem(KEYS.MARKET);
+    const basic = localStorage.getItem(KEYS.BASIC);
+
+    // Always fetch if missing, or maybe force update on start?
+    // Strategy: Fetch in background on start.
+    console.log("System Auto-Update: Starting...");
+    
+    try {
+        await Promise.all([
+            importMarketData(DEFAULT_SYSTEM_URLS.market),
+            importBasicInfo(DEFAULT_SYSTEM_URLS.basic),
+            importPriceData(DEFAULT_SYSTEM_URLS.price),
+            importDividendData(DEFAULT_SYSTEM_URLS.dividend),
+            importSizeData(DEFAULT_SYSTEM_URLS.size),
+            importHistoryData(DEFAULT_SYSTEM_URLS.history)
+        ]);
+        console.log("System Auto-Update: Completed successfully.");
+        return true;
+    } catch (e) {
+        console.error("System Auto-Update Failed:", e);
+        return false;
+    }
+};
