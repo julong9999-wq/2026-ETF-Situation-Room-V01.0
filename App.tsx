@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import TabAnalysisHub from './components/TabAnalysisHub';
 import { clearAllData, checkAndFetchSystemData } from './services/dataService';
-import { Loader2 } from 'lucide-react';
+import { Loader2, RefreshCw, CheckCircle2 } from 'lucide-react';
 
 // --- SYSTEM VERSION CONTROL ---
 const APP_VERSION = 'V.01.6'; 
@@ -22,17 +22,28 @@ const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState('ANALYSIS'); 
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isInitializing, setIsInitializing] = useState(true);
+  const [isBackgroundUpdating, setIsBackgroundUpdating] = useState(false);
+  const [lastUpdateStatus, setLastUpdateStatus] = useState<'idle' | 'success' | 'error'>('idle');
 
   // --- 1. Version Check, 2. Corruption Healing, 3. AUTO DATA FETCH ---
   useEffect(() => {
     const initApp = async () => {
         // A. Version Check
         const savedVersion = localStorage.getItem(STORAGE_VERSION_KEY);
-        if (savedVersion !== APP_VERSION) {
+        // Check if we have essential data cached to allow "Instant Load"
+        const hasCachedMarket = !!localStorage.getItem('db_market_data');
+        const isVersionMatch = savedVersion === APP_VERSION;
+
+        if (!isVersionMatch) {
             console.log(`Version mismatch: Local(${savedVersion}) vs App(${APP_VERSION}). Cleaning up...`);
             clearAllData(); 
-            localStorage.removeItem('admin_csv_urls'); // Clear old admin URL settings to enforce new defaults
+            localStorage.removeItem('admin_csv_urls'); 
             localStorage.setItem(STORAGE_VERSION_KEY, APP_VERSION);
+            // Must block UI if version changed (schema might have changed)
+            setIsInitializing(true);
+        } else if (hasCachedMarket) {
+            // OPTIMIZATION: If we have data and version matches, let user in IMMEDIATELY
+            setIsInitializing(false);
         }
 
         // B. Corruption Check
@@ -45,11 +56,23 @@ const App: React.FC = () => {
             }
         });
 
-        // C. Auto Fetch Data (The new requirement)
-        // We do this every time to ensure fresh data from the Google Sheets "History"
-        await checkAndFetchSystemData();
+        // C. Data Fetch Strategy
+        // If we are already initialized (optimistic load), this runs in background.
+        // If we are waiting (first run), this runs and then sets initializing to false.
+        setIsBackgroundUpdating(true);
         
-        setIsInitializing(false);
+        try {
+            await checkAndFetchSystemData();
+            setLastUpdateStatus('success');
+            // Auto hide success status after 3 seconds
+            setTimeout(() => setLastUpdateStatus('idle'), 3000);
+        } catch (e) {
+            console.error("Background update failed", e);
+            setLastUpdateStatus('error');
+        } finally {
+            setIsBackgroundUpdating(false);
+            setIsInitializing(false); // Ensure loader is gone in all cases
+        }
     };
 
     initApp();
@@ -84,9 +107,13 @@ const App: React.FC = () => {
   if (isInitializing) {
       return (
           <div className="flex flex-col items-center justify-center h-screen bg-primary-50 text-primary-700">
-              <Loader2 className="w-12 h-12 animate-spin mb-4 text-primary-600" />
-              <h2 className="text-xl font-bold">系統資料更新中...</h2>
-              <p className="text-sm text-primary-400 mt-2">正在從 Google 雲端資料庫同步最新股市數據</p>
+              <Loader2 className="w-16 h-16 animate-spin mb-6 text-primary-600" />
+              <h2 className="text-2xl font-bold mb-2">系統初次初始化中...</h2>
+              <div className="bg-white/50 px-6 py-4 rounded-xl text-center border border-primary-100 max-w-sm">
+                  <p className="text-sm text-primary-600 font-bold mb-1">正在建立本機資料庫</p>
+                  <p className="text-xs text-primary-400">首次載入需下載完整歷史數據 (約 15-20 秒)</p>
+                  <p className="text-xs text-primary-400 mt-1">請勿關閉視窗，完成後將自動進入。</p>
+              </div>
           </div>
       );
   }
@@ -106,10 +133,23 @@ const App: React.FC = () => {
                     <span className="text-xl">☰</span>
                  </button>
              </div>
-             <div className={`${!sidebarOpen && 'hidden'} px-1`}>
+             <div className={`${!sidebarOpen && 'hidden'} px-1 flex items-center justify-between`}>
                 <span className="inline-block px-2 py-0.5 rounded bg-primary-800 text-primary-300 text-xs font-mono border border-primary-700">
                     {APP_VERSION}
                 </span>
+                
+                {/* Background Sync Indicator */}
+                {isBackgroundUpdating ? (
+                    <div className="flex items-center gap-1 text-xs text-amber-300 animate-pulse" title="背景資料更新中...">
+                        <RefreshCw className="w-3 h-3 animate-spin" />
+                        <span>更新中</span>
+                    </div>
+                ) : lastUpdateStatus === 'success' ? (
+                    <div className="flex items-center gap-1 text-xs text-green-300 animate-in fade-in zoom-in">
+                        <CheckCircle2 className="w-3 h-3" />
+                        <span>已最新</span>
+                    </div>
+                ) : null}
              </div>
           </div>
         </div>
@@ -156,7 +196,10 @@ const App: React.FC = () => {
         <header className="bg-white shadow-sm border-b border-primary-200 p-4 flex justify-between items-center md:hidden z-10">
             <div className="flex items-center gap-2">
                 <div className="font-bold text-primary-900 text-lg">ETF 戰情室</div>
-                <span className="px-1.5 py-0.5 rounded bg-primary-100 text-primary-600 text-xs font-bold">{APP_VERSION}</span>
+                <div className="flex items-center gap-2">
+                     {isBackgroundUpdating && <RefreshCw className="w-4 h-4 text-amber-500 animate-spin" />}
+                     <span className="px-1.5 py-0.5 rounded bg-primary-100 text-primary-600 text-xs font-bold">{APP_VERSION}</span>
+                </div>
             </div>
             <button onClick={() => setSidebarOpen(!sidebarOpen)} className="text-primary-700"><span className="text-xl">☰</span></button>
         </header>
