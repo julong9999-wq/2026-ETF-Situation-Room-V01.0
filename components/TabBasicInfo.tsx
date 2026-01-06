@@ -1,15 +1,16 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { getBasicInfo, getSizeData, exportToCSV } from '../services/dataService';
 import { BasicInfo, SizeData } from '../types';
-// Icons removed to prevent potential crash, using text/emoji fallbacks
-// import { Database, Download, AlertTriangle } from 'lucide-react';
 
-// Helper functions moved outside to prevent recreation
+// Helper: Check seasonality logic (1,4,7,10 vs 2,5,8,11 etc)
 const checkSeason = (freqStr: string | undefined, season: 'Q1'|'Q2'|'Q3') => {
     const f = String(freqStr || '').replace(/\s/g, ''); 
-    if (season === 'Q1') return f.includes('季一') || f.includes('1,4,7,10') || f.includes('01,04,07,10');
-    if (season === 'Q2') return f.includes('季二') || f.includes('2,5,8,11') || f.includes('02,05,08,11');
-    if (season === 'Q3') return f.includes('季三') || f.includes('3,6,9,12') || f.includes('03,06,09,12');
+    // Q1: 1, 4, 7, 10
+    if (season === 'Q1') return f.includes('季一') || f.includes('1,4,7,10') || f.includes('01,04,07,10') || (f.includes('1') && f.includes('4'));
+    // Q2: 2, 5, 8, 11
+    if (season === 'Q2') return f.includes('季二') || f.includes('2,5,8,11') || f.includes('02,05,08,11') || (f.includes('2') && f.includes('5'));
+    // Q3: 3, 6, 9, 12
+    if (season === 'Q3') return f.includes('季三') || f.includes('3,6,9,12') || f.includes('03,06,09,12') || (f.includes('3') && f.includes('6'));
     return false;
 };
 
@@ -19,7 +20,9 @@ const TabBasicInfo: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   
   // Filters
+  // Level 1: [全部, 季配, 月配, 債券, 主動, 國際]
   const [mainFilter, setMainFilter] = useState('全部'); 
+  // Level 2: [ALL, 季一, 季二, 季三, 月配(only for bonds)]
   const [subFilter, setSubFilter] = useState('ALL'); 
 
   useEffect(() => {
@@ -31,7 +34,7 @@ const TabBasicInfo: React.FC = () => {
             
             if (!mounted) return;
 
-            // Safe map creation
+            // Prepare Size Map
             const sMap = new Map<string, SizeData[]>();
             if (Array.isArray(sizes)) {
                 sizes.forEach(s => {
@@ -41,17 +44,12 @@ const TabBasicInfo: React.FC = () => {
                     }
                 });
             }
-
             sMap.forEach(arr => arr.sort((a,b) => (b.date || '').localeCompare(a.date || '')));
             
-            // Validate basic data is an array
             const baseList = Array.isArray(basic) ? basic : [];
-            
-            // Map and Sanitize
             const joined: BasicInfo[] = [];
             
             for (const b of baseList) {
-                // Skip invalid records
                 if (!b || typeof b !== 'object' || !b.etfCode) continue;
 
                 const sizeRecs = sMap.get(b.etfCode) || [];
@@ -67,9 +65,7 @@ const TabBasicInfo: React.FC = () => {
                 joined.push({ ...b, size: latestSize, trend });
             }
 
-            // Safe Sort
             joined.sort((a,b) => String(a.etfCode || '').localeCompare(String(b.etfCode || '')));
-            
             setData(joined);
             setError(null);
         } catch (e: any) {
@@ -90,33 +86,46 @@ const TabBasicInfo: React.FC = () => {
       try {
         let result = data;
 
-        // 1. Main Filter
+        // --- 第一層過濾 (Level 1) ---
+        // 依據使用者需求：以「商品分類」為主 (債券、主動、國際)，加上常用的「配息」分組
         if (mainFilter !== '全部') {
-            const filterStr = (val: string | undefined) => String(val || '');
+            const getStr = (val: string | undefined) => String(val || '');
 
             if (mainFilter === '債券') {
-                result = result.filter(d => filterStr(d.category).includes('債'));
+                // 純粹看 Category 是否包含 "債"
+                result = result.filter(d => getStr(d.category).includes('債'));
             } else if (mainFilter === '主動') {
-                result = result.filter(d => filterStr(d.category).includes('主動') || filterStr(d.etfType).includes('主動'));
+                // Category 或 Type 包含 "主動"
+                result = result.filter(d => getStr(d.category).includes('主動') || getStr(d.etfType).includes('主動'));
             } else if (mainFilter === '國際') {
-                result = result.filter(d => filterStr(d.etfType).includes('國際') || filterStr(d.category).includes('國際'));
+                // Category 或 Type 包含 "國際" 或 "國外"
+                result = result.filter(d => getStr(d.category).includes('國際') || getStr(d.etfType).includes('國際') || getStr(d.marketType).includes('國外'));
             } else if (mainFilter === '季配') {
-                result = result.filter(d => filterStr(d.dividendFreq).includes('季'));
+                // 雖然按鈕叫季配，但作為第一層分類，我們篩選所有「配息頻率」含「季」的 ETF
+                result = result.filter(d => getStr(d.dividendFreq).includes('季'));
             } else if (mainFilter === '月配') {
-                result = result.filter(d => filterStr(d.dividendFreq).includes('月'));
+                // 篩選所有「配息頻率」含「月」的 ETF
+                result = result.filter(d => getStr(d.dividendFreq).includes('月'));
             }
         }
 
-        // 2. Sub Filter
+        // --- 第二層過濾 (Level 2) ---
+        // 只有在主按鈕是 '季配' 或 '債券' 時，使用者才會看到第二層按鈕並設定 subFilter
         if (subFilter !== 'ALL') {
+            const freqStr = (d: BasicInfo) => String(d.dividendFreq || '');
+
             if (subFilter === '月配') {
-                result = result.filter(d => String(d.dividendFreq || '').includes('月'));
+                // 用於 "債券" -> "月配" 的情境
+                result = result.filter(d => freqStr(d).includes('月'));
             } else if (subFilter === '季一') {
-                result = result.filter(d => checkSeason(d.dividendFreq, 'Q1'));
+                // 1, 4, 7, 10
+                result = result.filter(d => checkSeason(freqStr(d), 'Q1'));
             } else if (subFilter === '季二') {
-                result = result.filter(d => checkSeason(d.dividendFreq, 'Q2'));
+                // 2, 5, 8, 11
+                result = result.filter(d => checkSeason(freqStr(d), 'Q2'));
             } else if (subFilter === '季三') {
-                result = result.filter(d => checkSeason(d.dividendFreq, 'Q3'));
+                // 3, 6, 9, 12
+                result = result.filter(d => checkSeason(freqStr(d), 'Q3'));
             }
         }
         return result;
@@ -145,16 +154,16 @@ const TabBasicInfo: React.FC = () => {
       }
   }
 
+  // UI Logic: When to show Sub Filters
   const showSubFilters = mainFilter === '季配' || mainFilter === '債券';
-  
-  if (loading) return <div className="p-8 text-center text-gray-500 flex items-center justify-center gap-2"><div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary-500"></div> 資料載入中...</div>;
+
+  if (loading) return <div className="p-8 text-center text-gray-500 flex items-center justify-center gap-2">資料載入中...</div>;
 
   if (error) return (
       <div className="p-8 text-center text-red-500 bg-red-50 rounded-xl border border-red-200 m-4 flex flex-col items-center">
         <span className="text-2xl mb-2">⚠️</span>
         <p className="font-bold">資料讀取發生錯誤</p>
         <p className="text-sm mt-1 text-red-400">{error}</p>
-        <p className="text-xs mt-4 text-gray-500">請嘗試至「資料維護」重新匯入基本資料。</p>
       </div>
   );
 
@@ -163,41 +172,73 @@ const TabBasicInfo: React.FC = () => {
       {/* Filter Panel */}
       <div className="bg-white p-2 rounded-lg shadow-sm border border-primary-200 flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
-            {/* Main Buttons */}
-            <div className="flex gap-1 shrink-0">
+            
+            {/* Level 1: Main Buttons */}
+            <div className="flex gap-1 shrink-0 bg-primary-50 p-1 rounded-lg">
                 {['全部', '季配', '月配', '債券', '主動', '國際'].map(cat => (
                     <button
                         key={cat}
                         onClick={() => { setMainFilter(cat); setSubFilter('ALL'); }}
-                        className={`px-3 py-1.5 rounded-md text-sm font-bold whitespace-nowrap transition-all ${mainFilter === cat ? 'bg-primary-600 text-white shadow-sm' : 'bg-primary-50 text-primary-700 hover:bg-primary-100'}`}
+                        className={`
+                            px-3 py-1.5 rounded-md text-sm font-bold whitespace-nowrap transition-all 
+                            ${mainFilter === cat 
+                                ? 'bg-white text-primary-700 shadow border border-primary-200' 
+                                : 'text-primary-500 hover:bg-primary-100 hover:text-primary-700'}
+                        `}
                     >
                         {cat}
                     </button>
                 ))}
             </div>
 
-            {/* Sub Buttons */}
+            {/* Level 2: Sub Buttons (Conditional) */}
             {showSubFilters && (
-                <div className="flex gap-1 p-1 bg-primary-50 rounded-md shrink-0 border-l border-primary-200 pl-2 ml-1">
-                    <button onClick={() => setSubFilter('ALL')} className={`px-2 py-0.5 rounded text-xs whitespace-nowrap transition-colors ${subFilter === 'ALL' ? 'bg-white shadow text-primary-700 font-bold border border-primary-100' : 'text-primary-500'}`}>全部</button>
-                    <button onClick={() => setSubFilter('季一')} className={`px-2 py-0.5 rounded text-xs whitespace-nowrap transition-colors ${subFilter === '季一' ? 'bg-white shadow text-primary-700 font-bold border border-primary-100' : 'text-primary-500'}`}>季一</button>
-                    <button onClick={() => setSubFilter('季二')} className={`px-2 py-0.5 rounded text-xs whitespace-nowrap transition-colors ${subFilter === '季二' ? 'bg-white shadow text-primary-700 font-bold border border-primary-100' : 'text-primary-500'}`}>季二</button>
-                    <button onClick={() => setSubFilter('季三')} className={`px-2 py-0.5 rounded text-xs whitespace-nowrap transition-colors ${subFilter === '季三' ? 'bg-white shadow text-primary-700 font-bold border border-primary-100' : 'text-primary-500'}`}>季三</button>
-                    
-                    {mainFilter === '債券' && (
-                        <button onClick={() => setSubFilter('月配')} className={`px-2 py-0.5 rounded text-xs whitespace-nowrap transition-colors ${subFilter === '月配' ? 'bg-white shadow text-primary-700 font-bold border border-primary-100' : 'text-primary-500'}`}>月配</button>
-                    )}
+                <div className="flex items-center animate-in fade-in slide-in-from-left-2 duration-300">
+                    <div className="h-6 w-px bg-primary-200 mx-2"></div>
+                    <div className="flex gap-1 shrink-0">
+                        {/* Base Sub Filters */}
+                        {['全部', '季一', '季二', '季三'].map(sub => (
+                            <button 
+                                key={sub}
+                                onClick={() => setSubFilter(sub === '全部' ? 'ALL' : sub)} 
+                                className={`
+                                    px-2 py-1 rounded text-xs whitespace-nowrap transition-colors font-medium
+                                    ${(subFilter === sub || (subFilter === 'ALL' && sub === '全部'))
+                                        ? 'bg-primary-600 text-white shadow-sm' 
+                                        : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}
+                                `}
+                            >
+                                {sub}
+                            </button>
+                        ))}
+                        
+                        {/* Extra Sub Filter for Bonds Only */}
+                        {mainFilter === '債券' && (
+                            <button 
+                                onClick={() => setSubFilter('月配')} 
+                                className={`
+                                    px-2 py-1 rounded text-xs whitespace-nowrap transition-colors font-medium
+                                    ${subFilter === '月配' 
+                                        ? 'bg-primary-600 text-white shadow-sm' 
+                                        : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}
+                                `}
+                            >
+                                月配
+                            </button>
+                        )}
+                    </div>
                 </div>
             )}
         </div>
 
+        {/* Count & Export */}
         <div className="flex items-center gap-2 ml-auto shrink-0">
             <div className="flex items-center gap-1 text-primary-400 text-xs font-medium bg-primary-50 px-2 py-1 rounded border border-primary-100">
                 <span className="font-bold">Count:</span>
                 {filteredData.length}
             </div>
             <button onClick={handleExport} className="flex items-center gap-1 px-3 py-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-md text-sm font-bold hover:bg-emerald-100 whitespace-nowrap">
-                <span className="font-bold">↓ 匯出</span>
+                <span>↓ 匯出</span>
             </button>
         </div>
       </div>
