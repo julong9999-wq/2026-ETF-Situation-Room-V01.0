@@ -20,7 +20,7 @@ const TabBasicInfo: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   
   // Filters
-  // Level 1: [全部, 季配(股), 月配(股), 債券(混合), 主動, 國際]
+  // Level 1: [全部, 季配, 月配, 債券, 主動, 國際]
   const [mainFilter, setMainFilter] = useState('全部'); 
   // Level 2: Sub filters dependent on Level 1
   const [subFilter, setSubFilter] = useState('ALL'); 
@@ -105,13 +105,18 @@ const TabBasicInfo: React.FC = () => {
 
             } else if (mainFilter === '月配') {
                 // 規則：頻率含「月」 且 分類【絕對不能】含「債」
+                // 修正：嚴格排除「主動」 (Exclude Active ETFs like 00985A)
+                // Also check ETF Name and Type for "主動"
                 result = result.filter(d => 
                     getStr(d.dividendFreq).includes('月') && 
-                    !getStr(d.category).includes('債')
+                    !getStr(d.category).includes('債') &&
+                    !getStr(d.category).includes('主動') && 
+                    !getStr(d.etfType).includes('主動') &&
+                    !getStr(d.etfName).includes('主動')
                 );
 
             } else if (mainFilter === '主動') {
-                result = result.filter(d => getStr(d.category).includes('主動') || getStr(d.etfType).includes('主動'));
+                result = result.filter(d => getStr(d.category).includes('主動') || getStr(d.etfType).includes('主動') || getStr(d.etfName).includes('主動'));
 
             } else if (mainFilter === '國際') {
                 result = result.filter(d => getStr(d.category).includes('國際') || getStr(d.etfType).includes('國際') || getStr(d.marketType).includes('國外'));
@@ -123,7 +128,7 @@ const TabBasicInfo: React.FC = () => {
             const freqStr = (d: BasicInfo) => String(d.dividendFreq || '');
 
             if (mainFilter === '季配') {
-                // 只有在選「季配股」時，才有季1/2/3的區別
+                // 只有在選「季配」時，才有季1/2/3的區別
                 if (subFilter === '季一') result = result.filter(d => checkSeason(freqStr(d), 'Q1'));
                 if (subFilter === '季二') result = result.filter(d => checkSeason(freqStr(d), 'Q2'));
                 if (subFilter === '季三') result = result.filter(d => checkSeason(freqStr(d), 'Q3'));
@@ -215,7 +220,8 @@ const TabBasicInfo: React.FC = () => {
                                 : 'text-primary-500 hover:bg-primary-100 hover:text-primary-700'}
                         `}
                     >
-                        {cat === '季配' ? '季配 (股)' : cat === '月配' ? '月配 (股)' : cat}
+                        {/* 修正：回復原始顯示名稱，不加 (股) */}
+                        {cat}
                     </button>
                 ))}
             </div>

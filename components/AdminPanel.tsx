@@ -3,9 +3,8 @@ import {
     Search, 
     Link as LinkIcon,
     Database,
-    Trash2,
-    AlertTriangle,
-    Zap
+    CheckCircle,
+    AlertCircle
 } from 'lucide-react';
 import { UserRole } from '../types';
 import { 
@@ -20,9 +19,7 @@ import {
     getPriceData,
     getDividendData,
     getSizeData,
-    getHistoryData,
-    clearAllData,
-    injectDemoData
+    getHistoryData
 } from '../services/dataService';
 
 interface AdminPanelProps {
@@ -30,7 +27,6 @@ interface AdminPanelProps {
   onLoginSuccess: (role: UserRole, email: string) => void;
 }
 
-// Default URLs - These might expire, so we rely on Demo Data as fallback
 const DEFAULT_URLS = {
     market: '',
     price: '',
@@ -93,7 +89,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ userRole, onLoginSuccess }) => 
         }
 
         if (result.noChange) {
-            setStatusMsg({ id: type, msg: '資料相同 , 無匯入', type: 'warning' });
+            setStatusMsg({ id: type, msg: '資料已存在 , 無須匯入', type: 'warning' });
         } else {
             setStatusMsg({ id: type, msg: `成功! 目前共 ${result.count} 筆`, type: 'success' });
         }
@@ -106,34 +102,14 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ userRole, onLoginSuccess }) => 
     }
   };
 
-  const handleClearAll = () => {
-      if (window.confirm('確定要清空所有資料庫嗎？此操作無法復原。')) {
-          clearAllData();
-          loadCounts();
-          setStatusMsg({ id: 'ALL', msg: '已清空所有資料', type: 'success' });
-      }
-  };
-
-  const handleDemoData = () => {
-      if (window.confirm('這將會覆蓋現有資料並寫入測試數據，確定嗎？')) {
-          try {
-            injectDemoData();
-            loadCounts();
-            setStatusMsg({ id: 'DEMO', msg: '測試資料已寫入', type: 'success' });
-            alert("測試資料寫入成功！請前往「資料分析」頁面查看。");
-          } catch(e) {
-            alert("寫入失敗");
-          }
-      }
-  };
-
+  // Specific labels requested by user
   const items = [
-    { id: 'market', label: 'a. 國際大盤 (Market)' },
-    { id: 'price', label: 'b. 每日股價 (Price)' },
-    { id: 'basic', label: 'c. 基本資料 (Basic)' },
-    { id: 'dividend', label: 'd. 除息資料 (Dividend)' },
-    { id: 'size', label: 'e. 規模大小 (Size)' },
-    { id: 'history', label: 'f. 歷史資料 (History)' },
+    { id: 'market', label: 'a. AP201_國際大盤_自動更新' },
+    { id: 'price', label: 'b. AP202_每日股價_自動更新' },
+    { id: 'basic', label: 'c. AP203_基本資料_匯入網頁' },
+    { id: 'dividend', label: 'd. AP204_除息資料_匯入網頁' },
+    { id: 'size', label: 'e. AP205_規模大小_手動輸入' },
+    { id: 'history', label: 'f. AP206_歷史資料_手動更新' },
   ];
 
   return (
@@ -147,13 +123,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ userRole, onLoginSuccess }) => 
                     <h2 className="text-lg font-bold tracking-wide">資料庫維護中心</h2>
                 </div>
                 <div className="flex items-center gap-2">
-                    <button 
-                        onClick={handleDemoData}
-                        className="bg-yellow-400 hover:bg-yellow-300 text-yellow-900 px-3 py-1.5 rounded-lg text-sm font-bold shadow-sm flex items-center gap-1 transition-all"
-                    >
-                        <Zap className="w-4 h-4" />
-                        一鍵生成測試資料
-                    </button>
                     <div className="text-sm font-medium bg-white/20 px-3 py-1 rounded-full border border-white/20">
                         總筆數: {Object.values(counts).reduce((a: number, b: number) => a + b, 0).toLocaleString()}
                     </div>
@@ -179,10 +148,12 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ userRole, onLoginSuccess }) => 
                                                 {count > 0 ? `${count.toLocaleString()} 筆` : '無資料'}
                                             </span>
                                             {status && (
-                                                <span className={`text-sm animate-in fade-in flex items-center gap-1 
+                                                <span className={`text-sm animate-in fade-in flex items-center gap-1 font-bold
                                                     ${status.type === 'success' ? 'text-primary-600' : 
-                                                      status.type === 'warning' ? 'text-amber-500' : 'text-red-500'}`}>
-                                                    • {status.msg}
+                                                      status.type === 'warning' ? 'text-amber-600' : 'text-red-500'}`}>
+                                                    {status.type === 'warning' && <AlertCircle className="w-3 h-3" />}
+                                                    {status.type === 'success' && <CheckCircle className="w-3 h-3" />}
+                                                    {status.msg}
                                                 </span>
                                             )}
                                         </div>
@@ -198,7 +169,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ userRole, onLoginSuccess }) => 
                                         value={(urls as any)[item.id]}
                                         onChange={(e) => handleInputChange(item.id, e.target.value)}
                                         className="w-full pl-9 pr-3 py-2.5 bg-primary-50/50 border border-primary-100 rounded-lg text-sm text-primary-700 font-mono focus:bg-white focus:border-primary-400 focus:ring-4 focus:ring-primary-100 outline-none transition-all"
-                                        placeholder="輸入 CSV 網址..."
+                                        placeholder="請輸入 Google Sheet CSV 連結..."
                                     />
                                 </div>
 
@@ -221,27 +192,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ userRole, onLoginSuccess }) => 
                             </div>
                         );
                     })}
-
-                    <div className="mt-8 border-t border-red-100 pt-6">
-                        <div className="flex items-center justify-between p-4 bg-red-50 rounded-lg border border-red-200">
-                            <div className="flex items-center gap-3">
-                                <div className="bg-white p-2 rounded-full shadow-sm">
-                                    <AlertTriangle className="w-6 h-6 text-red-500" />
-                                </div>
-                                <div>
-                                    <h3 className="text-base font-bold text-red-800">重置資料庫</h3>
-                                    <p className="text-sm text-red-600">清除所有本地暫存資料 (Market, Basic, Price, Dividend, History)</p>
-                                </div>
-                            </div>
-                            <button 
-                                onClick={handleClearAll}
-                                className="px-5 py-2.5 bg-white text-red-600 border border-red-200 hover:bg-red-600 hover:text-white hover:border-transparent rounded-lg font-bold transition-all shadow-sm flex items-center gap-2"
-                            >
-                                <Trash2 className="w-4 h-4" />
-                                全部清空
-                            </button>
-                        </div>
-                    </div>
                 </div>
             </div>
         </div>

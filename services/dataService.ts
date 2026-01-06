@@ -100,7 +100,11 @@ const normalizeDate = (dateVal: any): string => {
     if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return dateStr;
     const parts = dateStr.split(/[-/]/);
     if (parts.length === 3) {
-        const y = parts[0];
+        let y = parts[0];
+        // Handle 民國 year if mistakenly entered? usually just pass through 4 digits
+        if (y.length === 2 || y.length === 3) {
+             // Heuristic: if year < 1911, maybe add 1911? But safer to trust data
+        }
         const m = parts[1].padStart(2, '0');
         const d = parts[2].padStart(2, '0');
         return `${y}-${m}-${d}`;
@@ -109,7 +113,6 @@ const normalizeDate = (dateVal: any): string => {
 };
 
 // --- DATA ACCESSORS & SANITIZERS ---
-// Helper to detect if a record looks like a parsed HTML error page
 const isCorrupted = (item: any) => {
     const json = JSON.stringify(item).toLowerCase();
     return json.includes('doctype') || 
@@ -123,7 +126,6 @@ const safelyParse = <T>(json: string | null): T[] => {
     try {
         const parsed = JSON.parse(json);
         if (Array.isArray(parsed)) {
-            // Filter out corrupted rows immediately
             const valid = parsed.filter(p => !isCorrupted(p));
             return valid;
         }
@@ -220,7 +222,7 @@ const fetchGoogleSheet = async (url: string): Promise<any[]> => {
 
         const text = await response.text();
 
-        // 2. Double Check for Error Text in Body
+        // Double Check for Error Text in Body
         if (text.includes('檔案可能已遭到移動') || 
             text.includes('File might have been moved') || 
             text.includes('<!DOCTYPE html>')) {
@@ -243,15 +245,12 @@ const getProp = (row: any, ...keys: string[]) => {
         if (row[k] !== undefined) return row[k];
         const normK = k.replace(/\s+/g, '');
         if (row[normK] !== undefined) return row[normK];
+        // Handle case insensitive match
+        const lowerK = k.toLowerCase();
+        const found = Object.keys(row).find(key => key.toLowerCase() === lowerK || key.replace(/\s+/g, '').toLowerCase() === lowerK.replace(/\s+/g, ''));
+        if (found) return row[found];
     }
     return undefined;
-};
-
-// Generic Import Handler
-const genericImport = async <T>(url: string, key: string, mapper: (row: any) => T, validator: (item: T) => boolean) => {
-    const rawData = await fetchGoogleSheet(url);
-    const newItems = rawData.map(mapper).filter(validator);
-    return newItems;
 };
 
 export const importMarketData = async (url: string) => {
@@ -273,7 +272,24 @@ export const importMarketData = async (url: string) => {
 
     const existingItems = await getMarketData();
     const dataMap = new Map();
-    existingItems.concat(newItems).forEach(i => dataMap.set(`${i.indexName}_${i.date}`, i));
+    existingItems.forEach(i => dataMap.set(`${i.indexName}_${i.date}`, i));
+    
+    // Check for changes
+    let addedCount = 0;
+    newItems.forEach(i => {
+        const key = `${i.indexName}_${i.date}`;
+        if (!dataMap.has(key)) {
+            dataMap.set(key, i);
+            addedCount++;
+        } else {
+             dataMap.set(key, i); 
+        }
+    });
+
+    if (addedCount === 0 && existingItems.length === dataMap.size) {
+        return { count: existingItems.length, noChange: true };
+    }
+
     const merged = Array.from(dataMap.values()).sort((a: any,b: any) => b.date.localeCompare(a.date));
     localStorage.setItem(KEYS.MARKET, JSON.stringify(merged));
     return { count: merged.length, noChange: false };
@@ -292,6 +308,17 @@ export const importBasicInfo = async (url: string) => {
         size: 0,
         trend: ''
     })).filter(d => d.etfCode !== 'UNKNOWN');
+
+    const existingItems = await getBasicInfo();
+    const isSameLength = existingItems.length === newItems.length;
+    
+    // If length same, assume same for Basic Info to avoid constant re-write (Simple heuristic)
+    if (isSameLength && existingItems.length > 0 && newItems.length > 0) {
+         if (existingItems[0].etfCode === newItems[0].etfCode) {
+             return { count: existingItems.length, noChange: true };
+         }
+    }
+
     localStorage.setItem(KEYS.BASIC, JSON.stringify(newItems)); 
     return { count: newItems.length, noChange: false };
 };
@@ -311,7 +338,21 @@ export const importPriceData = async (url: string) => {
     
     const existingItems = await getPriceData();
     const dataMap = new Map();
-    existingItems.concat(newItems).forEach(i => dataMap.set(`${i.etfCode}_${i.date}`, i));
+    existingItems.forEach(i => dataMap.set(`${i.etfCode}_${i.date}`, i));
+    
+    let addedCount = 0;
+    newItems.forEach(i => {
+        const key = `${i.etfCode}_${i.date}`;
+        if (!dataMap.has(key)) {
+            dataMap.set(key, i);
+            addedCount++;
+        }
+    });
+
+    if (addedCount === 0 && existingItems.length === dataMap.size) {
+        return { count: existingItems.length, noChange: true };
+    }
+
     const merged = Array.from(dataMap.values()).sort((a: any,b: any) => b.date.localeCompare(a.date));
     localStorage.setItem(KEYS.PRICE, JSON.stringify(merged));
     return { count: merged.length, noChange: false };
@@ -327,15 +368,30 @@ export const importDividendData = async (url: string) => {
         amount: safeFloat(getProp(row, '除息金額', '金額')),
         paymentDate: normalizeDate(getProp(row, '股利發放', '發放日')),
         yield: 0
-    })).filter(item => item.etfCode && item.exDate);
-
-    const existingItems = await getDividendData();
-    const merged = [...existingItems, ...newItems]; 
-    const unique = Array.from(new Map(merged.map(item => [`${item.etfCode}_${item.exDate}`, item])).values());
-    unique.sort((a,b) => b.exDate.localeCompare(a.exDate));
+    })).filter(item => item.etfCode && item.exDate); 
+    // Removed strict amount check to allow 0 or null amount if that's the data issue
     
-    localStorage.setItem(KEYS.DIVIDEND, JSON.stringify(unique));
-    return { count: unique.length, noChange: false };
+    const existingItems = await getDividendData();
+    const dataMap = new Map();
+    // Unique key: Code + ExDate. 
+    existingItems.forEach(i => dataMap.set(`${i.etfCode}_${i.exDate}`, i));
+    
+    let addedCount = 0;
+    newItems.forEach(i => {
+        const key = `${i.etfCode}_${i.exDate}`;
+        if (!dataMap.has(key)) {
+            dataMap.set(key, i);
+            addedCount++;
+        }
+    });
+    
+    if (addedCount === 0 && existingItems.length === dataMap.size) {
+        return { count: existingItems.length, noChange: true };
+    }
+
+    const merged = Array.from(dataMap.values()).sort((a: any,b: any) => b.exDate.localeCompare(a.exDate));
+    localStorage.setItem(KEYS.DIVIDEND, JSON.stringify(merged));
+    return { count: merged.length, noChange: false };
 };
 
 export const importSizeData = async (url: string) => {
@@ -346,6 +402,14 @@ export const importSizeData = async (url: string) => {
         size: safeFloat(getProp(row, '規模', '規模(億)')),
         date: new Date().toISOString().split('T')[0] 
     })).filter(d => d.etfCode);
+
+    const existingItems = await getSizeData();
+    if (existingItems.length === newItems.length && existingItems.length > 0) {
+        if(existingItems[0].size === newItems[0].size) {
+            return { count: existingItems.length, noChange: true };
+        }
+    }
+
     localStorage.setItem(KEYS.SIZE, JSON.stringify(newItems));
     return { count: newItems.length, noChange: false };
 };
@@ -356,12 +420,27 @@ export const importHistoryData = async (url: string) => {
         etfCode: getProp(row, 'ETF 代碼', '代碼') || '',
         etfName: getProp(row, 'ETF 名稱', '名稱') || '',
         date: normalizeDate(getProp(row, '日期', 'Date')),
-        price: safeFloat(getProp(row, '收盤價', 'Price', 'Close'))
-    })).filter(d => d.etfCode && d.date);
+        // Added extra aliases and english checks
+        price: safeFloat(getProp(row, '收盤價', 'Price', 'Close', '收盤', '股價', 'close', 'price'))
+    })).filter(d => d.etfCode && d.date); // Removed d.price > 0 check to prevent dropping rows with 0 price (if valid)
 
     const existingItems = await getHistoryData();
     const dataMap = new Map();
-    existingItems.concat(newItems).forEach(i => dataMap.set(`${i.etfCode}_${i.date}`, i));
+    existingItems.forEach(i => dataMap.set(`${i.etfCode}_${i.date}`, i));
+    
+    let addedCount = 0;
+    newItems.forEach(i => {
+        const key = `${i.etfCode}_${i.date}`;
+        if (!dataMap.has(key)) {
+            dataMap.set(key, i);
+            addedCount++;
+        }
+    });
+
+    if (addedCount === 0 && existingItems.length === dataMap.size) {
+        return { count: existingItems.length, noChange: true };
+    }
+
     const merged = Array.from(dataMap.values()).sort((a: any,b: any) => b.date.localeCompare(a.date));
     localStorage.setItem(KEYS.HISTORY, JSON.stringify(merged));
     return { count: merged.length, noChange: false };
@@ -390,52 +469,7 @@ export const exportToCSV = (filename: string, headers: string[], data: any[]) =>
     document.body.removeChild(link);
 };
 
-// --- DEMO DATA GENERATOR ---
 export const injectDemoData = () => {
-    const market: MarketData[] = [
-        { indexName: '台灣加權', code: 'TWSE', date: '2025-05-20', price: 21500, change: 150, changePercent: 0.7, prevClose: 21350, open: 21400, high: 21600, low: 21380, volume: 450000000000, type: 'TW' },
-        { indexName: '道瓊工業', code: 'DJI', date: '2025-05-19', price: 40100, change: -50, changePercent: -0.12, prevClose: 40150, open: 40150, high: 40200, low: 40000, volume: 300000000, type: 'US' },
-        { indexName: '那斯達克', code: 'IXIC', date: '2025-05-19', price: 17800, change: 120, changePercent: 0.68, prevClose: 17680, open: 17700, high: 17850, low: 17650, volume: 500000000, type: 'US' }
-    ];
-    localStorage.setItem(KEYS.MARKET, JSON.stringify(market));
-
-    const basic: BasicInfo[] = [
-        { etfCode: '0050', etfName: '元大台灣50', category: '股票', dividendFreq: '半年配', issuer: '元大', etfType: '市值型', marketType: '上市', size: 3000, trend: '成長' },
-        { etfCode: '0056', etfName: '元大高股息', category: '股票', dividendFreq: '季配', issuer: '元大', etfType: '高息型', marketType: '上市', size: 2500, trend: '持平' },
-        { etfCode: '00878', etfName: '國泰永續高股息', category: '股票', dividendFreq: '季配', issuer: '國泰', etfType: 'ESG型', marketType: '上市', size: 2800, trend: '成長' },
-        { etfCode: '00679B', etfName: '元大美債20年', category: '債券', dividendFreq: '季配', issuer: '元大', etfType: '債券型', marketType: '上櫃', size: 1500, trend: '衰退' }
-    ];
-    localStorage.setItem(KEYS.BASIC, JSON.stringify(basic));
-
-    const prices: PriceData[] = [];
-    const codes = ['0050', '0056', '00878', '00679B'];
-    const basePrice: Record<string, number> = { '0050': 160, '0056': 40, '00878': 23, '00679B': 30 };
-    
-    for(let i=0; i<10; i++) {
-        const d = new Date();
-        d.setDate(d.getDate() - i);
-        const dateStr = d.toISOString().split('T')[0];
-        
-        codes.forEach(c => {
-            const p = basePrice[c] + (Math.random() * 2 - 1);
-            prices.push({
-                etfCode: c, etfName: basic.find(b=>b.etfCode===c)?.etfName || '', 
-                date: dateStr, price: p, prevClose: p-0.5, open: p-0.2, high: p+0.5, low: p-0.5
-            });
-        });
-    }
-    localStorage.setItem(KEYS.PRICE, JSON.stringify(prices));
-
-    const divs: DividendData[] = [
-        { etfCode: '0056', etfName: '元大高股息', yearMonth: '202504', exDate: '2025-04-18', amount: 0.79, paymentDate: '2025-05-15', yield: 0 },
-        { etfCode: '00878', etfName: '國泰永續高股息', yearMonth: '202502', exDate: '2025-02-27', amount: 0.40, paymentDate: '2025-03-25', yield: 0 }
-    ];
-    localStorage.setItem(KEYS.DIVIDEND, JSON.stringify(divs));
-
-    const sizes: SizeData[] = codes.map(c => ({
-        etfCode: c, etfName: '', size: basePrice[c] * 10, date: '2025-05-20'
-    }));
-    localStorage.setItem(KEYS.SIZE, JSON.stringify(sizes));
-
-    return { count: 5, noChange: false };
+    // Empty placeholder as user requested removal of demo button
+    console.log("Demo data injection removed.");
 }

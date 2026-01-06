@@ -5,7 +5,7 @@ import { UserRole } from './types';
 import { clearAllData } from './services/dataService';
 
 // --- SYSTEM VERSION CONTROL ---
-const APP_VERSION = 'v1.0.4'; 
+const APP_VERSION = 'V.01.0'; 
 const STORAGE_VERSION_KEY = 'app_system_version';
 
 // Placeholders
@@ -31,6 +31,9 @@ const App: React.FC = () => {
     const savedVersion = localStorage.getItem(STORAGE_VERSION_KEY);
     if (savedVersion !== APP_VERSION) {
       console.log(`Version mismatch: Local(${savedVersion}) vs App(${APP_VERSION}). Cleaning up...`);
+      // Alert user about update
+      alert(`系統更新通知 (${APP_VERSION})\n\n為了確保資料結構正確，系統將自動重整資料庫。\n請稍後重新匯入 CSV。`);
+      
       clearAllData(); 
       localStorage.setItem(STORAGE_VERSION_KEY, APP_VERSION);
       window.location.reload();
@@ -38,7 +41,6 @@ const App: React.FC = () => {
     }
 
     // B. CORRUPTION CHECK (The Recovery Mechanism)
-    // Scan critical keys for HTML error text commonly returned by Google when links expire
     const dbKeys = ['db_basic_info', 'db_market_data', 'db_price_data', 'db_dividend_data', 'db_size_data'];
     let hasCorruption = false;
     let corruptedKeys: string[] = [];
@@ -46,7 +48,6 @@ const App: React.FC = () => {
     dbKeys.forEach(key => {
         const val = localStorage.getItem(key);
         if (val) {
-            // Check for signs of HTML content inside JSON storage
             if (val.includes('<!DOCTYPE') || 
                 val.includes('<html') || 
                 val.includes('檔案可能已遭到移動') || 
@@ -112,14 +113,24 @@ const App: React.FC = () => {
     <div className="flex h-screen bg-primary-50 overflow-hidden">
       {/* Sidebar */}
       <div className={`${sidebarOpen ? 'w-60' : 'w-20'} bg-primary-900 text-white transition-all duration-300 flex flex-col shadow-2xl z-20 border-r border-primary-800`}>
-        <div className="p-5 flex items-center justify-between border-b border-primary-800">
-          <div className={`flex items-center gap-2 ${!sidebarOpen && 'hidden'}`}>
-             <span className="text-xl">📈</span>
-             <span className="font-bold text-lg tracking-wider truncate">ETF 戰情室</span>
+        <div className="p-5 border-b border-primary-800">
+          <div className={`flex flex-col ${!sidebarOpen && 'items-center'}`}>
+             <div className="flex items-center justify-between w-full mb-1">
+                 <div className={`flex items-center gap-2 ${!sidebarOpen && 'hidden'}`}>
+                    <span className="text-xl">📈</span>
+                    <span className="font-bold text-lg tracking-wider truncate">ETF 戰情室</span>
+                 </div>
+                 <button onClick={() => setSidebarOpen(!sidebarOpen)} className="p-1.5 hover:bg-primary-800 rounded-lg text-primary-200 hover:text-white">
+                    <span className="text-xl">☰</span>
+                 </button>
+             </div>
+             {/* Version Badge in Sidebar */}
+             <div className={`${!sidebarOpen && 'hidden'} px-1`}>
+                <span className="inline-block px-2 py-0.5 rounded bg-primary-800 text-primary-300 text-xs font-mono border border-primary-700">
+                    {APP_VERSION}
+                </span>
+             </div>
           </div>
-          <button onClick={() => setSidebarOpen(!sidebarOpen)} className="p-1.5 hover:bg-primary-800 rounded-lg text-primary-200 hover:text-white mx-auto md:mx-0">
-            <span className="text-xl">☰</span>
-          </button>
         </div>
         
         <div className="flex-1 overflow-y-auto py-4">
@@ -171,16 +182,15 @@ const App: React.FC = () => {
       {/* Main Content */}
       <div className="flex-1 flex flex-col h-screen overflow-hidden relative">
         <header className="bg-white shadow-sm border-b border-primary-200 p-4 flex justify-between items-center md:hidden z-10">
-            <div className="font-bold text-primary-900 text-lg">ETF 戰情室</div>
+            <div className="flex items-center gap-2">
+                <div className="font-bold text-primary-900 text-lg">ETF 戰情室</div>
+                <span className="px-1.5 py-0.5 rounded bg-primary-100 text-primary-600 text-xs font-bold">{APP_VERSION}</span>
+            </div>
             <button onClick={() => setSidebarOpen(!sidebarOpen)} className="text-primary-700"><span className="text-xl">☰</span></button>
         </header>
         <main className="flex-1 overflow-hidden relative bg-primary-50">
           {getCurrentComponent()}
         </main>
-        
-        <div className="absolute bottom-1 right-1 text-[10px] text-primary-300 pointer-events-none z-0">
-            {APP_VERSION}
-        </div>
       </div>
     </div>
   );
