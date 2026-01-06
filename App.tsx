@@ -1,9 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import AdminPanel from './components/AdminPanel';
 import TabAnalysisHub from './components/TabAnalysisHub';
 import { UserRole } from './types';
+import { clearAllData } from './services/dataService';
 // Remove imports to prevent crashes
 // import { Database, BarChart3, LogOut, Menu, UserCircle, Trophy, Download, FileSpreadsheet } from 'lucide-react';
+
+// --- SYSTEM VERSION CONTROL ---
+// 每次發布新版若涉及資料結構變更或需要強制用戶更新，請修改此版號
+const APP_VERSION = 'v1.0.2'; 
+const STORAGE_VERSION_KEY = 'app_system_version';
 
 // Placeholders for future features
 const TabPerformance = () => <div className="p-8 text-center text-primary-500 text-xl font-bold">績效分析功能區 (規劃中)</div>;
@@ -25,6 +31,21 @@ const App: React.FC = () => {
   // Navigation State
   const [activeTab, setActiveTab] = useState('ANALYSIS'); // Default to Analysis Hub
   const [sidebarOpen, setSidebarOpen] = useState(true);
+
+  // --- Version Check Effect ---
+  useEffect(() => {
+    const savedVersion = localStorage.getItem(STORAGE_VERSION_KEY);
+    if (savedVersion !== APP_VERSION) {
+      console.log(`Version mismatch: Local(${savedVersion}) vs App(${APP_VERSION}). Cleaning up...`);
+      // 1. Clear Data Cache
+      clearAllData(); 
+      // 2. Update Version
+      localStorage.setItem(STORAGE_VERSION_KEY, APP_VERSION);
+      // 3. Optional: Clear other stale keys if needed, but keep 'admin_csv_urls' for convenience if possible
+      // 4. Force specific tab or refresh if state is critical
+      // window.location.reload(); // Uncomment if a hard reload is absolutely necessary
+    }
+  }, []);
 
   const handleAdminLoginSuccess = (role: UserRole, email: string) => {
     setUserRole(role);
@@ -144,6 +165,11 @@ const App: React.FC = () => {
         <main className="flex-1 overflow-hidden relative bg-primary-50">
           {getCurrentComponent()}
         </main>
+        
+        {/* Version Indicator (Optional: Helps you debug if deployment worked) */}
+        <div className="absolute bottom-1 right-1 text-[10px] text-primary-300 pointer-events-none z-0">
+            {APP_VERSION}
+        </div>
       </div>
     </div>
   );
