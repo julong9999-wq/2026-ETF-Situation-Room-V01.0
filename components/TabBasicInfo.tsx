@@ -3,6 +3,15 @@ import { getBasicInfo, getSizeData, exportToCSV } from '../services/dataService'
 import { BasicInfo, SizeData } from '../types';
 import { Database, Download, AlertTriangle } from 'lucide-react';
 
+// Helper functions moved outside to prevent recreation
+const checkSeason = (freqStr: string | undefined, season: 'Q1'|'Q2'|'Q3') => {
+    const f = String(freqStr || '').replace(/\s/g, ''); 
+    if (season === 'Q1') return f.includes('季一') || f.includes('1,4,7,10') || f.includes('01,04,07,10');
+    if (season === 'Q2') return f.includes('季二') || f.includes('2,5,8,11') || f.includes('02,05,08,11');
+    if (season === 'Q3') return f.includes('季三') || f.includes('3,6,9,12') || f.includes('03,06,09,12');
+    return false;
+};
+
 const TabBasicInfo: React.FC = () => {
   const [data, setData] = useState<BasicInfo[]>([]);
   const [loading, setLoading] = useState(true);
@@ -74,15 +83,6 @@ const TabBasicInfo: React.FC = () => {
     return () => { mounted = false; };
   }, []);
 
-  // Safe check helper
-  const checkSeason = (freqStr: string | undefined, season: 'Q1'|'Q2'|'Q3') => {
-      const f = String(freqStr || '').replace(/\s/g, ''); 
-      if (season === 'Q1') return f.includes('季一') || f.includes('1,4,7,10') || f.includes('01,04,07,10');
-      if (season === 'Q2') return f.includes('季二') || f.includes('2,5,8,11') || f.includes('02,05,08,11');
-      if (season === 'Q3') return f.includes('季三') || f.includes('3,6,9,12') || f.includes('03,06,09,12');
-      return false;
-  };
-
   const filteredData = useMemo(() => {
       if (!Array.isArray(data)) return [];
       
@@ -91,16 +91,18 @@ const TabBasicInfo: React.FC = () => {
 
         // 1. Main Filter
         if (mainFilter !== '全部') {
+            const filterStr = (val: string | undefined) => String(val || '');
+
             if (mainFilter === '債券') {
-                result = result.filter(d => String(d.category || '').includes('債'));
+                result = result.filter(d => filterStr(d.category).includes('債'));
             } else if (mainFilter === '主動') {
-                result = result.filter(d => String(d.category || '').includes('主動') || String(d.etfType || '').includes('主動'));
+                result = result.filter(d => filterStr(d.category).includes('主動') || filterStr(d.etfType).includes('主動'));
             } else if (mainFilter === '國際') {
-                result = result.filter(d => String(d.etfType || '').includes('國際') || String(d.category || '').includes('國際'));
+                result = result.filter(d => filterStr(d.etfType).includes('國際') || filterStr(d.category).includes('國際'));
             } else if (mainFilter === '季配') {
-                result = result.filter(d => String(d.dividendFreq || '').includes('季'));
+                result = result.filter(d => filterStr(d.dividendFreq).includes('季'));
             } else if (mainFilter === '月配') {
-                result = result.filter(d => String(d.dividendFreq || '').includes('月'));
+                result = result.filter(d => filterStr(d.dividendFreq).includes('月'));
             }
         }
 

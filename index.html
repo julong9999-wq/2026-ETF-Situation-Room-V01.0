@@ -10,7 +10,6 @@
         theme: {
           extend: {
             colors: {
-              // Defined 'Blue Series' Palette
               primary: {
                 50: '#eff6ff',
                 100: '#dbeafe',
@@ -19,64 +18,47 @@
                 400: '#60a5fa',
                 500: '#3b82f6',
                 600: '#2563eb',
-                700: '#1d4ed8', // Main Brand Color
+                700: '#1d4ed8',
                 800: '#1e40af',
-                900: '#1e3a8a', // Sidebar / Deep Backgrounds
+                900: '#1e3a8a',
                 950: '#172554',
               },
               slate: {
-                // Override slate to have a slight blue tint to match the theme
                 50: '#f8fafc',
                 800: '#1e293b',
                 900: '#0f172a',
               }
             },
             fontSize: {
-              // Enforcing Minimum 16px policy
-              'xs': ['16px', '24px'],    // Force tiny text to 16px
-              'sm': ['16px', '24px'],    // Force small text to 16px
-              'base': ['18px', '28px'],  // Standard text / Slogans (18px)
-              'lg': ['20px', '28px'],    // Large text
-              'xl': ['24px', '32px'],    // Headings
-              '2xl': ['30px', '36px'],   // Main Titles
-              
-              // Custom Semantic Sizes
+              'xs': ['16px', '24px'],
+              'sm': ['16px', '24px'],
+              'base': ['18px', '28px'],
+              'lg': ['20px', '28px'],
+              'xl': ['24px', '32px'],
+              '2xl': ['30px', '36px'],
               'table-header': ['18px', '26px'],
               'table-body': ['16px', '24px'],
-              'mini': ['16px', '20px']   // Hard floor at 16px
+              'mini': ['16px', '20px']
             }
           },
         },
       }
     </script>
     <style>
-      /* Custom scrollbar for better iPad experience */
-      ::-webkit-scrollbar {
-        width: 8px;
-        height: 8px;
-      }
-      ::-webkit-scrollbar-track {
-        background: #eff6ff; 
-      }
-      ::-webkit-scrollbar-thumb {
-        background: #93c5fd; 
-        border-radius: 4px;
-      }
-      ::-webkit-scrollbar-thumb:hover {
-        background: #60a5fa; 
-      }
-      
-      body {
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-      }
+      ::-webkit-scrollbar { width: 8px; height: 8px; }
+      ::-webkit-scrollbar-track { background: #eff6ff; }
+      ::-webkit-scrollbar-thumb { background: #93c5fd; border-radius: 4px; }
+      ::-webkit-scrollbar-thumb:hover { background: #60a5fa; }
+      body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
     </style>
   <script type="importmap">
 {
   "imports": {
-    "lucide-react": "https://esm.sh/lucide-react@^0.562.0",
-    "react/": "https://esm.sh/react@^19.2.3/",
-    "react": "https://esm.sh/react@^19.2.3",
-    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+    "lucide-react": "https://esm.sh/lucide-react@0.292.0?external=react,react-dom",
+    "react/": "https://esm.sh/react@18.2.0/",
+    "react": "https://esm.sh/react@18.2.0",
+    "react-dom/": "https://esm.sh/react-dom@18.2.0/",
+    "react-dom": "https://esm.sh/react-dom@18.2.0",
     "@google/genai": "https://esm.sh/@google/genai@^1.34.0"
   }
 }
