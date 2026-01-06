@@ -20,7 +20,7 @@ const TabBasicInfo: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   
   // Filters
-  // Level 1: [全部, 季配, 月配, 債券, 主動, 國際]
+  // Level 1: [全部, 季配, 季配(主動), 月配, 債券, 主動, 國際]
   const [mainFilter, setMainFilter] = useState('全部'); 
   // Level 2: [ALL, 季一, 季二, 季三, 月配(only for bonds)]
   const [subFilter, setSubFilter] = useState('ALL'); 
@@ -87,7 +87,6 @@ const TabBasicInfo: React.FC = () => {
         let result = data;
 
         // --- 第一層過濾 (Level 1) ---
-        // 依據使用者需求：以「商品分類」為主 (債券、主動、國際)，加上常用的「配息」分組
         if (mainFilter !== '全部') {
             const getStr = (val: string | undefined) => String(val || '');
 
@@ -101,8 +100,14 @@ const TabBasicInfo: React.FC = () => {
                 // Category 或 Type 包含 "國際" 或 "國外"
                 result = result.filter(d => getStr(d.category).includes('國際') || getStr(d.etfType).includes('國際') || getStr(d.marketType).includes('國外'));
             } else if (mainFilter === '季配') {
-                // 雖然按鈕叫季配，但作為第一層分類，我們篩選所有「配息頻率」含「季」的 ETF
+                // 篩選所有「配息頻率」含「季」的 ETF
                 result = result.filter(d => getStr(d.dividendFreq).includes('季'));
+            } else if (mainFilter === '季配(主動)') {
+                // 雙重身分：頻率含「季」 AND (分類含「主動」 OR 類型含「主動」)
+                result = result.filter(d => 
+                    getStr(d.dividendFreq).includes('季') && 
+                    (getStr(d.category).includes('主動') || getStr(d.etfType).includes('主動'))
+                );
             } else if (mainFilter === '月配') {
                 // 篩選所有「配息頻率」含「月」的 ETF
                 result = result.filter(d => getStr(d.dividendFreq).includes('月'));
@@ -110,7 +115,7 @@ const TabBasicInfo: React.FC = () => {
         }
 
         // --- 第二層過濾 (Level 2) ---
-        // 只有在主按鈕是 '季配' 或 '債券' 時，使用者才會看到第二層按鈕並設定 subFilter
+        // 只有在主按鈕是 '季配' 或 '債券' 或 '季配(主動)' 時，使用者才會看到第二層按鈕並設定 subFilter
         if (subFilter !== 'ALL') {
             const freqStr = (d: BasicInfo) => String(d.dividendFreq || '');
 
@@ -155,7 +160,7 @@ const TabBasicInfo: React.FC = () => {
   }
 
   // UI Logic: When to show Sub Filters
-  const showSubFilters = mainFilter === '季配' || mainFilter === '債券';
+  const showSubFilters = mainFilter === '季配' || mainFilter === '債券' || mainFilter === '季配(主動)';
 
   if (loading) return <div className="p-8 text-center text-gray-500 flex items-center justify-center gap-2">資料載入中...</div>;
 
@@ -175,7 +180,7 @@ const TabBasicInfo: React.FC = () => {
             
             {/* Level 1: Main Buttons */}
             <div className="flex gap-1 shrink-0 bg-primary-50 p-1 rounded-lg">
-                {['全部', '季配', '月配', '債券', '主動', '國際'].map(cat => (
+                {['全部', '季配', '季配(主動)', '月配', '債券', '主動', '國際'].map(cat => (
                     <button
                         key={cat}
                         onClick={() => { setMainFilter(cat); setSubFilter('ALL'); }}
