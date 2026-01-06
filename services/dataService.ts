@@ -369,16 +369,16 @@ export const importDividendData = async (url: string) => {
         paymentDate: normalizeDate(getProp(row, '股利發放', '發放日')),
         yield: 0
     })).filter(item => item.etfCode && item.exDate); 
-    // Removed strict amount check to allow 0 or null amount if that's the data issue
     
     const existingItems = await getDividendData();
     const dataMap = new Map();
-    // Unique key: Code + ExDate. 
-    existingItems.forEach(i => dataMap.set(`${i.etfCode}_${i.exDate}`, i));
+    
+    // CRITICAL FIX: Use Code + ExDate + Amount as key to avoid deduplicating multiple entries for same day/month
+    existingItems.forEach(i => dataMap.set(`${i.etfCode}_${i.exDate}_${i.amount}`, i));
     
     let addedCount = 0;
     newItems.forEach(i => {
-        const key = `${i.etfCode}_${i.exDate}`;
+        const key = `${i.etfCode}_${i.exDate}_${i.amount}`;
         if (!dataMap.has(key)) {
             dataMap.set(key, i);
             addedCount++;
@@ -420,9 +420,9 @@ export const importHistoryData = async (url: string) => {
         etfCode: getProp(row, 'ETF 代碼', '代碼') || '',
         etfName: getProp(row, 'ETF 名稱', '名稱') || '',
         date: normalizeDate(getProp(row, '日期', 'Date')),
-        // Added extra aliases and english checks
-        price: safeFloat(getProp(row, '收盤價', 'Price', 'Close', '收盤', '股價', 'close', 'price'))
-    })).filter(d => d.etfCode && d.date); // Removed d.price > 0 check to prevent dropping rows with 0 price (if valid)
+        // Enhanced aliases for "Monthly Data" which might have different headers
+        price: safeFloat(getProp(row, '收盤價', 'Price', 'Close', '收盤', '股價', 'close', 'price', '價格'))
+    })).filter(d => d.etfCode && d.date);
 
     const existingItems = await getHistoryData();
     const dataMap = new Map();
@@ -470,6 +470,5 @@ export const exportToCSV = (filename: string, headers: string[], data: any[]) =>
 };
 
 export const injectDemoData = () => {
-    // Empty placeholder as user requested removal of demo button
     console.log("Demo data injection removed.");
 }

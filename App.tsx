@@ -5,7 +5,7 @@ import { UserRole } from './types';
 import { clearAllData } from './services/dataService';
 
 // --- SYSTEM VERSION CONTROL ---
-const APP_VERSION = 'V.01.0'; 
+const APP_VERSION = 'V.01.1'; 
 const STORAGE_VERSION_KEY = 'app_system_version';
 
 // Placeholders

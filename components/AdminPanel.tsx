@@ -27,6 +27,7 @@ interface AdminPanelProps {
   onLoginSuccess: (role: UserRole, email: string) => void;
 }
 
+// NOTE: Fill in these strings if you want to hardcode the URLs
 const DEFAULT_URLS = {
     market: '',
     price: '',
@@ -48,7 +49,11 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ userRole, onLoginSuccess }) => 
   useEffect(() => {
       const savedUrls = localStorage.getItem(URL_STORAGE_KEY);
       if (savedUrls) {
+          // Merge saved URLs with defaults, giving priority to saved ones if they exist
           setUrls({ ...DEFAULT_URLS, ...JSON.parse(savedUrls) });
+      } else {
+          // If no local storage, use defaults
+          setUrls(DEFAULT_URLS);
       }
       loadCounts();
   }, []);
