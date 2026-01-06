@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { getBasicInfo, getSizeData, exportToCSV } from '../services/dataService';
 import { BasicInfo, SizeData } from '../types';
+import { Database, Download, AlertTriangle } from 'lucide-react';
 
 const TabBasicInfo: React.FC = () => {
   const [data, setData] = useState<BasicInfo[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   
   // Filters
   const [mainFilter, setMainFilter] = useState('全部'); 
@@ -23,7 +25,7 @@ const TabBasicInfo: React.FC = () => {
             const sMap = new Map<string, SizeData[]>();
             if (Array.isArray(sizes)) {
                 sizes.forEach(s => {
-                    if (s?.etfCode) {
+                    if (s && s.etfCode) {
                         if (!sMap.has(s.etfCode)) sMap.set(s.etfCode, []);
                         sMap.get(s.etfCode)!.push(s);
                     }
@@ -32,22 +34,37 @@ const TabBasicInfo: React.FC = () => {
 
             sMap.forEach(arr => arr.sort((a,b) => (b.date || '').localeCompare(a.date || '')));
             
+            // Validate basic data is an array
             const baseList = Array.isArray(basic) ? basic : [];
-            const joined = baseList.map(b => {
+            
+            // Map and Sanitize
+            const joined: BasicInfo[] = [];
+            
+            for (const b of baseList) {
+                // Skip invalid records
+                if (!b || typeof b !== 'object' || !b.etfCode) continue;
+
                 const sizeRecs = sMap.get(b.etfCode) || [];
                 const latestSize = sizeRecs[0]?.size || 0;
                 let trend = '持平';
+                
                 if (sizeRecs.length >= 2) {
-                    const prev = sizeRecs[1].size;
+                    const prev = sizeRecs[1].size || 0;
                     if (latestSize > prev) trend = '成長';
                     else if (latestSize < prev) trend = '衰退';
                 }
-                return { ...b, size: latestSize, trend };
-            }).sort((a,b) => (a.etfCode || '').localeCompare(b.etfCode || '')); 
+                
+                joined.push({ ...b, size: latestSize, trend });
+            }
+
+            // Safe Sort
+            joined.sort((a,b) => String(a.etfCode || '').localeCompare(String(b.etfCode || '')));
             
             setData(joined);
-        } catch (e) {
-            console.error("Fetch Error:", e);
+            setError(null);
+        } catch (e: any) {
+            console.error("TabBasicInfo Fetch Error:", e);
+            setError(e.message || "資料載入失敗");
             setData([]);
         } finally {
             if (mounted) setLoading(false);
@@ -69,56 +86,74 @@ const TabBasicInfo: React.FC = () => {
   const filteredData = useMemo(() => {
       if (!Array.isArray(data)) return [];
       
-      let result = data;
+      try {
+        let result = data;
 
-      // 1. Main Filter
-      if (mainFilter !== '全部') {
-          if (mainFilter === '債券') {
-              result = result.filter(d => String(d.category || '').includes('債'));
-          } else if (mainFilter === '主動') {
-              result = result.filter(d => String(d.category || '').includes('主動') || String(d.etfType || '').includes('主動'));
-          } else if (mainFilter === '國際') {
-              result = result.filter(d => String(d.etfType || '').includes('國際') || String(d.category || '').includes('國際'));
-          } else if (mainFilter === '季配') {
-              result = result.filter(d => String(d.dividendFreq || '').includes('季'));
-          } else if (mainFilter === '月配') {
-              result = result.filter(d => String(d.dividendFreq || '').includes('月'));
-          }
-      }
+        // 1. Main Filter
+        if (mainFilter !== '全部') {
+            if (mainFilter === '債券') {
+                result = result.filter(d => String(d.category || '').includes('債'));
+            } else if (mainFilter === '主動') {
+                result = result.filter(d => String(d.category || '').includes('主動') || String(d.etfType || '').includes('主動'));
+            } else if (mainFilter === '國際') {
+                result = result.filter(d => String(d.etfType || '').includes('國際') || String(d.category || '').includes('國際'));
+            } else if (mainFilter === '季配') {
+                result = result.filter(d => String(d.dividendFreq || '').includes('季'));
+            } else if (mainFilter === '月配') {
+                result = result.filter(d => String(d.dividendFreq || '').includes('月'));
+            }
+        }
 
-      // 2. Sub Filter
-      if (subFilter !== 'ALL') {
-          if (subFilter === '月配') {
-               result = result.filter(d => String(d.dividendFreq || '').includes('月'));
-          } else if (subFilter === '季一') {
-               result = result.filter(d => checkSeason(d.dividendFreq, 'Q1'));
-          } else if (subFilter === '季二') {
-               result = result.filter(d => checkSeason(d.dividendFreq, 'Q2'));
-          } else if (subFilter === '季三') {
-               result = result.filter(d => checkSeason(d.dividendFreq, 'Q3'));
-          }
+        // 2. Sub Filter
+        if (subFilter !== 'ALL') {
+            if (subFilter === '月配') {
+                result = result.filter(d => String(d.dividendFreq || '').includes('月'));
+            } else if (subFilter === '季一') {
+                result = result.filter(d => checkSeason(d.dividendFreq, 'Q1'));
+            } else if (subFilter === '季二') {
+                result = result.filter(d => checkSeason(d.dividendFreq, 'Q2'));
+            } else if (subFilter === '季三') {
+                result = result.filter(d => checkSeason(d.dividendFreq, 'Q3'));
+            }
+        }
+        return result;
+      } catch (e) {
+        console.error("Filter Error:", e);
+        return [];
       }
-      return result;
   }, [data, mainFilter, subFilter]);
 
   const handleExport = () => {
-      const headers = ['ETF代碼', 'ETF名稱', '商品分類', '配息週期', '發行投信', 'ETF類型', '規模(億)', '規模趨勢'];
-      const csvData = filteredData.map(d => ({
-          'ETF代碼': d.etfCode || '',
-          'ETF名稱': d.etfName || '',
-          '商品分類': d.category || '',
-          '配息週期': d.dividendFreq || '',
-          '發行投信': d.issuer || '',
-          'ETF類型': d.etfType || '',
-          '規模(億)': d.size || 0,
-          '規模趨勢': d.trend || ''
-      }));
-      exportToCSV('BasicInfo', headers, csvData);
+      try {
+          const headers = ['ETF代碼', 'ETF名稱', '商品分類', '配息週期', '發行投信', 'ETF類型', '規模(億)', '規模趨勢'];
+          const csvData = filteredData.map(d => ({
+              'ETF代碼': d.etfCode || '',
+              'ETF名稱': d.etfName || '',
+              '商品分類': d.category || '',
+              '配息週期': d.dividendFreq || '',
+              '發行投信': d.issuer || '',
+              'ETF類型': d.etfType || '',
+              '規模(億)': d.size || 0,
+              '規模趨勢': d.trend || ''
+          }));
+          exportToCSV('BasicInfo', headers, csvData);
+      } catch (e) {
+          alert("匯出失敗");
+      }
   }
 
   const showSubFilters = mainFilter === '季配' || mainFilter === '債券';
   
-  if (loading) return <div className="p-4 text-gray-500">載入中...</div>;
+  if (loading) return <div className="p-8 text-center text-gray-500 flex items-center justify-center gap-2"><div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary-500"></div> 資料載入中...</div>;
+
+  if (error) return (
+      <div className="p-8 text-center text-red-500 bg-red-50 rounded-xl border border-red-200 m-4 flex flex-col items-center">
+        <AlertTriangle className="w-8 h-8 mb-2" />
+        <p className="font-bold">資料讀取發生錯誤</p>
+        <p className="text-sm mt-1 text-red-400">{error}</p>
+        <p className="text-xs mt-4 text-gray-500">請嘗試至「資料維護」重新匯入基本資料。</p>
+      </div>
+  );
 
   return (
     <div className="h-full flex flex-col p-2 space-y-2">
@@ -155,10 +190,11 @@ const TabBasicInfo: React.FC = () => {
 
         <div className="flex items-center gap-2 ml-auto shrink-0">
             <div className="flex items-center gap-1 text-primary-400 text-xs font-medium bg-primary-50 px-2 py-1 rounded border border-primary-100">
-                筆數: {filteredData.length}
+                <Database className="w-3 h-3" />
+                {filteredData.length}
             </div>
             <button onClick={handleExport} className="flex items-center gap-1 px-3 py-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-md text-sm font-bold hover:bg-emerald-100 whitespace-nowrap">
-                匯出CSV
+                <Download className="w-4 h-4" /> <span className="hidden sm:inline">匯出</span>
             </button>
         </div>
       </div>
@@ -186,14 +222,14 @@ const TabBasicInfo: React.FC = () => {
                         </td>
                     </tr>
                 ) : filteredData.map((row, index) => (
-                    <tr key={row?.etfCode || `row-${index}`} className="hover:bg-primary-50">
+                    <tr key={String(row?.etfCode) || `row-${index}`} className="hover:bg-primary-50">
                         <td className="p-3 font-mono font-bold text-primary-700">{row?.etfCode || '-'}</td>
                         <td className="p-3 font-bold text-primary-800">{row?.etfName || '-'}</td>
                         <td className="p-3"><span className="px-2 py-0.5 bg-gray-100 rounded text-xs text-gray-700 whitespace-nowrap">{row?.category || '-'}</span></td>
                         <td className="p-3 text-primary-600 whitespace-nowrap">{row?.dividendFreq || '-'}</td>
                         <td className="p-3 text-primary-600 whitespace-nowrap">{row?.issuer || '-'}</td>
                         <td className="p-3 text-primary-600 whitespace-nowrap">{row?.etfType || '-'}</td>
-                        <td className="p-3 text-right font-mono font-bold text-primary-800">{row?.size ? row.size.toLocaleString() : '0'}</td>
+                        <td className="p-3 text-right font-mono font-bold text-primary-800">{typeof row?.size === 'number' ? row.size.toLocaleString() : '0'}</td>
                         <td className="p-3">
                             <span className={`px-2 py-0.5 rounded text-xs font-bold whitespace-nowrap ${
                                 row?.trend === '成長' ? 'bg-red-100 text-red-700' : 
