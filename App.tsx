@@ -2,16 +2,8 @@ import React, { useState } from 'react';
 import AdminPanel from './components/AdminPanel';
 import TabAnalysisHub from './components/TabAnalysisHub';
 import { UserRole } from './types';
-import { 
-  Database, 
-  BarChart3, 
-  LogOut, 
-  Menu, 
-  UserCircle,
-  Trophy,
-  Download,
-  FileSpreadsheet
-} from 'lucide-react';
+// Remove imports to prevent crashes
+// import { Database, BarChart3, LogOut, Menu, UserCircle, Trophy, Download, FileSpreadsheet } from 'lucide-react';
 
 // Placeholders for future features
 const TabPerformance = () => <div className="p-8 text-center text-primary-500 text-xl font-bold">績效分析功能區 (規劃中)</div>;
@@ -21,7 +13,7 @@ const TabExport = () => <div className="p-8 text-center text-primary-500 text-xl
 type NavItem = {
   id: string;
   name: string;
-  icon: any;
+  icon: string; // Changed to string for emoji
   component: React.ReactNode;
 };
 
@@ -49,25 +41,25 @@ const App: React.FC = () => {
     {
       id: 'MAINTENANCE',
       name: '資料維護',
-      icon: Database,
+      icon: '🛠️',
       component: <AdminPanel userRole={userRole} onLoginSuccess={handleAdminLoginSuccess} />
     },
     {
       id: 'ANALYSIS',
       name: '資料分析',
-      icon: BarChart3,
+      icon: '📊',
       component: <TabAnalysisHub />
     },
     {
       id: 'PERFORMANCE',
       name: '績效分析',
-      icon: Trophy,
+      icon: '🏆',
       component: <TabPerformance />
     },
     {
       id: 'EXPORT',
       name: '表單匯出',
-      icon: Download,
+      icon: '📥',
       component: <TabExport />
     }
   ];
@@ -85,11 +77,11 @@ const App: React.FC = () => {
         {/* Sidebar Header */}
         <div className="p-5 flex items-center justify-between border-b border-primary-800">
           <div className={`flex items-center gap-2 ${!sidebarOpen && 'hidden'}`}>
-             <FileSpreadsheet className="w-6 h-6 text-primary-300" />
+             <span className="text-xl">📈</span>
              <span className="font-bold text-lg tracking-wider truncate">ETF 戰情室</span>
           </div>
           <button onClick={() => setSidebarOpen(!sidebarOpen)} className="p-1.5 hover:bg-primary-800 rounded-lg text-primary-200 hover:text-white mx-auto md:mx-0">
-            <Menu className="w-5 h-5" />
+            <span className="text-xl">☰</span>
           </button>
         </div>
         
@@ -97,7 +89,6 @@ const App: React.FC = () => {
         <div className="flex-1 overflow-y-auto py-4">
           <nav className="space-y-1.5 px-2">
             {navItems.map((item) => {
-              const Icon = item.icon;
               const isActive = activeTab === item.id;
               
               return (
@@ -110,7 +101,7 @@ const App: React.FC = () => {
                       : 'text-primary-200 hover:bg-primary-800 hover:text-white border border-transparent'
                   } ${!sidebarOpen && 'justify-center'}`}
                 >
-                  <Icon className={`w-5 h-5 ${sidebarOpen ? 'mr-3' : ''}`} />
+                  <span className={`text-lg ${sidebarOpen ? 'mr-3' : ''}`}>{item.icon}</span>
                   {sidebarOpen && <span className="text-base font-bold tracking-wide">{item.name}</span>}
                 </button>
               );
@@ -122,7 +113,7 @@ const App: React.FC = () => {
         <div className="p-4 border-t border-primary-800 bg-primary-950/50">
             <div className={`flex items-center ${sidebarOpen ? '' : 'justify-center'}`}>
                 <div className={`w-8 h-8 rounded-full bg-primary-700 flex items-center justify-center border border-primary-600 ${!sidebarOpen && 'mb-2'}`}>
-                    <UserCircle className="w-5 h-5 text-primary-100" />
+                    <span className="text-sm">👤</span>
                 </div>
                 {sidebarOpen && (
                     <div className="ml-2.5 overflow-hidden">
@@ -136,7 +127,7 @@ const App: React.FC = () => {
                     onClick={handleLogout}
                     className={`mt-3 w-full flex items-center justify-center p-2 rounded-lg hover:bg-red-900/50 text-red-300 hover:text-white transition-colors border border-transparent hover:border-red-900 ${!sidebarOpen && 'mt-1'}`}
                  >
-                    <LogOut className="w-4 h-4" />
+                    <span className="text-sm">🚪</span>
                     {sidebarOpen && <span className="ml-2 text-sm font-medium">登出</span>}
                  </button>
              )}
@@ -148,7 +139,7 @@ const App: React.FC = () => {
         {/* Mobile Header */}
         <header className="bg-white shadow-sm border-b border-primary-200 p-4 flex justify-between items-center md:hidden z-10">
             <div className="font-bold text-primary-900 text-lg">ETF 戰情室</div>
-            <button onClick={() => setSidebarOpen(!sidebarOpen)} className="text-primary-700"><Menu className="w-6 h-6" /></button>
+            <button onClick={() => setSidebarOpen(!sidebarOpen)} className="text-primary-700"><span className="text-xl">☰</span></button>
         </header>
         <main className="flex-1 overflow-hidden relative bg-primary-50">
           {getCurrentComponent()}
