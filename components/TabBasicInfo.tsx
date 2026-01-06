@@ -15,16 +15,17 @@ const TabBasicInfo: React.FC = () => {
   useEffect(() => {
     const fetchData = async () => {
         try {
-            const basic = await getBasicInfo();
-            const sizes = await getSizeData();
+            const basic = await getBasicInfo() || [];
+            const sizes = await getSizeData() || [];
             
-            // Safe map creation
+            // Safe map creation with checks
             const sMap = new Map<string, SizeData[]>();
             if (Array.isArray(sizes)) {
                 sizes.forEach(s => {
-                    if (!s.etfCode) return;
-                    if (!sMap.has(s.etfCode)) sMap.set(s.etfCode, []);
-                    sMap.get(s.etfCode)!.push(s);
+                    if (s && s.etfCode) {
+                        if (!sMap.has(s.etfCode)) sMap.set(s.etfCode, []);
+                        sMap.get(s.etfCode)!.push(s);
+                    }
                 });
             }
 
@@ -41,20 +42,21 @@ const TabBasicInfo: React.FC = () => {
                         else if (latestSize < prev) trend = '衰退';
                     }
                     return { ...b, size: latestSize, trend };
-                }).sort((a,b) => a.etfCode.localeCompare(b.etfCode)); 
+                }).sort((a,b) => (a.etfCode || '').localeCompare(b.etfCode || '')); 
                 setData(joined);
             }
         } catch (e) {
-            console.error("Data Load Error:", e);
+            console.error("TabBasicInfo Data Fetch Error:", e);
+            // Fallback to empty array to prevent crash
+            setData([]);
         }
     };
     fetchData();
   }, []);
 
-  // Safe check helper for Seasons
-  const checkSeason = (freqStr: string, season: 'Q1'|'Q2'|'Q3') => {
-      if (!freqStr) return false;
-      const f = freqStr.replace(/\s/g, ''); // clean spaces
+  // Safe check helper for Seasons - Converts input to string to prevent crashes
+  const checkSeason = (freqStr: string | undefined, season: 'Q1'|'Q2'|'Q3') => {
+      const f = String(freqStr || '').replace(/\s/g, ''); 
       
       if (season === 'Q1') {
           return f.includes('季一') || f.includes('1,4,7,10') || f.includes('01,04,07,10');
@@ -69,27 +71,29 @@ const TabBasicInfo: React.FC = () => {
   };
 
   const getFilteredData = () => {
+      if (!Array.isArray(data)) return [];
+      
       let result = data;
 
-      // 1. Main Filter Logic
+      // 1. Main Filter Logic - Defensive coding with String() casting
       if (mainFilter !== '全部') {
           if (mainFilter === '債券') {
-              result = result.filter(d => (d.category || '').includes('債'));
+              result = result.filter(d => String(d.category || '').includes('債'));
           } else if (mainFilter === '主動') {
-              result = result.filter(d => (d.category || '').includes('主動') || (d.etfType || '').includes('主動'));
+              result = result.filter(d => String(d.category || '').includes('主動') || String(d.etfType || '').includes('主動'));
           } else if (mainFilter === '國際') {
-              result = result.filter(d => (d.etfType || '').includes('國際') || (d.category || '').includes('國際'));
+              result = result.filter(d => String(d.etfType || '').includes('國際') || String(d.category || '').includes('國際'));
           } else if (mainFilter === '季配') {
-              result = result.filter(d => (d.dividendFreq || '').includes('季'));
+              result = result.filter(d => String(d.dividendFreq || '').includes('季'));
           } else if (mainFilter === '月配') {
-              result = result.filter(d => (d.dividendFreq || '').includes('月'));
+              result = result.filter(d => String(d.dividendFreq || '').includes('月'));
           }
       }
 
       // 2. Sub Filter Logic
       if (subFilter !== 'ALL') {
           if (subFilter === '月配') {
-               result = result.filter(d => (d.dividendFreq || '').includes('月'));
+               result = result.filter(d => String(d.dividendFreq || '').includes('月'));
           } else if (subFilter === '季一') {
                result = result.filter(d => checkSeason(d.dividendFreq, 'Q1'));
           } else if (subFilter === '季二') {
@@ -104,20 +108,17 @@ const TabBasicInfo: React.FC = () => {
   const filteredData = getFilteredData();
 
   const handleExport = () => {
-      // Headers strictly matching the table columns
       const headers = ['ETF代碼', 'ETF名稱', '商品分類', '配息週期', '發行投信', 'ETF類型', '規模(億)', '規模趨勢'];
-      
       const csvData = filteredData.map(d => ({
-          'ETF代碼': d.etfCode,
-          'ETF名稱': d.etfName,
-          '商品分類': d.category,
-          '配息週期': d.dividendFreq,
-          '發行投信': d.issuer,
-          'ETF類型': d.etfType,
-          '規模(億)': d.size,
-          '規模趨勢': d.trend
+          'ETF代碼': d.etfCode || '',
+          'ETF名稱': d.etfName || '',
+          '商品分類': d.category || '',
+          '配息週期': d.dividendFreq || '',
+          '發行投信': d.issuer || '',
+          'ETF類型': d.etfType || '',
+          '規模(億)': d.size || 0,
+          '規模趨勢': d.trend || ''
       }));
-
       exportToCSV('BasicInfo', headers, csvData);
   }
 
@@ -218,8 +219,8 @@ const TabBasicInfo: React.FC = () => {
                             無符合條件的資料。
                         </td>
                     </tr>
-                ) : filteredData.map(row => (
-                    <tr key={row.etfCode} className="hover:bg-primary-50">
+                ) : filteredData.map((row, index) => (
+                    <tr key={row.etfCode || index} className="hover:bg-primary-50">
                         <td className="p-3 font-mono font-bold text-primary-700">{row.etfCode}</td>
                         <td className="p-3 font-bold text-primary-800">{row.etfName}</td>
                         <td className="p-3"><span className="px-2 py-0.5 bg-gray-100 rounded text-xs text-gray-700 whitespace-nowrap">{row.category}</span></td>
