@@ -1,6 +1,22 @@
 import { GoogleGenAI } from "@google/genai";
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// Lazy initialization helper
+// This prevents "process is not defined" crashes during initial module load in browsers
+const getAiClient = () => {
+  // Safe access to process.env
+  let apiKey = '';
+  try {
+    if (typeof process !== 'undefined' && process.env) {
+      apiKey = process.env.API_KEY || '';
+    }
+  } catch (e) {
+    console.warn("Could not access process.env");
+  }
+
+  // If no key is found, we can't really use the API, but we initialize to avoid crash,
+  // knowing calls will fail with a clear error later.
+  return new GoogleGenAI({ apiKey: apiKey || 'MISSING_API_KEY' });
+};
 
 export const analyzeMarketTrend = async (data: any[]): Promise<string> => {
   try {
@@ -13,6 +29,7 @@ export const analyzeMarketTrend = async (data: any[]): Promise<string> => {
       Data: ${dataSample}
     `;
 
+    const ai = getAiClient();
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: prompt,
@@ -21,7 +38,7 @@ export const analyzeMarketTrend = async (data: any[]): Promise<string> => {
     return response.text || "無法產生分析結果。";
   } catch (error) {
     console.error("Gemini API Error:", error);
-    return "分析服務暫時無法使用，請檢查 API KEY。";
+    return "分析服務暫時無法使用 (Check API Key)。";
   }
 };
 
@@ -42,6 +59,7 @@ export const assessProjectPlan = async (planText: string): Promise<string> => {
       Use bullet points.
     `;
 
+    const ai = getAiClient();
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: prompt,

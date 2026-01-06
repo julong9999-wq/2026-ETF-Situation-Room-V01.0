@@ -6,6 +6,17 @@
     <title>ETF Master Dashboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
+      // POLYFILL: Fix for "process is not defined" error on Vercel/Browser environments
+      window.process = {
+        env: {
+          NODE_ENV: 'production',
+          // If you have Vercel Env Vars, they usually need to be injected during build time.
+          // For client-side strict mode, we default to empty to prevent crashes.
+          API_KEY: '' 
+        }
+      };
+    </script>
+    <script>
       tailwind.config = {
         theme: {
           extend: {

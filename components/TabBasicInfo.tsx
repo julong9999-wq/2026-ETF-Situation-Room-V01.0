@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { getBasicInfo, getSizeData, exportToCSV } from '../services/dataService';
 import { BasicInfo, SizeData } from '../types';
-import { Database, Download, AlertTriangle } from 'lucide-react';
+// Icons removed to prevent potential crash, using text/emoji fallbacks
+// import { Database, Download, AlertTriangle } from 'lucide-react';
 
 // Helper functions moved outside to prevent recreation
 const checkSeason = (freqStr: string | undefined, season: 'Q1'|'Q2'|'Q3') => {
@@ -150,7 +151,7 @@ const TabBasicInfo: React.FC = () => {
 
   if (error) return (
       <div className="p-8 text-center text-red-500 bg-red-50 rounded-xl border border-red-200 m-4 flex flex-col items-center">
-        <AlertTriangle className="w-8 h-8 mb-2" />
+        <span className="text-2xl mb-2">⚠️</span>
         <p className="font-bold">資料讀取發生錯誤</p>
         <p className="text-sm mt-1 text-red-400">{error}</p>
         <p className="text-xs mt-4 text-gray-500">請嘗試至「資料維護」重新匯入基本資料。</p>
@@ -192,11 +193,11 @@ const TabBasicInfo: React.FC = () => {
 
         <div className="flex items-center gap-2 ml-auto shrink-0">
             <div className="flex items-center gap-1 text-primary-400 text-xs font-medium bg-primary-50 px-2 py-1 rounded border border-primary-100">
-                <Database className="w-3 h-3" />
+                <span className="font-bold">Count:</span>
                 {filteredData.length}
             </div>
             <button onClick={handleExport} className="flex items-center gap-1 px-3 py-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-md text-sm font-bold hover:bg-emerald-100 whitespace-nowrap">
-                <Download className="w-4 h-4" /> <span className="hidden sm:inline">匯出</span>
+                <span className="font-bold">↓ 匯出</span>
             </button>
         </div>
       </div>
