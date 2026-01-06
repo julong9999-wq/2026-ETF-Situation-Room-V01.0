@@ -12,18 +12,18 @@ const KEYS = {
 
 // --- SYSTEM DEFAULTS (HARDCODED URLs) ---
 export const DEFAULT_SYSTEM_URLS = {
-    // AP211 (TW) + AP212 (US)
-    market: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQ825Haq0XnlX_UDCtnyd5t94U943OJ_sCJdLj2-6XfbWT4KkLaQ-RWBL_esd4HHaQGJTW3hOV2qtax/pub?gid=779&single=true&output=csv|https://docs.google.com/spreadsheets/d/e/2PACX-1vRuulQ6E-VFeNU6otpWOOlZQOwcG8ybE0EdR_RooQLW1VYi6Xhtcl4KnADees6YIALU29jmBIODPeQQ/pub?gid=7&single=true&output=csv',
-    // AP213 (Price)
-    price: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQaRkESbt4XfeC9uNf56p38DwscoPK0-eFM3J4-Vz8LeVBdgsClDZy0baU-FHyFv5cz-QNCXUVMwBfr/pub?gid=46229&single=true&output=csv',
-    // AP214 (Basic)
-    basic: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTc6ZANKmAJQCXC9k7np_elHAwC2hF_w9KSpseD0qogcPP0I2rPphtesNEbHvg48b_tLh9qeu4tr21Q/pub?output=csv',
-    // AP215 (Dividend)
-    dividend: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vR5JvOGT3eB4xq9phw2dXHAPJKOgQkUZcs69CsJfL0Iw3s6egADwA8HdbimrWUceQZl_73pnsSLVnQw/pub?output=csv',
+    // AP211 (TW) + AP212 (US) - Combined
+    market: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQ825Haq0XnIX_UDCtnyd5t94U943OJ_sCJdLj2-6XfbWT4KkLaQ-RWBL_esd4HHaQGJTW3hOV2qtax/pub?gid=779511679&single=true&output=csv|https://docs.google.com/spreadsheets/d/e/2PACX-1vRuulQ6E-VFeNU6otpWOOIZQOwcG8ybE0EdR_RooQLW1VYi6Xhtcl4KnADees6YIALU29jmBlODPeQQ/pub?gid=779511679&single=true&output=csv',
+    // AP213 (Price) - Updated GID 462296829
+    price: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQaRKeSBt4XfeC9uNf56p38DwscoPK0-eFM3J4-Vz8LeVBdgsClDZy0baU-FHyFv5cz-QNCXUVMwBfr/pub?gid=462296829&single=true&output=csv',
+    // AP214 (Basic) - Updated Link
+    basic: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTc6ZANKmAJQCXC9k7np_eIhAwC2hF_w9KSpseD0qogcPP0I2rPPhtesNEbHvG48b_tLh9qeu4tr21Q/pub?output=csv',
+    // AP215 (Dividend) - Updated Link
+    dividend: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vR5JvOGT3eB4xq9phw2dXHApJKOgQkUZcs69CsJfL0Iw3s6egADwA8HdbimrWUceQZl_73pnsSLVnQw/pub?output=csv',
     // AP216 (Size)
     size: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTV4TXRt6GUxvN7ZPQYMfSMzaBskjCLKUQbHOJcOcyCBMwyrDYCbHK4MghK8N-Cfp_we_LkvV-bz9zg/pub?output=csv',
-    // AP217 (History)
-    history: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQJKO3upGfGOWStHGuktl2c0ULLQrysCe-B2qbSl3HwgZA1x8ZFekV7Vl_XeSolnKGiyoJD88iAB3q3/pub?output=csv'
+    // AP217 (History) - Updated Link
+    history: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQJKO3upGfGOWStHGuktI2c0ULLQrysCe-B2qbSl3HwgZA1x8ZFekV7Vl_XeSoInKGiyoJD88iAB3q3/pub?output=csv'
 };
 
 // --- HELPER: ROBUST CSV PARSER ---

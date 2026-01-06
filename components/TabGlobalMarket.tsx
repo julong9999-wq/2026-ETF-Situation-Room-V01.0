@@ -37,25 +37,44 @@ const TabGlobalMarket: React.FC = () => {
     });
   }, []);
 
+  // Robust Detection Helpers
+  const isTaiwanStock = (name: string, type: string) => {
+      // Check Name first, then Type
+      const n = name.toLowerCase();
+      if (n.includes('加權') || n.includes('櫃買') || n.includes('taiwan') || n.includes('twse') || n.includes('tpex')) return true;
+      if (type === 'TW' && !isUSStock(name, type)) return true;
+      return false;
+  };
+
+  const isUSStock = (name: string, type: string) => {
+      const n = name.toLowerCase();
+      if (n.includes('道瓊') || n.includes('dow')) return true;
+      if (n.includes('那斯') || n.includes('nasdaq')) return true;
+      if (n.includes('費城') || n.includes('費半') || n.includes('sox') || n.includes('semiconductor')) return true;
+      if (n.includes('標普') || n.includes('s&p') || n.includes('spx')) return true;
+      if (type === 'US') return true;
+      return false;
+  };
+
   const getFilteredData = () => {
     return data.filter(item => {
         const name = item.indexName || '';
+        const type = item.type || '';
         
         // 1. Main Filter Logic
         if (mainFilter === 'TW') {
-            const isTaiex = name.includes('加權');
-            const isTW = item.type === 'TW';
-            if (!isTaiex && !isTW) return false;
+            if (!isTaiwanStock(name, type)) return false;
         }
         
         if (mainFilter === 'US') {
-            if (item.type !== 'US' && !name.match(/[a-zA-Z]/)) return false; 
+            if (!isUSStock(name, type)) return false;
             
             if (usSubFilter !== '全部') {
-                if (usSubFilter === '道瓊' && !name.includes('道瓊') && !name.includes('Dow')) return false;
-                if (usSubFilter === '那斯' && !name.includes('那斯達克') && !name.includes('Nasdaq')) return false;
-                if (usSubFilter === '費半' && !name.includes('費城') && !name.includes('SOX') && !name.includes('Semiconductor')) return false;
-                if (usSubFilter === '標普' && !name.includes('S&P') && !name.includes('標普') && !name.includes('SPX')) return false;
+                const n = name.toLowerCase();
+                if (usSubFilter === '道瓊' && !n.includes('道瓊') && !n.includes('dow')) return false;
+                if (usSubFilter === '那斯' && !n.includes('那斯') && !n.includes('nasdaq')) return false;
+                if (usSubFilter === '費半' && !n.includes('費城') && !n.includes('sox') && !n.includes('semi')) return false;
+                if (usSubFilter === '標普' && !n.includes('s&p') && !n.includes('標普') && !n.includes('spx')) return false;
             }
         }
         
@@ -67,11 +86,12 @@ const TabGlobalMarket: React.FC = () => {
       }).sort((a, b) => {
         if (mainFilter === 'US') {
             if (a.date !== b.date) return b.date.localeCompare(a.date);
-            const getRank = (n: string) => {
-                if (n.includes('道瓊')) return 1;
-                if (n.includes('那斯達克')) return 2;
-                if (n.includes('S&P') || n.includes('標普')) return 3; 
-                if (n.includes('費城')) return 4;
+            const getRank = (nStr: string) => {
+                const n = nStr.toLowerCase();
+                if (n.includes('道瓊') || n.includes('dow')) return 1;
+                if (n.includes('那斯') || n.includes('nasdaq')) return 2;
+                if (n.includes('s&p') || n.includes('標普')) return 3; 
+                if (n.includes('費城') || n.includes('sox')) return 4;
                 return 5;
             };
             return getRank(a.indexName) - getRank(b.indexName);
@@ -118,11 +138,11 @@ const TabGlobalMarket: React.FC = () => {
       // This solves the timezone issue where TW is Day N and US is Day N-1
       
       const targets = [
-          { name: '台灣加權', matcher: (d: MarketData) => d.type === 'TW' || d.indexName.includes('加權') },
-          { name: '道瓊工業', matcher: (d: MarketData) => d.indexName.includes('道瓊') || d.indexName.includes('Dow') },
-          { name: '那斯達克', matcher: (d: MarketData) => d.indexName.includes('那斯達克') || d.indexName.includes('Nasdaq') },
-          { name: '費城半導體', matcher: (d: MarketData) => d.indexName.includes('費城') || d.indexName.includes('SOX') || d.indexName.includes('Semiconductor') },
-          { name: 'S&P 500', matcher: (d: MarketData) => d.indexName.includes('S&P') || d.indexName.includes('標普') || d.indexName.includes('SPX') }
+          { name: '台灣加權', matcher: (d: MarketData) => isTaiwanStock(d.indexName, d.type) },
+          { name: '道瓊工業', matcher: (d: MarketData) => (d.indexName.includes('道瓊') || d.indexName.includes('Dow')) },
+          { name: '那斯達克', matcher: (d: MarketData) => (d.indexName.includes('那斯達克') || d.indexName.includes('Nasdaq')) },
+          { name: '費城半導體', matcher: (d: MarketData) => (d.indexName.includes('費城') || d.indexName.includes('SOX') || d.indexName.includes('Semiconductor')) },
+          { name: 'S&P 500', matcher: (d: MarketData) => (d.indexName.includes('S&P') || d.indexName.includes('標普') || d.indexName.includes('SPX')) }
       ];
 
       const results: MarketData[] = [];
