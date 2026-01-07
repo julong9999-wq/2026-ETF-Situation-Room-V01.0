@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { getPriceData, getBasicInfo, exportToCSV } from '../services/dataService';
-import { PriceData, BasicInfo } from '../types';
-import { ChevronRight, Info, Download, Database, TrendingUp, TrendingDown, X } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { getPriceData, getBasicInfo, getHistoryData, getFillAnalysisData, exportToCSV } from '../services/dataService';
+import { PriceData, BasicInfo, HistoryData, FillAnalysisData } from '../types';
+import { ChevronRight, Info, Download, Database, TrendingUp, TrendingDown, X, Calendar, CheckCircle2 } from 'lucide-react';
 
 interface TabPricesProps {
     mainFilter?: string;
@@ -19,6 +19,27 @@ const checkSeason = (freqStr: string | undefined, season: 'Q1'|'Q2'|'Q3') => {
     return false;
 };
 
+// Visual Design Helper for Price Tab List Rows
+const getRowColor = (freq: string | undefined, isSelected: boolean) => {
+    const f = String(freq || '');
+    let baseClass = 'bg-gray-100 text-gray-600 border-gray-200'; // Default (Half/Year/None)
+
+    if (f.includes('季一') || f.includes('1,4,7,10') || (f.includes('1') && f.includes('4'))) {
+        baseClass = 'bg-blue-100 text-blue-900 border-blue-200'; // Light Blue
+    } else if (f.includes('季二') || f.includes('2,5,8,11') || (f.includes('2') && f.includes('5'))) {
+        baseClass = 'bg-green-100 text-green-900 border-green-200'; // Light Green
+    } else if (f.includes('季三') || f.includes('3,6,9,12') || (f.includes('3') && f.includes('6'))) {
+        baseClass = 'bg-orange-100 text-orange-900 border-orange-200'; // Light Orange
+    } else if (f.includes('月')) {
+        baseClass = 'bg-amber-100 text-amber-900 border-amber-200'; // Light Tea (Amber)
+    }
+
+    if (isSelected) {
+        return `${baseClass} ring-2 ring-inset ring-primary-500 font-bold shadow-md transform scale-[1.01] z-10`;
+    }
+    return `${baseClass} hover:opacity-90`;
+};
+
 const TabPrices: React.FC<TabPricesProps> = ({ 
     mainFilter = '全部', 
     subFilter = 'ALL', 
@@ -26,7 +47,9 @@ const TabPrices: React.FC<TabPricesProps> = ({
     setSubFilter = (_v: string) => {} 
 }) => {
   const [priceData, setPriceData] = useState<PriceData[]>([]);
+  const [historyData, setHistoryData] = useState<HistoryData[]>([]);
   const [basicInfo, setBasicInfo] = useState<BasicInfo[]>([]);
+  const [fillData, setFillData] = useState<FillAnalysisData[]>([]); // New state for fill analysis
   const [selectedEtf, setSelectedEtf] = useState<string | null>(null);
 
   const [startDate, setStartDate] = useState('');
@@ -34,21 +57,24 @@ const TabPrices: React.FC<TabPricesProps> = ({
   const [showRecentModal, setShowRecentModal] = useState(false);
 
   useEffect(() => {
-    Promise.all([getPriceData(), getBasicInfo()]).then(([p, b]) => {
+    Promise.all([getPriceData(), getBasicInfo(), getHistoryData(), getFillAnalysisData()]).then(([p, b, h, f]) => {
         setPriceData(p);
         setBasicInfo(b);
+        setHistoryData(h);
+        setFillData(f);
+
         if (p.length > 0) {
              const sorted = [...p].sort((a,b) => b.date.localeCompare(a.date));
              const latest = sorted[0].date;
              if (latest && !isNaN(new Date(latest).getTime())) {
                 setEndDate(latest);
                 const start = new Date(latest);
-                start.setDate(start.getDate() - 20);
+                start.setDate(start.getDate() - 30); // Default show last 30 days
                 setStartDate(start.toISOString().split('T')[0]);
              } else {
                 const end = new Date();
                 const start = new Date();
-                start.setDate(end.getDate() - 20);
+                start.setDate(end.getDate() - 30);
                 setEndDate(end.toISOString().split('T')[0]);
                 setStartDate(start.toISOString().split('T')[0]);
              }
@@ -56,12 +82,10 @@ const TabPrices: React.FC<TabPricesProps> = ({
     });
   }, []);
 
-  const getFilteredMasterList = () => {
-      // 1. Filter BasicInfo using the exact logic from TabBasicInfo
+  const filteredMaster = useMemo(() => {
       let result = basicInfo;
       const getStr = (val: string | undefined) => String(val || '');
 
-      // Apply Main Filter
       if (mainFilter !== '全部') {
           if (mainFilter === '債券') {
               result = result.filter(d => getStr(d.category).includes('債'));
@@ -72,11 +96,14 @@ const TabPrices: React.FC<TabPricesProps> = ({
           } else if (mainFilter === '主動') {
               result = result.filter(d => getStr(d.category).includes('主動') || getStr(d.etfType).includes('主動') || getStr(d.etfName).includes('主動'));
           } else if (mainFilter === '國際') {
-              result = result.filter(d => getStr(d.category).includes('國際') || getStr(d.etfType).includes('國際') || getStr(d.marketType).includes('國外'));
+               // FORCE 00911 to be in International
+              result = result.filter(d => d.etfCode === '00911' || getStr(d.category).includes('國際') || getStr(d.etfType).includes('國際') || getStr(d.marketType).includes('國外'));
+          } else if (mainFilter === '半年') {
+               // EXCLUDE 00911 from Half-Year
+              result = result.filter(d => d.etfCode !== '00911' && (getStr(d.category).includes('半年') || getStr(d.dividendFreq).includes('半年')));
           }
       }
 
-      // Apply Sub Filter
       if (subFilter !== 'ALL') {
           const freqStr = (d: BasicInfo) => String(d.dividendFreq || '');
           if (subFilter === '季一') result = result.filter(d => checkSeason(freqStr(d), 'Q1'));
@@ -88,39 +115,138 @@ const TabPrices: React.FC<TabPricesProps> = ({
           else if (subFilter === '無配') result = result.filter(d => freqStr(d).includes('不') || freqStr(d) === '' || freqStr(d).includes('無'));
       }
 
-      // 2. Filter valid codes that have price data
-      return result.filter(b => priceData.some(p => p.etfCode === b.etfCode)).sort((a,b) => a.etfCode.localeCompare(b.etfCode));
-  };
-  const filteredMaster = getFilteredMasterList();
+      const validCodes = new Set([
+          ...priceData.map(p => p.etfCode),
+          ...historyData.map(h => h.etfCode)
+      ]);
+
+      return result.filter(b => validCodes.has(b.etfCode)).sort((a,b) => a.etfCode.localeCompare(b.etfCode));
+  }, [basicInfo, mainFilter, subFilter, priceData, historyData]);
+
+  // AUTO-SELECT FIRST ETF ON FILTER CHANGE
+  useEffect(() => {
+      if (filteredMaster.length > 0) {
+          // Select the first one whenever the filtered list changes content
+          setSelectedEtf(filteredMaster[0].etfCode);
+      } else {
+          setSelectedEtf(null);
+      }
+  }, [filteredMaster]);
+
+  // Create a memoized lookup for Special Dates (Ex-Dividend & Fill)
+  const specialDateMap = useMemo(() => {
+      interface DateInfo {
+          isEx: boolean;
+          exInfo?: { amt: number; prePrice: number|string; refPrice: number|string };
+          isFill: boolean;
+          fillInfo?: { days: number|string; prePrice: number|string };
+      }
+
+      const map = new Map<string, DateInfo>();
+      if (!selectedEtf) return map;
+
+      const etfFills = fillData.filter(f => f.etfCode === selectedEtf);
+      etfFills.forEach(f => {
+          // Ex-Date Info
+          if (f.exDate) {
+              const prev = map.get(f.exDate) || { isEx: false, isFill: false };
+              map.set(f.exDate, { 
+                  ...prev, 
+                  isEx: true, 
+                  exInfo: { amt: f.amount, prePrice: f.pricePreEx, refPrice: f.priceReference } 
+              });
+          }
+          // Fill-Date Info
+          if (f.isFilled && f.fillDate) {
+              const prev = map.get(f.fillDate) || { isEx: false, isFill: false };
+              map.set(f.fillDate, { 
+                  ...prev, 
+                  isFill: true, 
+                  fillInfo: { days: f.daysToFill, prePrice: f.pricePreEx } 
+              });
+          }
+      });
+      return map;
+  }, [selectedEtf, fillData]);
 
   const getDetailData = () => {
       if (!selectedEtf) return [];
-      return priceData.filter(d => {
-          if (d.etfCode !== selectedEtf) return false;
+      
+      const daily = priceData.filter(d => d.etfCode === selectedEtf);
+      const history = historyData.filter(d => d.etfCode === selectedEtf).map(h => ({
+          etfCode: h.etfCode,
+          etfName: h.etfName,
+          date: h.date,
+          open: h.open || h.price, 
+          high: h.high || h.price, 
+          low: h.low || h.price, 
+          price: h.price,
+          prevClose: 0 
+      }));
+
+      const map = new Map<string, PriceData>();
+      history.forEach(d => map.set(d.date, d));
+      daily.forEach(d => map.set(d.date, d)); 
+      
+      const combined = Array.from(map.values()).sort((a,b) => b.date.localeCompare(a.date));
+
+      for (let i = 0; i < combined.length - 1; i++) {
+          if (combined[i].prevClose === 0) {
+              combined[i].prevClose = combined[i+1].price;
+          }
+      }
+
+      return combined.filter(d => {
           if (startDate && d.date < startDate) return false;
           if (endDate && d.date > endDate) return false;
           return true;
-      }).sort((a,b) => b.date.localeCompare(a.date));
+      });
   };
   const detailData = getDetailData();
 
   const fmt = (num: number) => num ? num.toFixed(2) : '0.00';
+  const fmtVal = (v: number | string | undefined) => {
+      if (v === undefined) return '';
+      if (typeof v === 'number') return v.toFixed(2);
+      return v;
+  };
 
   const handleExport = () => {
       if (!selectedEtf) return alert("請先選擇一檔 ETF");
-      const headers = ['代碼', '名稱', '日期', '昨收', '開盤', '最高', '最低', '收盤', '漲跌'];
+      const headers = ['代碼', '名稱', '日期', '昨日收盤價', '開盤', '最高', '最低', '股價', '漲跌', '幅度', '備註'];
       const csvData = detailData.map(d => {
-          const change = d.price - d.prevClose;
+          const dateInfo = specialDateMap.get(d.date);
+          const isEx = dateInfo?.isEx;
+
+          // SPECIAL CALCULATION FOR EX-DATE
+          let refPrice = d.prevClose;
+          if (isEx && dateInfo?.exInfo?.refPrice && typeof dateInfo.exInfo.refPrice === 'number') {
+             refPrice = dateInfo.exInfo.refPrice;
+          }
+
+          const change = d.price - refPrice;
+          const amplitude = refPrice > 0 ? (change / refPrice * 100) : 0;
+
+          let noteParts = [];
+          if (isEx && dateInfo.exInfo) {
+              noteParts.push(`除息前一日股價:${fmtVal(dateInfo.exInfo.prePrice)}, (配息:${fmtVal(dateInfo.exInfo.amt)}), 除息參考價:${fmtVal(dateInfo.exInfo.refPrice)}`);
+          }
+          if (dateInfo?.isFill && dateInfo.fillInfo) {
+              noteParts.push(`除息前一日股價:${fmtVal(dateInfo.fillInfo.prePrice)}, (${dateInfo.fillInfo.days}天), 今日股價:${fmt(d.price)}`);
+          }
+
           return {
             '代碼': d.etfCode,
             '名稱': d.etfName,
             '日期': d.date,
-            '昨收': fmt(d.prevClose),
+            '昨日收盤價': fmt(d.prevClose), // Still display actual previous close for record
             '開盤': fmt(d.open),
             '最高': fmt(d.high),
             '最低': fmt(d.low),
-            '收盤': fmt(d.price),
-            '漲跌': (change > 0 ? '+' : '') + fmt(change)
+            '股價': fmt(d.price),
+            '漲跌': (change > 0 ? '+' : '') + fmt(change),
+            '幅度': fmt(amplitude) + '%',
+            '備註': noteParts.join(' / ')
           };
       });
       exportToCSV(`${selectedEtf}_PriceHistory`, headers, csvData);
@@ -133,6 +259,23 @@ const TabPrices: React.FC<TabPricesProps> = ({
           if (recs.length > 0) {
               const sorted = recs.sort((a,b) => b.date.localeCompare(a.date));
               result.push(sorted[0]);
+          } else {
+             const histRecs = historyData.filter(h => h.etfCode === etf.etfCode);
+             if (histRecs.length > 0) {
+                 const sortedHist = histRecs.sort((a,b) => b.date.localeCompare(a.date));
+                 const latest = sortedHist[0];
+                 const prev = sortedHist.length > 1 ? sortedHist[1].price : latest.price;
+                 result.push({
+                     etfCode: latest.etfCode,
+                     etfName: latest.etfName,
+                     date: latest.date,
+                     price: latest.price,
+                     prevClose: prev,
+                     open: latest.open || 0,
+                     high: latest.high || 0,
+                     low: latest.low || 0
+                 });
+             }
           }
       }
       return result.sort((a,b) => a.etfCode.localeCompare(b.etfCode));
@@ -148,52 +291,54 @@ const TabPrices: React.FC<TabPricesProps> = ({
   const subOptions = getSubFilterOptions();
   const showSubFilters = subOptions.length > 0;
 
+  const FilterControls = () => (
+      <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
+          <div className="flex gap-1 shrink-0 bg-primary-50 p-1 rounded-lg">
+            {['全部', '季配', '月配', '債券', '主動', '國際', '半年'].map(cat => (
+                <button
+                    key={cat}
+                    onClick={() => { setMainFilter(cat); setSubFilter('ALL'); }}
+                    className={`
+                        px-3 py-1.5 rounded-md text-sm font-bold whitespace-nowrap transition-all 
+                        ${mainFilter === cat 
+                            ? 'bg-white text-primary-700 shadow border border-primary-200' 
+                            : 'text-primary-500 hover:bg-primary-100 hover:text-primary-700'}
+                    `}
+                >
+                    {cat}
+                </button>
+            ))}
+        </div>
+
+        {showSubFilters && (
+            <div className="flex items-center animate-in fade-in slide-in-from-left-2 duration-300">
+                <div className="h-6 w-px bg-primary-200 mx-2"></div>
+                <div className="flex gap-1 shrink-0">
+                    {subOptions.map(sub => (
+                        <button 
+                            key={sub}
+                            onClick={() => setSubFilter(sub === '全部' ? 'ALL' : sub)} 
+                            className={`
+                                px-2 py-1 rounded text-xs whitespace-nowrap transition-colors font-medium
+                                ${(subFilter === sub || (subFilter === 'ALL' && sub === '全部'))
+                                    ? 'bg-primary-600 text-white shadow-sm' 
+                                    : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}
+                            `}
+                        >
+                            {sub}
+                        </button>
+                    ))}
+                </div>
+            </div>
+        )}
+      </div>
+  );
+
   return (
     <div className="h-full flex flex-col p-2 gap-2 bg-primary-50">
-      {/* 1. Filter Panel - Copied from Basic Info */}
+      {/* 1. Filter Panel */}
       <div className="bg-white p-2 rounded-lg shadow-sm border border-primary-200 flex flex-wrap items-center justify-between gap-2">
-          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
-               {/* Level 1: Main Buttons */}
-               <div className="flex gap-1 shrink-0 bg-primary-50 p-1 rounded-lg">
-                {['全部', '季配', '月配', '債券', '主動', '國際'].map(cat => (
-                    <button
-                        key={cat}
-                        onClick={() => { setMainFilter(cat); setSubFilter('ALL'); }}
-                        className={`
-                            px-3 py-1.5 rounded-md text-sm font-bold whitespace-nowrap transition-all 
-                            ${mainFilter === cat 
-                                ? 'bg-white text-primary-700 shadow border border-primary-200' 
-                                : 'text-primary-500 hover:bg-primary-100 hover:text-primary-700'}
-                        `}
-                    >
-                        {cat}
-                    </button>
-                ))}
-            </div>
-
-            {/* Level 2: Sub Buttons */}
-            {showSubFilters && (
-                <div className="flex items-center animate-in fade-in slide-in-from-left-2 duration-300">
-                    <div className="h-6 w-px bg-primary-200 mx-2"></div>
-                    <div className="flex gap-1 shrink-0">
-                        {subOptions.map(sub => (
-                            <button 
-                                key={sub}
-                                onClick={() => setSubFilter(sub === '全部' ? 'ALL' : sub)} 
-                                className={`
-                                    px-2 py-1 rounded text-xs whitespace-nowrap transition-colors font-medium
-                                    ${(subFilter === sub || (subFilter === 'ALL' && sub === '全部'))
-                                        ? 'bg-primary-600 text-white shadow-sm' 
-                                        : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}
-                                `}
-                            >
-                                {sub}
-                            </button>
-                        ))}
-                    </div>
-                </div>
-            )}
-          </div>
+          <FilterControls />
           
           <div className="flex items-center gap-2 ml-auto shrink-0">
              <div className="flex items-center gap-1 bg-gray-50 border rounded px-2 py-1">
@@ -213,32 +358,31 @@ const TabPrices: React.FC<TabPricesProps> = ({
           </div>
       </div>
 
-      {/* 2. Content Area (Master Detail) */}
+      {/* 2. Content Area */}
       <div className="flex-1 flex gap-2 overflow-hidden">
-          {/* Left: Master List */}
-          <div className="w-64 flex-none bg-white rounded-xl shadow-sm border border-primary-200 flex flex-col overflow-hidden">
+          <div className="w-96 flex-none bg-white rounded-xl shadow-sm border border-primary-200 flex flex-col overflow-hidden">
               <div className="p-2 bg-gray-50 border-b font-bold text-gray-700 flex justify-between text-sm">
                   <span>ETF 列表</span>
                   <span className="bg-gray-200 px-1.5 rounded-full text-xs flex items-center">{filteredMaster.length}</span>
               </div>
-              <div className="flex-1 overflow-y-auto">
+              <div className="flex-1 overflow-y-auto p-1 space-y-1">
                   {filteredMaster.map(item => (
                       <div 
                         key={item.etfCode} 
                         onClick={() => setSelectedEtf(item.etfCode)}
-                        className={`p-2 border-b flex justify-between items-center cursor-pointer hover:bg-blue-50 ${selectedEtf === item.etfCode ? 'bg-blue-100 border-l-4 border-l-blue-600' : ''}`}
+                        className={`
+                            px-3 py-2.5 rounded-lg border transition-all cursor-pointer flex items-center gap-2
+                            ${getRowColor(item.dividendFreq, selectedEtf === item.etfCode)}
+                        `}
                       >
-                          <div>
-                              <div className="font-bold text-gray-800 text-sm">{item.etfCode}</div>
-                              <div className="text-xs text-gray-500 truncate w-32">{item.etfName}</div>
-                          </div>
-                          <div className="text-xs text-gray-400">{item.dividendFreq}</div>
+                          <span className="font-bold font-mono text-base whitespace-nowrap min-w-[3.5rem]">{item.etfCode}</span>
+                          <span className="text-sm font-medium truncate flex-1" title={item.etfName}>{item.etfName}</span>
+                          <span className="text-xs opacity-60 whitespace-nowrap ml-1 bg-white/30 px-1 rounded">{item.dividendFreq}</span>
                       </div>
                   ))}
               </div>
           </div>
 
-          {/* Right: Detail Table */}
           <div className="flex-1 bg-white rounded-xl shadow-sm border border-primary-200 flex flex-col overflow-hidden">
                 {!selectedEtf ? (
                     <div className="h-full flex flex-col items-center justify-center text-gray-400">
@@ -249,36 +393,86 @@ const TabPrices: React.FC<TabPricesProps> = ({
                     <>
                         <div className="p-2 bg-blue-50 border-b border-blue-100 flex justify-between items-center">
                             <h3 className="font-bold text-blue-900 text-sm">{selectedEtf} 歷史股價</h3>
-                            <span className="text-xs text-blue-600">共 {detailData.length} 筆</span>
+                            <span className="text-xs text-blue-600">共 {detailData.length} 筆 (含歷史)</span>
                         </div>
                         <div className="flex-1 overflow-auto">
-                            <table className="w-full text-left">
-                                <thead className="bg-gray-50 sticky top-0 text-sm text-gray-600">
+                            <table className="w-full text-left border-collapse">
+                                <thead className="bg-gray-50 sticky top-0 text-sm text-gray-600 border-b border-gray-200 z-10">
                                     <tr>
                                         <th className="p-2 pl-4">日期</th>
-                                        <th className="p-2 text-right">昨收</th>
+                                        <th className="p-2 text-right">昨日收盤價</th>
                                         <th className="p-2 text-right">開盤</th>
                                         <th className="p-2 text-right">最高</th>
                                         <th className="p-2 text-right">最低</th>
-                                        <th className="p-2 text-right">收盤</th>
-                                        <th className="p-2 text-right pr-4">漲跌</th>
+                                        <th className="p-2 text-right">股價</th>
+                                        <th className="p-2 text-right">漲跌</th>
+                                        <th className="p-2 text-right pr-4">幅度</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y text-sm">
                                     {detailData.map((d, i) => {
-                                        const change = d.price - d.prevClose;
+                                        const dateInfo = specialDateMap.get(d.date);
+                                        const isEx = dateInfo?.isEx;
+                                        const isFill = dateInfo?.isFill;
+
+                                        // SPECIAL CALCULATION FOR EX-DATE
+                                        // If it's Ex-Date, we must use Reference Price for calculation to show market move accurately
+                                        let calculationRefPrice = d.prevClose;
+                                        if (isEx && dateInfo?.exInfo?.refPrice && typeof dateInfo.exInfo.refPrice === 'number') {
+                                            calculationRefPrice = dateInfo.exInfo.refPrice;
+                                        }
+
+                                        const change = d.price - calculationRefPrice;
+                                        const amplitude = calculationRefPrice > 0 ? (change / calculationRefPrice * 100) : 0;
+
                                         return (
-                                            <tr key={i} className="hover:bg-gray-50">
-                                                <td className="p-2 pl-4 font-mono">{d.date}</td>
+                                            <React.Fragment key={i}>
+                                            <tr className={`hover:bg-gray-50 ${isEx ? 'bg-orange-50' : isFill ? 'bg-green-50' : ''}`}>
+                                                <td className="p-2 pl-4 font-mono whitespace-nowrap text-gray-700">
+                                                    {d.date}
+                                                </td>
                                                 <td className="p-2 text-right font-mono text-gray-500">{fmt(d.prevClose)}</td>
                                                 <td className="p-2 text-right font-mono">{fmt(d.open)}</td>
                                                 <td className="p-2 text-right font-mono text-red-500">{fmt(d.high)}</td>
                                                 <td className="p-2 text-right font-mono text-green-500">{fmt(d.low)}</td>
-                                                <td className="p-2 text-right font-mono font-bold">{fmt(d.price)}</td>
-                                                <td className={`p-2 text-right pr-4 font-mono font-medium ${change >=0 ? 'text-red-600' : 'text-green-600'}`}>
+                                                <td className="p-2 text-right font-mono font-bold text-primary-800 whitespace-nowrap">
+                                                    {fmt(d.price)}
+                                                </td>
+                                                <td className={`p-2 text-right font-mono font-medium ${change >= 0 ? 'text-red-600' : 'text-green-600'}`}>
                                                     {change > 0 ? '+' : ''}{fmt(change)}
                                                 </td>
+                                                <td className={`p-2 text-right pr-4 font-mono font-medium ${amplitude >= 0 ? 'text-red-600' : 'text-green-600'}`}>
+                                                    {fmt(amplitude)}%
+                                                </td>
                                             </tr>
+                                            {/* EXTRA REMARK ROW */}
+                                            {(isEx || isFill) && (
+                                                <tr className="bg-gray-50">
+                                                    <td colSpan={8} className="px-4 py-1 text-xs text-gray-500 border-b border-gray-100">
+                                                         {isEx && dateInfo?.exInfo && (
+                                                            <div className="flex items-center gap-1 font-medium">
+                                                                <span className="text-orange-600 font-bold border border-orange-200 bg-orange-50 px-1 rounded-[2px] text-[10px]">除息</span>
+                                                                <span>
+                                                                    除息前一日股價:{fmtVal(dateInfo.exInfo.prePrice)}, 
+                                                                    (配息:{fmtVal(dateInfo.exInfo.amt)}), 
+                                                                    除息參考價:{fmtVal(dateInfo.exInfo.refPrice)}
+                                                                </span>
+                                                            </div>
+                                                        )}
+                                                        {isFill && dateInfo?.fillInfo && (
+                                                            <div className="flex items-center gap-1 font-medium">
+                                                                <span className="text-green-600 font-bold border border-green-200 bg-green-50 px-1 rounded-[2px] text-[10px]">填息</span>
+                                                                <span>
+                                                                    除息前一日股價:{fmtVal(dateInfo.fillInfo.prePrice)}, 
+                                                                    ({dateInfo.fillInfo.days}天), 
+                                                                    今日股價:{fmt(d.price)}
+                                                                </span>
+                                                            </div>
+                                                        )}
+                                                    </td>
+                                                </tr>
+                                            )}
+                                            </React.Fragment>
                                         )
                                     })}
                                 </tbody>
@@ -289,37 +483,47 @@ const TabPrices: React.FC<TabPricesProps> = ({
           </div>
       </div>
 
-      {/* Recent Info Modal */}
+      {/* Recent Info Modal - With Amplitude Column */}
       {showRecentModal && (
           <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-               <div className="bg-white rounded-xl w-full max-w-4xl max-h-[80vh] flex flex-col shadow-2xl">
-                   <div className="p-4 border-b flex justify-between items-center bg-gray-50 rounded-t-xl">
-                       <h3 className="font-bold text-lg">近期資訊</h3>
-                       <button onClick={()=>setShowRecentModal(false)}><X className="w-5 h-5 text-gray-500" /></button>
+               <div className="bg-white rounded-xl w-full max-w-4xl h-[80vh] flex flex-col shadow-2xl">
+                   <div className="p-4 border-b flex flex-col gap-2 bg-gray-50 rounded-t-xl shrink-0">
+                       <div className="flex justify-between items-center">
+                            <h3 className="font-bold text-lg">近期資訊 (最新收盤)</h3>
+                            <button onClick={()=>setShowRecentModal(false)}><X className="w-5 h-5 text-gray-500" /></button>
+                       </div>
+                       <FilterControls />
                    </div>
                    <div className="flex-1 overflow-auto p-4">
                        <table className="w-full text-sm">
                            <thead className="bg-gray-100 text-gray-600 sticky top-0">
                                <tr>
-                                   <th className="p-2 text-left">代碼</th>
-                                   <th className="p-2 text-left">名稱</th>
+                                   <th className="p-2 text-left">ETF 代碼</th>
+                                   <th className="p-2 text-left">ETF 名稱</th>
                                    <th className="p-2 text-left">日期</th>
                                    <th className="p-2 text-right">收盤</th>
                                    <th className="p-2 text-right">漲跌</th>
+                                   <th className="p-2 text-right">幅度 (%)</th>
                                </tr>
                            </thead>
                            <tbody className="divide-y">
-                               {getRecentInfo().map((row, idx) => (
+                               {getRecentInfo().map((row, idx) => {
+                                   const change = row.price - row.prevClose;
+                                   const amplitude = row.prevClose > 0 ? (change / row.prevClose * 100) : 0;
+                                   return (
                                    <tr key={idx} className="hover:bg-blue-50">
                                        <td className="p-2 font-bold text-blue-800">{row.etfCode}</td>
                                        <td className="p-2">{row.etfName}</td>
                                        <td className="p-2 font-mono text-gray-500">{row.date}</td>
                                        <td className="p-2 text-right font-bold">{fmt(row.price)}</td>
-                                       <td className={`p-2 text-right ${row.price - row.prevClose >= 0 ? 'text-red-600' : 'text-green-600'}`}>
-                                           {fmt(row.price - row.prevClose)}
+                                       <td className={`p-2 text-right ${change >= 0 ? 'text-red-600' : 'text-green-600'}`}>
+                                           {fmt(change)}
+                                       </td>
+                                       <td className={`p-2 text-right font-bold ${amplitude >= 0 ? 'text-red-600' : 'text-green-600'}`}>
+                                           {fmt(amplitude)}%
                                        </td>
                                    </tr>
-                               ))}
+                               )})}
                            </tbody>
                        </table>
                    </div>

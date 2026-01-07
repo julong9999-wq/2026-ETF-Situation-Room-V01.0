@@ -1,3 +1,4 @@
+
 // Data Models matching the Google Sheets structure
 
 export interface MarketData {
@@ -67,10 +68,14 @@ export interface SizeData {
 }
 
 export interface FillAnalysisData extends DividendData {
-  pricePreEx: number; // 除息前一天價格
-  priceReference: number; // 除息參考價
+  preExDate: string; // 除息前一天 (日期)
+  pricePreEx: number | string; // 除息前一天股價 (Number or "歷史資料"/"待除息")
+  priceReference: number | string; // 除息參考價 (Number or "歷史資料"/"待除息")
+  fillDate: string; // 分析比對日期 (填息發生的日期)
+  fillPrice: number | string; // 分析比對價格 (填息當日的收盤價)
   isFilled: boolean; // 是否填息
   daysToFill: number | string; // 幾天填息
+  statusNote?: string; // 狀態備註 (e.g., 歷史資料, 待除息資訊)
 }
 
 export enum UserRole {

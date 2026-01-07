@@ -46,7 +46,7 @@ const getSmartCategoryClass = (d: BasicInfo) => {
     }
 
     // 3. 國際商品 (International)
-    if (cat.includes('國際') || type.includes('國際') || market.includes('國外')) {
+    if (cat.includes('國際') || type.includes('國際') || market.includes('國外') || d.etfCode === '00911') {
         return 'bg-sky-100 text-sky-800 border-sky-200'; // Sky Blue
     }
 
@@ -58,6 +58,11 @@ const getSmartCategoryClass = (d: BasicInfo) => {
     // 5. 季配商品 (Quarterly) - General Quarterly (Passive)
     if (freq.includes('季')) {
         return 'bg-teal-100 text-teal-800 border-teal-200'; // Teal/Cyan
+    }
+
+    // 6. 半年配 (Half-Year)
+    if ((freq.includes('半年') || cat.includes('半年')) && d.etfCode !== '00911') {
+        return 'bg-purple-100 text-purple-800 border-purple-200';
     }
 
     // Others
@@ -167,7 +172,11 @@ const TabBasicInfo: React.FC<TabBasicInfoProps> = ({
             } else if (mainFilter === '主動') {
                 result = result.filter(d => getStr(d.category).includes('主動') || getStr(d.etfType).includes('主動') || getStr(d.etfName).includes('主動'));
             } else if (mainFilter === '國際') {
-                result = result.filter(d => getStr(d.category).includes('國際') || getStr(d.etfType).includes('國際') || getStr(d.marketType).includes('國外'));
+                // FORCE 00911 to be in International
+                result = result.filter(d => d.etfCode === '00911' || getStr(d.category).includes('國際') || getStr(d.etfType).includes('國際') || getStr(d.marketType).includes('國外'));
+            } else if (mainFilter === '半年') {
+                // EXCLUDE 00911 from Half-Year
+                result = result.filter(d => d.etfCode !== '00911' && (getStr(d.category).includes('半年') || getStr(d.dividendFreq).includes('半年')));
             }
         }
 
@@ -267,7 +276,7 @@ const TabBasicInfo: React.FC<TabBasicInfoProps> = ({
             
             {/* Level 1: Main Buttons */}
             <div className="flex gap-1 shrink-0 bg-primary-50 p-1 rounded-lg">
-                {['全部', '季配', '月配', '債券', '主動', '國際'].map(cat => (
+                {['全部', '季配', '月配', '債券', '主動', '國際', '半年'].map(cat => (
                     <button
                         key={cat}
                         onClick={() => { setMainFilter(cat); setSubFilter('ALL'); }}

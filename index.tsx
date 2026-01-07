@@ -17,17 +17,18 @@ interface ErrorBoundaryState {
   errorInfo: any;
 }
 
-class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
+class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  public state: ErrorBoundaryState = { hasError: false, error: null, errorInfo: null };
+
   constructor(props: ErrorBoundaryProps) {
     super(props);
-    this.state = { hasError: false, error: null, errorInfo: null };
   }
 
   static getDerivedStateFromError(error: any) {
     return { hasError: true, error };
   }
 
-  override componentDidCatch(error: any, errorInfo: any) {
+  componentDidCatch(error: any, errorInfo: any) {
     console.error("System Crash:", error, errorInfo);
     this.setState({ errorInfo });
   }
@@ -40,7 +41,7 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
       window.location.reload();
   };
 
-  override render() {
+  render() {
     if (this.state.hasError) {
       return (
         <div style={{ 
