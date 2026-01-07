@@ -5,8 +5,11 @@ import { TrendingUp, TrendingDown, Download, Info, X } from 'lucide-react';
 
 const TabGlobalMarket: React.FC = () => {
   const [data, setData] = useState<MarketData[]>([]);
+  
+  // Filters
   const [mainFilter, setMainFilter] = useState<'ALL' | 'TW' | 'US'>('ALL');
-  const [usSubFilter, setUsSubFilter] = useState<string>('全部'); // 全部, 道瓊, 那斯, 費半, 標普
+  // Unified sub-filter state (replaces specific usSubFilter)
+  const [subFilter, setSubFilter] = useState<string>('ALL');
   
   // Date Input
   const [startDate, setStartDate] = useState('');
@@ -39,7 +42,6 @@ const TabGlobalMarket: React.FC = () => {
 
   // Robust Detection Helpers
   const isTaiwanStock = (name: string, type: string) => {
-      // Check Name first, then Type
       const n = name.toLowerCase();
       if (n.includes('加權') || n.includes('櫃買') || n.includes('taiwan') || n.includes('twse') || n.includes('tpex')) return true;
       if (type === 'TW' && !isUSStock(name, type)) return true;
@@ -60,21 +62,26 @@ const TabGlobalMarket: React.FC = () => {
     return data.filter(item => {
         const name = item.indexName || '';
         const type = item.type || '';
-        
+        const n = name.toLowerCase();
+
         // 1. Main Filter Logic
         if (mainFilter === 'TW') {
             if (!isTaiwanStock(name, type)) return false;
+            // TW Sub-filters
+            if (subFilter !== 'ALL') {
+                if (subFilter === '加權' && !n.includes('加權') && !n.includes('twse')) return false;
+                if (subFilter === '櫃買' && !n.includes('櫃買') && !n.includes('tpex')) return false;
+            }
         }
         
         if (mainFilter === 'US') {
             if (!isUSStock(name, type)) return false;
-            
-            if (usSubFilter !== '全部') {
-                const n = name.toLowerCase();
-                if (usSubFilter === '道瓊' && !n.includes('道瓊') && !n.includes('dow')) return false;
-                if (usSubFilter === '那斯' && !n.includes('那斯') && !n.includes('nasdaq')) return false;
-                if (usSubFilter === '費半' && !n.includes('費城') && !n.includes('sox') && !n.includes('semi')) return false;
-                if (usSubFilter === '標普' && !n.includes('s&p') && !n.includes('標普') && !n.includes('spx')) return false;
+            // US Sub-filters
+            if (subFilter !== 'ALL') {
+                if (subFilter === '道瓊' && !n.includes('道瓊') && !n.includes('dow')) return false;
+                if (subFilter === '那斯' && !n.includes('那斯') && !n.includes('nasdaq')) return false;
+                if (subFilter === '費半' && !n.includes('費城') && !n.includes('sox') && !n.includes('semi')) return false;
+                if (subFilter === '標普' && !n.includes('s&p') && !n.includes('標普') && !n.includes('spx')) return false;
             }
         }
         
@@ -105,15 +112,14 @@ const TabGlobalMarket: React.FC = () => {
   const fmt = (num: number) => num ? num.toFixed(2) : '0.00';
 
   const handleExport = () => {
-      // Headers matching table display order
       const headers = ['指數名稱', '日期', '昨日收盤', '開盤', '高價', '低價', '現價', '成交量', '漲跌', '幅度'];
-      
       const csvData = filteredData.map(d => {
-          // Volume logic matching table display
           let volStr = '';
           if (d.indexName.includes('加權')) {
-             volStr = `${(d.volume / 100000000).toFixed(2)}億`;
+             // Source is already in billions (億), so no division needed.
+             volStr = `${(d.volume).toFixed(2)}億`;
           } else {
+             // For US/Other, assume raw unit needs conversion to Millions
              volStr = `${(d.volume / 1000000).toFixed(2)}M`;
           }
 
@@ -134,9 +140,6 @@ const TabGlobalMarket: React.FC = () => {
   };
 
   const getRecentData = () => {
-      // New Logic: Find latest available record for each target index independently
-      // This solves the timezone issue where TW is Day N and US is Day N-1
-      
       const targets = [
           { name: '台灣加權', matcher: (d: MarketData) => isTaiwanStock(d.indexName, d.type) },
           { name: '道瓊工業', matcher: (d: MarketData) => (d.indexName.includes('道瓊') || d.indexName.includes('Dow')) },
@@ -146,44 +149,71 @@ const TabGlobalMarket: React.FC = () => {
       ];
 
       const results: MarketData[] = [];
-
       targets.forEach(t => {
           const matches = data.filter(t.matcher);
-          // Sort descending by date
           matches.sort((a,b) => b.date.localeCompare(a.date));
-          // Take the latest one
-          if (matches.length > 0) {
-              results.push(matches[0]);
-          }
+          if (matches.length > 0) results.push(matches[0]);
       });
-      
       return results;
   };
 
+  // UI Helper: Determine sub-filters options
+  const getSubFilterOptions = () => {
+      if (mainFilter === 'US') {
+          return ['全部', '道瓊', '那斯', '費半', '標普'];
+      }
+      if (mainFilter === 'TW') {
+          return ['全部', '加權', '櫃買'];
+      }
+      return [];
+  };
+
+  const subOptions = getSubFilterOptions();
+  const showSubFilters = subOptions.length > 0;
+
   return (
     <div className="h-full flex flex-col p-2 space-y-2 relative">
-      {/* 1. Filter Bar - Single Row Compact */}
+      {/* 1. Filter Bar - Styled exactly like TabBasicInfo */}
       <div className="bg-white p-2 rounded-lg shadow-sm border border-primary-200 flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
-              {/* Top Level Filters */}
-              <div className="flex gap-1 shrink-0">
-                  <button onClick={() => setMainFilter('ALL')} className={`px-3 py-1.5 rounded-md text-sm font-bold transition-all ${mainFilter === 'ALL' ? 'bg-primary-700 text-white' : 'bg-primary-50 text-primary-600'}`}>全部</button>
-                  <button onClick={() => setMainFilter('TW')} className={`px-3 py-1.5 rounded-md text-sm font-bold transition-all ${mainFilter === 'TW' ? 'bg-primary-700 text-white' : 'bg-primary-50 text-primary-600'}`}>台股</button>
-                  <button onClick={() => setMainFilter('US')} className={`px-3 py-1.5 rounded-md text-sm font-bold transition-all ${mainFilter === 'US' ? 'bg-primary-700 text-white' : 'bg-primary-50 text-primary-600'}`}>美股</button>
+              {/* Level 1: Main Buttons */}
+              <div className="flex gap-1 shrink-0 bg-primary-50 p-1 rounded-lg">
+                  {['ALL', 'TW', 'US'].map(cat => (
+                      <button
+                        key={cat}
+                        onClick={() => { setMainFilter(cat as any); setSubFilter('ALL'); }}
+                        className={`
+                            px-3 py-1.5 rounded-md text-sm font-bold whitespace-nowrap transition-all 
+                            ${mainFilter === cat 
+                                ? 'bg-white text-primary-700 shadow border border-primary-200' 
+                                : 'text-primary-500 hover:bg-primary-100 hover:text-primary-700'}
+                        `}
+                      >
+                          {cat === 'ALL' ? '全部' : cat === 'TW' ? '台股' : '美股'}
+                      </button>
+                  ))}
               </div>
               
-              {/* Sub Filters (US Only) */}
-              {mainFilter === 'US' && (
-                  <div className="flex gap-1 animate-in fade-in shrink-0 border-l pl-2">
-                       {['全部', '道瓊', '那斯', '費半', '標普'].map(sub => (
-                           <button 
-                                key={sub} 
-                                onClick={() => setUsSubFilter(sub)}
-                                className={`px-2 py-1 text-xs rounded-full border transition-all ${usSubFilter === sub ? 'bg-blue-100 text-blue-800 border-blue-300 font-bold' : 'bg-white text-gray-500 border-gray-200'}`}
-                           >
-                               {sub}
-                           </button>
-                       ))}
+              {/* Level 2: Sub Buttons */}
+              {showSubFilters && (
+                  <div className="flex items-center animate-in fade-in slide-in-from-left-2 duration-300">
+                      <div className="h-6 w-px bg-primary-200 mx-2"></div>
+                      <div className="flex gap-1 shrink-0">
+                           {subOptions.map(sub => (
+                               <button 
+                                    key={sub} 
+                                    onClick={() => setSubFilter(sub === '全部' ? 'ALL' : sub)}
+                                    className={`
+                                        px-2 py-1 rounded text-xs whitespace-nowrap transition-colors font-medium
+                                        ${(subFilter === sub || (subFilter === 'ALL' && sub === '全部'))
+                                            ? 'bg-primary-600 text-white shadow-sm' 
+                                            : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}
+                                    `}
+                               >
+                                   {sub}
+                               </button>
+                           ))}
+                      </div>
                   </div>
               )}
           </div>
@@ -242,9 +272,9 @@ const TabGlobalMarket: React.FC = () => {
                         <td className="p-3 text-right font-mono text-green-400">{fmt(row.low)}</td>
                         <td className="p-3 text-right font-mono font-bold text-primary-800">{fmt(row.price)}</td>
                         <td className="p-3 text-right font-mono text-primary-400 text-xs">
-                             {/* Volume Logic: If Taiex ('加權'), divide by 100M to show '億', else use 'M' */}
+                             {/* Volume Logic: If Taiex ('加權'), show raw value (already in Yi), else use 'M' */}
                              {row.indexName.includes('加權') 
-                                ? `${(row.volume / 100000000).toFixed(2)}億` 
+                                ? `${(row.volume).toFixed(2)}億` 
                                 : `${(row.volume / 1000000).toFixed(2)}M`
                              }
                         </td>
@@ -261,10 +291,9 @@ const TabGlobalMarket: React.FC = () => {
         </table>
       </div>
 
-      {/* 3. Recent Info Modal - Enlarged Fixed Size */}
+      {/* 3. Recent Info Modal */}
       {showRecentModal && (
           <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-              {/* Increased width to max-w-4xl and fixed min-height to 400px to nicely accommodate 5 rows */}
               <div className="bg-white rounded-xl w-full max-w-4xl min-h-[400px] shadow-2xl flex flex-col animate-in zoom-in-95 duration-200">
                   <div className="p-5 border-b border-primary-100 flex justify-between items-center bg-primary-50 rounded-t-xl">
                       <div>

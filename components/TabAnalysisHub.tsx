@@ -11,6 +11,10 @@ const TabAnalysisHub: React.FC = () => {
   const [activeTab, setActiveTab] = useState<string>('market');
   const [visitorCount, setVisitorCount] = useState<number>(12045);
 
+  // --- SHARED FILTER STATE (For Linkage) ---
+  const [sharedMainFilter, setSharedMainFilter] = useState('全部');
+  const [sharedSubFilter, setSharedSubFilter] = useState('ALL');
+
   useEffect(() => {
       // Simulate a visitor counter
       const stored = localStorage.getItem('app_visitor_count');
@@ -25,15 +29,23 @@ const TabAnalysisHub: React.FC = () => {
       setVisitorCount(count);
   }, []);
 
+  // Define shared props
+  const sharedProps = {
+      mainFilter: sharedMainFilter,
+      subFilter: sharedSubFilter,
+      setMainFilter: setSharedMainFilter,
+      setSubFilter: setSharedSubFilter
+  };
+
   const features = [
     { id: 'market', title: '國際大盤', icon: LayoutDashboard, component: <TabGlobalMarket /> },
-    { id: 'basic', title: '基本資料', icon: Receipt, component: <TabBasicInfo /> },
-    { id: 'price', title: '股價資訊', icon: LineChart, component: <TabPrices /> },
-    { id: 'dividend', title: '除息資訊', icon: PieChart, component: <TabDividends /> },
-    { id: 'fill', title: '填息分析', icon: TrendingUp, component: <TabFillAnalysis /> },
+    { id: 'basic', title: '基本資料', icon: Receipt, component: <TabBasicInfo {...sharedProps} /> },
+    { id: 'price', title: '股價資訊', icon: LineChart, component: <TabPrices {...sharedProps} /> },
+    { id: 'dividend', title: '除息資訊', icon: PieChart, component: <TabDividends {...sharedProps} /> },
+    { id: 'fill', title: '填息分析', icon: TrendingUp, component: <TabFillAnalysis {...sharedProps} /> },
   ];
 
-  const activeComponent = features.find(f => f.id === activeTab)?.component;
+  const activeFeature = features.find(f => f.id === activeTab);
 
   return (
     <div className="flex flex-col h-full bg-primary-50">
@@ -71,7 +83,7 @@ const TabAnalysisHub: React.FC = () => {
 
       {/* Bottom Section: Form Content / Output Area */}
       <div className="flex-1 overflow-hidden relative">
-        {activeComponent}
+        {activeFeature?.component}
       </div>
     </div>
   );

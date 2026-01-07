@@ -3,15 +3,31 @@ import { getFillAnalysisData, getBasicInfo, exportToCSV } from '../services/data
 import { FillAnalysisData, BasicInfo } from '../types';
 import { Download, CheckCircle, Clock, Database } from 'lucide-react';
 
-const TabFillAnalysis: React.FC = () => {
+interface TabFillAnalysisProps {
+    mainFilter?: string;
+    subFilter?: string;
+    setMainFilter?: (val: string) => void;
+    setSubFilter?: (val: string) => void;
+}
+
+// Helper duplicated from BasicInfo to ensure identical logic
+const checkSeason = (freqStr: string | undefined, season: 'Q1'|'Q2'|'Q3') => {
+    const f = String(freqStr || '').replace(/\s/g, ''); 
+    if (season === 'Q1') return f.includes('季一') || f.includes('1,4,7,10') || f.includes('01,04,07,10') || (f.includes('1') && f.includes('4'));
+    if (season === 'Q2') return f.includes('季二') || f.includes('2,5,8,11') || f.includes('02,05,08,11') || (f.includes('2') && f.includes('5'));
+    if (season === 'Q3') return f.includes('季三') || f.includes('3,6,9,12') || f.includes('03,06,09,12') || (f.includes('3') && f.includes('6'));
+    return false;
+};
+
+const TabFillAnalysis: React.FC<TabFillAnalysisProps> = ({ 
+    mainFilter = '全部', 
+    subFilter = 'ALL', 
+    setMainFilter = (_v: string) => {}, 
+    setSubFilter = (_v: string) => {} 
+}) => {
   const [data, setData] = useState<FillAnalysisData[]>([]);
   const [basicInfo, setBasicInfo] = useState<BasicInfo[]>([]);
 
-  // Filters
-  const [catFilter, setCatFilter] = useState('ALL');
-  const [freqFilter, setFreqFilter] = useState('ALL');
-  const [typeFilter, setTypeFilter] = useState('ALL');
-  
   const [startDate, setStartDate] = useState('2025-01-01');
   const [endDate, setEndDate] = useState('');
 
@@ -24,14 +40,41 @@ const TabFillAnalysis: React.FC = () => {
   }, []);
 
   const getFilteredData = () => {
-      const basicMap = new Map<string, BasicInfo>();
-      basicInfo.forEach(b => basicMap.set(b.etfCode, b));
+      // 1. Create a set of valid codes based on the linked filter
+      let result = basicInfo;
+      const getStr = (val: string | undefined) => String(val || '');
+
+      // Apply Main Filter
+      if (mainFilter !== '全部') {
+          if (mainFilter === '債券') {
+              result = result.filter(d => getStr(d.category).includes('債'));
+          } else if (mainFilter === '季配') {
+              result = result.filter(d => getStr(d.dividendFreq).includes('季') && !getStr(d.category).includes('債'));
+          } else if (mainFilter === '月配') {
+              result = result.filter(d => getStr(d.dividendFreq).includes('月') && !getStr(d.category).includes('債') && !getStr(d.category).includes('主動') && !getStr(d.etfType).includes('主動') && !getStr(d.etfName).includes('主動'));
+          } else if (mainFilter === '主動') {
+              result = result.filter(d => getStr(d.category).includes('主動') || getStr(d.etfType).includes('主動') || getStr(d.etfName).includes('主動'));
+          } else if (mainFilter === '國際') {
+              result = result.filter(d => getStr(d.category).includes('國際') || getStr(d.etfType).includes('國際') || getStr(d.marketType).includes('國外'));
+          }
+      }
+
+      // Apply Sub Filter
+      if (subFilter !== 'ALL') {
+          const freqStr = (d: BasicInfo) => String(d.dividendFreq || '');
+          if (subFilter === '季一') result = result.filter(d => checkSeason(freqStr(d), 'Q1'));
+          else if (subFilter === '季二') result = result.filter(d => checkSeason(freqStr(d), 'Q2'));
+          else if (subFilter === '季三') result = result.filter(d => checkSeason(freqStr(d), 'Q3'));
+          else if (subFilter === '月配') result = result.filter(d => freqStr(d).includes('月'));
+          else if (subFilter === '半年') result = result.filter(d => freqStr(d).includes('半年'));
+          else if (subFilter === '年配') result = result.filter(d => freqStr(d).includes('年') && !freqStr(d).includes('半年'));
+          else if (subFilter === '無配') result = result.filter(d => freqStr(d).includes('不') || freqStr(d) === '' || freqStr(d).includes('無'));
+      }
+
+      const validCodes = new Set(result.map(r => r.etfCode));
+
       return data.filter(d => {
-          const info = basicMap.get(d.etfCode);
-          if (!info) return false;
-          if (catFilter !== 'ALL' && info.category !== catFilter) return false;
-          if (freqFilter !== 'ALL' && info.dividendFreq !== freqFilter) return false;
-          if (typeFilter !== 'ALL' && info.etfType !== typeFilter) return false;
+          if (!validCodes.has(d.etfCode)) return false;
           const ex = d.exDate.replace(/\//g, '-');
           if (startDate && ex < startDate) return false;
           if (endDate && ex > endDate) return false;
@@ -60,19 +103,62 @@ const TabFillAnalysis: React.FC = () => {
   };
 
   const filledCount = filteredData.filter(d => d.isFilled).length;
-  const categories = ['ALL', ...Array.from(new Set(basicInfo.map(b => b.category).filter(Boolean)))];
-  const freqs = ['ALL', ...Array.from(new Set(basicInfo.map(b => b.dividendFreq).filter(Boolean)))];
-  const types = ['ALL', ...Array.from(new Set(basicInfo.map(b => b.etfType).filter(Boolean)))];
+  const getSubFilterOptions = () => {
+      if (mainFilter === '全部') return ['全部', '季一', '季二', '季三', '月配', '半年', '年配', '無配'];
+      if (mainFilter === '債券') return ['全部', '月配', '季一', '季二', '季三'];
+      if (mainFilter === '季配') return ['全部', '季一', '季二', '季三'];
+      return [];
+  };
+
+  const subOptions = getSubFilterOptions();
+  const showSubFilters = subOptions.length > 0;
   const fmt = (num: number) => num ? num.toFixed(2) : '0.00';
 
   return (
     <div className="h-full flex flex-col p-2 gap-2 bg-primary-50">
-       {/* Controls - Compact */}
+       {/* Controls - Copied from Basic Info */}
        <div className="bg-white p-2 rounded-lg shadow-sm border border-primary-200 flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
-               <select value={catFilter} onChange={e=>setCatFilter(e.target.value)} className="border rounded px-2 py-1.5 text-xs bg-gray-50 outline-none"><option value="ALL">分類:全部</option>{categories.filter(x=>x!=='ALL').map(x=><option key={x} value={x}>{x}</option>)}</select>
-               <select value={freqFilter} onChange={e=>setFreqFilter(e.target.value)} className="border rounded px-2 py-1.5 text-xs bg-gray-50 outline-none"><option value="ALL">週期:全部</option>{freqs.filter(x=>x!=='ALL').map(x=><option key={x} value={x}>{x}</option>)}</select>
-               <select value={typeFilter} onChange={e=>setTypeFilter(e.target.value)} className="border rounded px-2 py-1.5 text-xs bg-gray-50 outline-none"><option value="ALL">類型:全部</option>{types.filter(x=>x!=='ALL').map(x=><option key={x} value={x}>{x}</option>)}</select>
+               {/* Level 1: Main Buttons */}
+               <div className="flex gap-1 shrink-0 bg-primary-50 p-1 rounded-lg">
+                {['全部', '季配', '月配', '債券', '主動', '國際'].map(cat => (
+                    <button
+                        key={cat}
+                        onClick={() => { setMainFilter(cat); setSubFilter('ALL'); }}
+                        className={`
+                            px-3 py-1.5 rounded-md text-sm font-bold whitespace-nowrap transition-all 
+                            ${mainFilter === cat 
+                                ? 'bg-white text-primary-700 shadow border border-primary-200' 
+                                : 'text-primary-500 hover:bg-primary-100 hover:text-primary-700'}
+                        `}
+                    >
+                        {cat}
+                    </button>
+                ))}
+            </div>
+
+            {/* Level 2: Sub Buttons */}
+            {showSubFilters && (
+                <div className="flex items-center animate-in fade-in slide-in-from-left-2 duration-300">
+                    <div className="h-6 w-px bg-primary-200 mx-2"></div>
+                    <div className="flex gap-1 shrink-0">
+                        {subOptions.map(sub => (
+                            <button 
+                                key={sub}
+                                onClick={() => setSubFilter(sub === '全部' ? 'ALL' : sub)} 
+                                className={`
+                                    px-2 py-1 rounded text-xs whitespace-nowrap transition-colors font-medium
+                                    ${(subFilter === sub || (subFilter === 'ALL' && sub === '全部'))
+                                        ? 'bg-primary-600 text-white shadow-sm' 
+                                        : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}
+                                `}
+                            >
+                                {sub}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            )}
           </div>
           
           <div className="flex items-center gap-2 ml-auto shrink-0">

@@ -408,12 +408,59 @@ export const importDividendData = async (url: string) => {
 
 export const importSizeData = async (url: string) => {
     const rawData = await fetchGoogleSheet(url);
-    const newItems = rawData.map(row => ({
-        etfCode: getProp(row, 'ETF 代碼', '代碼') || '',
-        etfName: getProp(row, 'ETF 名稱', '名稱') || '',
-        size: safeFloat(getProp(row, '規模', '規模(億)')),
-        date: new Date().toISOString().split('T')[0] 
-    })).filter(d => d.etfCode);
+    const newItems: SizeData[] = [];
+
+    // Strategy: Detect if it's a "Wide" format (Date headers) or "Long/Standard" format
+    // Iterate all rows
+    rawData.forEach(row => {
+        const etfCode = getProp(row, 'ETF 代碼', '代碼', 'Code', 'ETFCode');
+        const etfName = getProp(row, 'ETF 名稱', '名稱', 'Name', 'ETFName') || '';
+        
+        if (!etfCode) return;
+
+        let foundDateColumn = false;
+
+        // Check all keys in the row
+        Object.keys(row).forEach(key => {
+            // Check if key contains a date pattern like 2025/12/31, 2025-12-31, (2025/12/31)
+            // Be careful not to match 'ETF 代碼' or '規模'
+            // Simple robust regex: looks for digit-digit-digit with separators
+            if (key.match(/\d{4}[-\/]\d{1,2}[-\/]\d{1,2}/)) {
+                const val = row[key];
+                if (val !== undefined && val !== '' && val !== null) {
+                    const sizeVal = safeFloat(val);
+                    if (sizeVal > 0) {
+                         // Extract date from key
+                         const dateMatch = key.match(/(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})/);
+                         if (dateMatch) {
+                             const dateStr = `${dateMatch[1]}-${dateMatch[2].padStart(2,'0')}-${dateMatch[3].padStart(2,'0')}`;
+                             newItems.push({
+                                 etfCode: String(etfCode).trim(),
+                                 etfName: String(etfName).trim(),
+                                 date: dateStr,
+                                 size: sizeVal
+                             });
+                             foundDateColumn = true;
+                         }
+                    }
+                }
+            }
+        });
+
+        // Fallback: If no date columns were found for this row, check for standard 'size' column
+        if (!foundDateColumn) {
+             const sizeVal = safeFloat(getProp(row, '規模', '規模(億)', '資產規模', '最新規模', '基金規模', 'Size', 'Assets', 'AUM'));
+             if (sizeVal > 0) {
+                 newItems.push({
+                     etfCode: String(etfCode).trim(),
+                     etfName: String(etfName).trim(),
+                     // If standard column, try to find a 'Date' column, else use today
+                     date: normalizeDate(getProp(row, '日期', 'Date')) || new Date().toISOString().split('T')[0],
+                     size: sizeVal
+                 });
+             }
+        }
+    });
 
     localStorage.setItem(KEYS.SIZE, JSON.stringify(newItems));
     return { count: newItems.length, noChange: false };

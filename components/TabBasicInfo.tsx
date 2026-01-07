@@ -2,6 +2,13 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { getBasicInfo, getSizeData, exportToCSV } from '../services/dataService';
 import { BasicInfo, SizeData } from '../types';
 
+interface TabBasicInfoProps {
+    mainFilter?: string;
+    subFilter?: string;
+    setMainFilter?: (val: string) => void;
+    setSubFilter?: (val: string) => void;
+}
+
 // Helper: Check seasonality logic (1,4,7,10 vs 2,5,8,11 etc)
 const checkSeason = (freqStr: string | undefined, season: 'Q1'|'Q2'|'Q3') => {
     const f = String(freqStr || '').replace(/\s/g, ''); 
@@ -14,17 +21,59 @@ const checkSeason = (freqStr: string | undefined, season: 'Q1'|'Q2'|'Q3') => {
     return false;
 };
 
-const TabBasicInfo: React.FC = () => {
+// NEW Helper: Smart Category Styling
+const getSmartCategoryClass = (d: BasicInfo) => {
+    const cat = (d.category || '').trim();
+    const type = (d.etfType || '').trim();
+    const name = (d.etfName || '').trim();
+    const freq = (d.dividendFreq || '').trim();
+    const market = (d.marketType || '').trim();
+
+    // 0. 特殊組合: 季配 + 主動 (Quarterly + Active) - Highest Priority Specific
+    // 使用深藍紫色 (Indigo) 區隔
+    if (freq.includes('季') && (cat.includes('主動') || type.includes('主動') || name.includes('主動'))) {
+        return 'bg-indigo-100 text-indigo-800 border-indigo-200 font-bold'; 
+    }
+
+    // 1. 債券商品 (Bond)
+    if (cat.includes('債')) {
+        return 'bg-amber-100 text-amber-800 border-amber-200'; // Amber/Yellow
+    }
+
+    // 2. 主動商品 (Active) - General Active (Non-Quarterly)
+    if (cat.includes('主動') || type.includes('主動') || name.includes('主動')) {
+        return 'bg-rose-100 text-rose-800 border-rose-200'; // Rose/Red
+    }
+
+    // 3. 國際商品 (International)
+    if (cat.includes('國際') || type.includes('國際') || market.includes('國外')) {
+        return 'bg-sky-100 text-sky-800 border-sky-200'; // Sky Blue
+    }
+
+    // 4. 月配商品 (Monthly)
+    if (freq.includes('月')) {
+        return 'bg-fuchsia-100 text-fuchsia-800 border-fuchsia-200'; // Fuchsia/Purple
+    }
+
+    // 5. 季配商品 (Quarterly) - General Quarterly (Passive)
+    if (freq.includes('季')) {
+        return 'bg-teal-100 text-teal-800 border-teal-200'; // Teal/Cyan
+    }
+
+    // Others
+    return 'bg-gray-100 text-gray-600 border-gray-200';
+};
+
+const TabBasicInfo: React.FC<TabBasicInfoProps> = ({ 
+    mainFilter = '全部', 
+    subFilter = 'ALL', 
+    setMainFilter = (_v: string) => {}, 
+    setSubFilter = (_v: string) => {} 
+}) => {
   const [data, setData] = useState<BasicInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
-  // Filters
-  // Level 1: [全部, 季配, 月配, 債券, 主動, 國際]
-  const [mainFilter, setMainFilter] = useState('全部'); 
-  // Level 2: Sub filters dependent on Level 1
-  const [subFilter, setSubFilter] = useState('ALL'); 
-
   useEffect(() => {
     let mounted = true;
     const fetchData = async () => {
@@ -34,33 +83,40 @@ const TabBasicInfo: React.FC = () => {
             
             if (!mounted) return;
 
-            // Prepare Size Map
+            // Prepare Size Map with Trimmed Keys and Case Insensitivity
             const sMap = new Map<string, SizeData[]>();
             if (Array.isArray(sizes)) {
                 sizes.forEach(s => {
                     if (s && s.etfCode) {
-                        if (!sMap.has(s.etfCode)) sMap.set(s.etfCode, []);
-                        sMap.get(s.etfCode)!.push(s);
+                        // CRITICAL FIX: Robust normalization of code
+                        const code = String(s.etfCode).trim().toUpperCase();
+                        if (!sMap.has(code)) sMap.set(code, []);
+                        sMap.get(code)!.push(s);
                     }
                 });
             }
-            sMap.forEach(arr => arr.sort((a,b) => (b.date || '').localeCompare(a.date || '')));
             
             const baseList = Array.isArray(basic) ? basic : [];
             const joined: BasicInfo[] = [];
             
             for (const b of baseList) {
-                // Defensive check to ensure we have a valid object
                 if (!b || typeof b !== 'object' || !b.etfCode) continue;
 
-                const sizeRecs = sMap.get(b.etfCode) || [];
-                const latestSize = sizeRecs[0]?.size || 0;
+                // CRITICAL FIX: Match the normalization used above
+                const code = String(b.etfCode).trim().toUpperCase();
+                const sizeRecs = sMap.get(code) || [];
+                
+                // Sort by date descending to get latest
+                sizeRecs.sort((x, y) => (y.date || '').localeCompare(x.date || ''));
+
+                const latestSize = sizeRecs.length > 0 ? sizeRecs[0].size : 0;
                 let trend = '持平';
                 
                 if (sizeRecs.length >= 2) {
+                    const current = sizeRecs[0].size || 0;
                     const prev = sizeRecs[1].size || 0;
-                    if (latestSize > prev) trend = '成長';
-                    else if (latestSize < prev) trend = '衰退';
+                    if (current > prev) trend = '成長';
+                    else if (current < prev) trend = '衰退';
                 }
                 
                 joined.push({ ...b, size: latestSize, trend });
@@ -89,24 +145,18 @@ const TabBasicInfo: React.FC = () => {
         let result = data;
         const getStr = (val: string | undefined) => String(val || '');
 
-        // --- 第一層過濾 (Level 1) ---
+        // --- Step 1: Apply Main Filter ---
         if (mainFilter !== '全部') {
-            
             if (mainFilter === '債券') {
-                // 規則：只要分類含「債」，全部進來。不分頻率。
                 result = result.filter(d => getStr(d.category).includes('債'));
-
             } else if (mainFilter === '季配') {
-                // 規則：頻率含「季」 且 分類【絕對不能】含「債」
+                // 股票型季配 (排除債券)
                 result = result.filter(d => 
                     getStr(d.dividendFreq).includes('季') && 
                     !getStr(d.category).includes('債')
                 );
-
             } else if (mainFilter === '月配') {
-                // 規則：頻率含「月」 且 分類【絕對不能】含「債」
-                // 修正：嚴格排除「主動」 (Exclude Active ETFs like 00985A)
-                // Also check ETF Name and Type for "主動"
+                // 股票型月配 (排除債券、排除主動)
                 result = result.filter(d => 
                     getStr(d.dividendFreq).includes('月') && 
                     !getStr(d.category).includes('債') &&
@@ -114,31 +164,34 @@ const TabBasicInfo: React.FC = () => {
                     !getStr(d.etfType).includes('主動') &&
                     !getStr(d.etfName).includes('主動')
                 );
-
             } else if (mainFilter === '主動') {
                 result = result.filter(d => getStr(d.category).includes('主動') || getStr(d.etfType).includes('主動') || getStr(d.etfName).includes('主動'));
-
             } else if (mainFilter === '國際') {
                 result = result.filter(d => getStr(d.category).includes('國際') || getStr(d.etfType).includes('國際') || getStr(d.marketType).includes('國外'));
             }
         }
 
-        // --- 第二層過濾 (Level 2) ---
+        // --- Step 2: Apply Sub Filter ---
         if (subFilter !== 'ALL') {
             const freqStr = (d: BasicInfo) => String(d.dividendFreq || '');
-
-            if (mainFilter === '季配') {
-                // 只有在選「季配」時，才有季1/2/3的區別
-                if (subFilter === '季一') result = result.filter(d => checkSeason(freqStr(d), 'Q1'));
-                if (subFilter === '季二') result = result.filter(d => checkSeason(freqStr(d), 'Q2'));
-                if (subFilter === '季三') result = result.filter(d => checkSeason(freqStr(d), 'Q3'));
-            } 
-            else if (mainFilter === '債券') {
-                // 在「債券」池中，再濾出月配或季配
-                if (subFilter === '月配') result = result.filter(d => freqStr(d).includes('月'));
-                if (subFilter === '季配') result = result.filter(d => freqStr(d).includes('季'));
+            
+            if (subFilter === '季一') {
+                result = result.filter(d => checkSeason(freqStr(d), 'Q1'));
+            } else if (subFilter === '季二') {
+                result = result.filter(d => checkSeason(freqStr(d), 'Q2'));
+            } else if (subFilter === '季三') {
+                result = result.filter(d => checkSeason(freqStr(d), 'Q3'));
+            } else if (subFilter === '月配') {
+                result = result.filter(d => freqStr(d).includes('月'));
+            } else if (subFilter === '半年') {
+                result = result.filter(d => freqStr(d).includes('半年'));
+            } else if (subFilter === '年配') {
+                result = result.filter(d => freqStr(d).includes('年') && !freqStr(d).includes('半年'));
+            } else if (subFilter === '無配') {
+                result = result.filter(d => freqStr(d).includes('不') || freqStr(d) === '' || freqStr(d).includes('無'));
             }
         }
+        
         return result;
       } catch (e) {
         console.error("Filter Error:", e);
@@ -165,17 +218,22 @@ const TabBasicInfo: React.FC = () => {
       }
   }
 
-  // UI Helper: Determine which sub-filters to show
   const getSubFilterOptions = () => {
-      if (mainFilter === '季配') return ['全部', '季一', '季二', '季三'];
-      if (mainFilter === '債券') return ['全部', '月配', '季配']; // Allow filtering bond frequency
+      if (mainFilter === '全部') {
+          return ['全部', '季一', '季二', '季三', '月配', '半年', '年配', '無配'];
+      }
+      if (mainFilter === '債券') {
+          return ['全部', '月配', '季一', '季二', '季三'];
+      }
+      if (mainFilter === '季配') {
+          return ['全部', '季一', '季二', '季三'];
+      }
       return [];
   };
 
   const subOptions = getSubFilterOptions();
   const showSubFilters = subOptions.length > 0;
 
-  // Manual Reset Handler
   const handleForceReset = () => {
       if(confirm('確定要清除所有資料嗎？您需要重新匯入 CSV。')) {
           localStorage.clear();
@@ -207,7 +265,7 @@ const TabBasicInfo: React.FC = () => {
       <div className="bg-white p-2 rounded-lg shadow-sm border border-primary-200 flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
             
-            {/* Level 1: Main Buttons (商品分類層級) */}
+            {/* Level 1: Main Buttons */}
             <div className="flex gap-1 shrink-0 bg-primary-50 p-1 rounded-lg">
                 {['全部', '季配', '月配', '債券', '主動', '國際'].map(cat => (
                     <button
@@ -220,13 +278,12 @@ const TabBasicInfo: React.FC = () => {
                                 : 'text-primary-500 hover:bg-primary-100 hover:text-primary-700'}
                         `}
                     >
-                        {/* 修正：回復原始顯示名稱，不加 (股) */}
                         {cat}
                     </button>
                 ))}
             </div>
 
-            {/* Level 2: Sub Buttons (細節層級) */}
+            {/* Level 2: Sub Buttons */}
             {showSubFilters && (
                 <div className="flex items-center animate-in fade-in slide-in-from-left-2 duration-300">
                     <div className="h-6 w-px bg-primary-200 mx-2"></div>
@@ -289,16 +346,20 @@ const TabBasicInfo: React.FC = () => {
                         <td className="p-3 font-mono font-bold text-primary-700">{row?.etfCode || '-'}</td>
                         <td className="p-3 font-bold text-primary-800">{row?.etfName || '-'}</td>
                         <td className="p-3">
-                            <span className={`px-2 py-0.5 rounded text-xs whitespace-nowrap ${
-                                String(row?.category || '').includes('債') ? 'bg-amber-100 text-amber-800' : 'bg-gray-100 text-gray-700'
-                            }`}>
+                            <span className={`px-2 py-0.5 rounded text-xs font-medium whitespace-nowrap border ${getSmartCategoryClass(row)}`}>
                                 {row?.category || '-'}
                             </span>
                         </td>
-                        <td className="p-3 text-primary-600 whitespace-nowrap">{row?.dividendFreq || '-'}</td>
+                        <td className="p-3">
+                             <span className="px-2 py-0.5 rounded text-xs font-medium whitespace-nowrap bg-gray-50 text-gray-500 border border-gray-100">
+                                {row?.dividendFreq || '-'}
+                            </span>
+                        </td>
                         <td className="p-3 text-primary-600 whitespace-nowrap">{row?.issuer || '-'}</td>
                         <td className="p-3 text-primary-600 whitespace-nowrap">{row?.etfType || '-'}</td>
-                        <td className="p-3 text-right font-mono font-bold text-primary-800">{typeof row?.size === 'number' ? row.size.toLocaleString() : '0'}</td>
+                        <td className="p-3 text-right font-mono font-bold text-primary-800">
+                            {row.size > 0 ? row.size.toLocaleString() : <span className="text-gray-300">-</span>}
+                        </td>
                         <td className="p-3">
                             <span className={`px-2 py-0.5 rounded text-xs font-bold whitespace-nowrap ${
                                 row?.trend === '成長' ? 'bg-red-100 text-red-700' : 
