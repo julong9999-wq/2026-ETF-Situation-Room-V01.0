@@ -2,7 +2,7 @@ import React, { ReactNode } from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 
-console.log("V1.5 Loaded");
+console.log("V1.10 Loaded");
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {
