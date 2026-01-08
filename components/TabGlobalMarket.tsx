@@ -43,8 +43,8 @@ const TabGlobalMarket: React.FC = () => {
   // Robust Detection Helpers
   const isTaiwanStock = (name: string, type: string) => {
       const n = name.toLowerCase();
-      if (n.includes('加權') || n.includes('櫃買') || n.includes('taiwan') || n.includes('twse') || n.includes('tpex')) return true;
-      if (type === 'TW' && !isUSStock(name, type)) return true;
+      // Only Weighted Index allowed for display based on new requirements
+      if (n.includes('加權') || n.includes('twse')) return true;
       return false;
   };
 
@@ -66,12 +66,8 @@ const TabGlobalMarket: React.FC = () => {
 
         // 1. Main Filter Logic
         if (mainFilter === 'TW') {
-            if (!isTaiwanStock(name, type)) return false;
-            // TW Sub-filters
-            if (subFilter !== 'ALL') {
-                if (subFilter === '加權' && !n.includes('加權') && !n.includes('twse')) return false;
-                if (subFilter === '櫃買' && !n.includes('櫃買') && !n.includes('tpex')) return false;
-            }
+            // Requirement: Only show Weighted Index (加權), no TPEX
+            if (!n.includes('加權') && !n.includes('twse')) return false;
         }
         
         if (mainFilter === 'US') {
@@ -141,7 +137,7 @@ const TabGlobalMarket: React.FC = () => {
 
   const getRecentData = () => {
       const targets = [
-          { name: '台灣加權', matcher: (d: MarketData) => isTaiwanStock(d.indexName, d.type) },
+          { name: '台灣加權', matcher: (d: MarketData) => (d.indexName.includes('加權') || d.indexName.toLowerCase().includes('twse')) },
           { name: '道瓊工業', matcher: (d: MarketData) => (d.indexName.includes('道瓊') || d.indexName.includes('Dow')) },
           { name: '那斯達克', matcher: (d: MarketData) => (d.indexName.includes('那斯達克') || d.indexName.includes('Nasdaq')) },
           { name: '費城半導體', matcher: (d: MarketData) => (d.indexName.includes('費城') || d.indexName.includes('SOX') || d.indexName.includes('Semiconductor')) },
@@ -162,9 +158,7 @@ const TabGlobalMarket: React.FC = () => {
       if (mainFilter === 'US') {
           return ['全部', '道瓊', '那斯', '費半', '標普'];
       }
-      if (mainFilter === 'TW') {
-          return ['全部', '加權', '櫃買'];
-      }
+      // TW sub-filters removed as per requirement
       return [];
   };
 

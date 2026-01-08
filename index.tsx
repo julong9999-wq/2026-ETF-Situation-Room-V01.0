@@ -1,4 +1,4 @@
-import React, { Component, ReactNode } from 'react';
+import React, { ReactNode, Component } from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 
@@ -19,10 +19,6 @@ interface ErrorBoundaryState {
 
 class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   public state: ErrorBoundaryState = { hasError: false, error: null, errorInfo: null };
-
-  constructor(props: ErrorBoundaryProps) {
-    super(props);
-  }
 
   static getDerivedStateFromError(error: any) {
     return { hasError: true, error };
