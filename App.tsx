@@ -2,12 +2,12 @@ import React, { useState, useEffect } from 'react';
 import TabAnalysisHub from './components/TabAnalysisHub';
 import TabExport from './components/TabExport';
 import { clearAllData, checkAndFetchSystemData } from './services/dataService';
-import { Loader2, RefreshCw, CheckCircle2, LayoutDashboard, TrendingUp, Download, Presentation } from 'lucide-react';
+import { Loader2, RefreshCw, CheckCircle2, LayoutDashboard, TrendingUp, Download, Presentation, Settings, Power, RotateCcw, X, Info } from 'lucide-react';
 import AdSenseBlock from './components/AdSenseBlock';
 
 // --- SYSTEM VERSION CONTROL ---
-const APP_VERSION = 'V.01.7'; // Internal Logic Version (BUMPED)
-const DISPLAY_VERSION = 'V01.1'; // UI Display Version (BUMPED for visual confirmation)
+const APP_VERSION = 'V.01.7'; // Internal Logic Version
+const DISPLAY_VERSION = 'V01.1'; // UI Display Version
 const STORAGE_VERSION_KEY = 'app_system_version';
 
 // Placeholders
@@ -20,12 +20,120 @@ type NavItem = {
   component: React.ReactNode;
 };
 
+// --- SYSTEM MODAL COMPONENT ---
+interface SystemModalProps {
+    onClose: () => void;
+    currentVersion: string;
+    displayVersion: string;
+}
+
+const SystemModal: React.FC<SystemModalProps> = ({ onClose, currentVersion, displayVersion }) => {
+    const [isReloading, setIsReloading] = useState(false);
+
+    const handleSoftReload = () => {
+        setIsReloading(true);
+        // Standard reload - usually fetches new index.html if headers allow
+        setTimeout(() => window.location.reload(), 800);
+    };
+
+    const handleFactoryReset = () => {
+        if (confirm('警告：這將刪除所有本地暫存的 CSV 資料並將系統還原至初始狀態。\n\n確定要執行嗎？')) {
+            setIsReloading(true);
+            clearAllData();
+            localStorage.clear(); // Wipe everything
+            setTimeout(() => window.location.reload(), 800);
+        }
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-xl w-full max-w-md shadow-2xl animate-in zoom-in-95 duration-200 overflow-hidden">
+                <div className="bg-gray-800 text-white p-4 flex justify-between items-center">
+                    <h3 className="font-bold text-lg flex items-center gap-2">
+                        <Settings className="w-5 h-5" /> 系統設定與資訊
+                    </h3>
+                    <button onClick={onClose} className="hover:bg-gray-700 p-1 rounded-full transition-colors">
+                        <X className="w-5 h-5" />
+                    </button>
+                </div>
+                
+                <div className="p-6 space-y-6">
+                    {/* Version Info */}
+                    <div className="text-center space-y-1">
+                        <div className="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                            <Presentation className="w-8 h-8 text-primary-600" />
+                        </div>
+                        <h2 className="text-xl font-bold text-gray-800">ETF 戰情室</h2>
+                        <div className="flex justify-center gap-2 text-sm text-gray-500 font-mono">
+                            <span className="bg-gray-100 px-2 py-0.5 rounded">UI: {displayVersion}</span>
+                            <span className="bg-gray-100 px-2 py-0.5 rounded">Core: {currentVersion}</span>
+                        </div>
+                    </div>
+
+                    <div className="border-t border-gray-100 my-4"></div>
+
+                    {/* Actions */}
+                    <div className="space-y-3">
+                        <div className="text-xs font-bold text-gray-400 uppercase tracking-wider ml-1">軟體更新</div>
+                        <button 
+                            onClick={handleSoftReload}
+                            disabled={isReloading}
+                            className="w-full flex items-center justify-between p-4 bg-primary-50 hover:bg-primary-100 text-primary-700 rounded-xl transition-all border border-primary-100 group"
+                        >
+                            <div className="flex items-center gap-3">
+                                <div className="bg-white p-2 rounded-lg shadow-sm group-hover:scale-110 transition-transform">
+                                    <RefreshCw className={`w-5 h-5 ${isReloading ? 'animate-spin' : ''}`} />
+                                </div>
+                                <div className="text-left">
+                                    <div className="font-bold text-sm">重新載入 (檢查更新)</div>
+                                    <div className="text-xs text-primary-400">重新整理頁面以取得最新版本</div>
+                                </div>
+                            </div>
+                            <ChevronRight className="w-4 h-4 text-primary-300" />
+                        </button>
+
+                        <div className="text-xs font-bold text-gray-400 uppercase tracking-wider ml-1 mt-4">危險區域</div>
+                        <button 
+                            onClick={handleFactoryReset}
+                            disabled={isReloading}
+                            className="w-full flex items-center justify-between p-4 bg-red-50 hover:bg-red-100 text-red-700 rounded-xl transition-all border border-red-100 group"
+                        >
+                            <div className="flex items-center gap-3">
+                                <div className="bg-white p-2 rounded-lg shadow-sm group-hover:scale-110 transition-transform">
+                                    <RotateCcw className="w-5 h-5 text-red-500" />
+                                </div>
+                                <div className="text-left">
+                                    <div className="font-bold text-sm">系統重置 (Factory Reset)</div>
+                                    <div className="text-xs text-red-400">清除所有資料庫快取並修復異常</div>
+                                </div>
+                            </div>
+                            <Power className="w-4 h-4 text-red-300" />
+                        </button>
+                    </div>
+                </div>
+
+                <div className="bg-gray-50 p-3 text-center text-xs text-gray-400">
+                    System ID: {Math.random().toString(36).substr(2, 9).toUpperCase()}
+                </div>
+            </div>
+        </div>
+    );
+};
+// Helper icon for button
+const ChevronRight = ({ className }: { className?: string }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="m9 18 6-6-6-6"/></svg>
+);
+
+
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState('ANALYSIS'); 
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isInitializing, setIsInitializing] = useState(true);
   const [isBackgroundUpdating, setIsBackgroundUpdating] = useState(false);
   const [lastUpdateStatus, setLastUpdateStatus] = useState<'idle' | 'success' | 'error'>('idle');
+  
+  // New State for System Modal
+  const [showSystemModal, setShowSystemModal] = useState(false);
 
   // --- 1. Version Check, 2. Corruption Healing, 3. AUTO DATA FETCH ---
   useEffect(() => {
@@ -192,18 +300,27 @@ const App: React.FC = () => {
           )}
         </div>
 
-        {/* Footer: Author & Version */}
-        <div className="p-4 border-t border-primary-800 bg-primary-950/50">
+        {/* Footer: Author & Version (INTERACTIVE) */}
+        <div 
+            onClick={() => setShowSystemModal(true)}
+            className="p-4 border-t border-primary-800 bg-primary-950/50 cursor-pointer hover:bg-primary-800/50 transition-colors group"
+        >
             <div className={`flex flex-col items-center ${sidebarOpen ? 'items-start' : 'items-center'}`}>
                 {sidebarOpen ? (
-                    <div className="w-full">
-                        <p className="text-sm font-bold text-white tracking-wide">julong chen</p>
-                        <p className="text-xs text-primary-400 mt-0.5 text-right">版本 {DISPLAY_VERSION}</p>
+                    <div className="w-full flex justify-between items-end">
+                        <div>
+                            <p className="text-sm font-bold text-white tracking-wide">julong chen</p>
+                            <p className="text-xs text-primary-400 mt-0.5">版本 {DISPLAY_VERSION}</p>
+                        </div>
+                        <Settings className="w-4 h-4 text-primary-500 group-hover:text-white group-hover:rotate-90 transition-all" />
                     </div>
                 ) : (
-                    <div className="text-xs text-primary-500 font-mono text-center">
-                        <div>V01</div>
-                        <div>.1</div>
+                    <div className="flex flex-col items-center gap-1">
+                        <div className="text-xs text-primary-500 font-mono text-center">
+                            <div>V01</div>
+                            <div>.1</div>
+                        </div>
+                        <Settings className="w-3 h-3 text-primary-600 group-hover:text-primary-400" />
                     </div>
                 )}
             </div>
@@ -226,6 +343,15 @@ const App: React.FC = () => {
           {getCurrentComponent()}
         </main>
       </div>
+
+      {/* RENDER SYSTEM MODAL */}
+      {showSystemModal && (
+          <SystemModal 
+            onClose={() => setShowSystemModal(false)}
+            currentVersion={APP_VERSION}
+            displayVersion={DISPLAY_VERSION}
+          />
+      )}
     </div>
   );
 };

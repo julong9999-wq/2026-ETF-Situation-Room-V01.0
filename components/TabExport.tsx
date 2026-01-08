@@ -32,11 +32,20 @@ const TabExport: React.FC = () => {
             
             if (type === 'market') {
                 const data = await getMarketData();
-                const headers = ['指數名稱', '代碼', '日期', '昨日收盤', '開盤', '高價', '低價', '現價', '成交量', '漲跌', '漲跌幅'];
+                // UPDATE: Removed '代碼' column as requested.
+                // Columns: 指數名稱 , 日期 ,昨日收盤 , 開盤 , 高價 , 低價 , 現價 , 成交量 , 漲跌 , 漲跌幅度
+                const headers = ['指數名稱', '日期', '昨日收盤', '開盤', '高價', '低價', '現價', '成交量', '漲跌', '漲跌幅'];
                 const rows = data.map(d => ({
-                    '指數名稱': d.indexName, '代碼': d.code, '日期': d.date,
-                    '昨日收盤': d.prevClose, '開盤': d.open, '高價': d.high, '低價': d.low, '現價': d.price,
-                    '成交量': d.volume, '漲跌': d.change, '漲跌幅': d.changePercent
+                    '指數名稱': d.indexName, 
+                    '日期': d.date,
+                    '昨日收盤': d.prevClose, 
+                    '開盤': d.open, 
+                    '高價': d.high, 
+                    '低價': d.low, 
+                    '現價': d.price,
+                    '成交量': d.volume, 
+                    '漲跌': d.change, 
+                    '漲跌幅': d.changePercent
                 }));
                 exportToCSV(`DB_國際大盤_${dateStr}`, headers, rows);
             }
