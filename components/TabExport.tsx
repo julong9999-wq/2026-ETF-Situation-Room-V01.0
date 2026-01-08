@@ -32,8 +32,6 @@ const TabExport: React.FC = () => {
             
             if (type === 'market') {
                 const data = await getMarketData();
-                // UPDATE: Removed '代碼' column as requested.
-                // Columns: 指數名稱 , 日期 ,昨日收盤 , 開盤 , 高價 , 低價 , 現價 , 成交量 , 漲跌 , 漲跌幅度
                 const headers = ['指數名稱', '日期', '昨日收盤', '開盤', '高價', '低價', '現價', '成交量', '漲跌', '漲跌幅'];
                 const rows = data.map(d => ({
                     '指數名稱': d.indexName, 
@@ -93,7 +91,6 @@ const TabExport: React.FC = () => {
                 exportToCSV(`DB_歷史股價_${dateStr}`, headers, rows);
             }
             else if (type === 'fill') {
-                // Calculation might take a moment
                 const data = await getFillAnalysisData();
                 const headers = ['ETF代碼', 'ETF名稱', '除息日期', '除息金額', '除息前股價', '參考價', '填息日期', '填息價', '是否填息', '填息天數'];
                 const rows = data.map(d => ({
@@ -113,13 +110,13 @@ const TabExport: React.FC = () => {
     };
 
     const cards = [
-        { id: 'market', title: '國際大盤資料', icon: Database, desc: '包含美股指數與台股加權指數的每日行情。', color: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-200' },
-        { id: 'basic', title: 'ETF 基本資料', icon: FileSpreadsheet, desc: 'ETF 清單、分類、配息頻率與發行商資訊。', color: 'text-indigo-600', bg: 'bg-indigo-50', border: 'border-indigo-200' },
-        { id: 'price', title: '每日股價 (最新)', icon: HardDrive, desc: '近期自動更新的每日收盤行情數據。', color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-200' },
-        { id: 'history', title: '歷史股價 (封存)', icon: Archive, desc: '手動匯入的歷史長區間股價數據。', color: 'text-slate-600', bg: 'bg-slate-50', border: 'border-slate-200' },
-        { id: 'dividend', title: '除息紀錄', icon: FileSpreadsheet, desc: '所有 ETF 的歷史除息金額與日期紀錄。', color: 'text-purple-600', bg: 'bg-purple-50', border: 'border-purple-200' },
+        { id: 'market', title: '國際大盤資料', icon: Database, desc: '美股指數與台股加權指數行情。', color: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-200' },
+        { id: 'basic', title: 'ETF 基本資料', icon: FileSpreadsheet, desc: 'ETF 清單、分類與發行資訊。', color: 'text-indigo-600', bg: 'bg-indigo-50', border: 'border-indigo-200' },
+        { id: 'price', title: '每日股價 (最新)', icon: HardDrive, desc: '近期自動更新的收盤行情。', color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-200' },
+        { id: 'history', title: '歷史股價 (封存)', icon: Archive, desc: '手動匯入的歷史長區間數據。', color: 'text-slate-600', bg: 'bg-slate-50', border: 'border-slate-200' },
+        { id: 'dividend', title: '除息紀錄', icon: FileSpreadsheet, desc: '所有 ETF 歷史除息與日期紀錄。', color: 'text-purple-600', bg: 'bg-purple-50', border: 'border-purple-200' },
         { id: 'size', title: '規模變化', icon: Database, desc: 'ETF 的資產規模歷史紀錄。', color: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-200' },
-        { id: 'fill', title: '填息分析總表', icon: Calculator, desc: '系統自動計算的全市場填息狀態報告 (運算需時)。', color: 'text-rose-600', bg: 'bg-rose-50', border: 'border-rose-200' },
+        { id: 'fill', title: '填息分析總表', icon: Calculator, desc: '系統自動計算的全市場填息報告。', color: 'text-rose-600', bg: 'bg-rose-50', border: 'border-rose-200' },
     ];
 
     return (
@@ -130,45 +127,50 @@ const TabExport: React.FC = () => {
                     全域資料匯出中心
                 </h2>
                 <p className="text-primary-500 mt-1">
-                    此處可匯出系統資料庫中的完整原始數據，不包含任何過濾條件。適合備份或外部分析使用。
+                    此處可匯出系統資料庫中的完整原始數據，不包含任何過濾條件。
                 </p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pb-10">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 pb-10">
                 {cards.map(card => {
                     const Icon = card.icon;
                     const count = counts[card.id] || 0;
                     const isProcessing = loadingState[card.id];
 
                     return (
-                        <div key={card.id} className={`bg-white rounded-xl shadow-sm border ${card.border} p-6 flex flex-col hover:shadow-md transition-shadow`}>
-                            <div className="flex items-start justify-between mb-4">
-                                <div className={`p-3 rounded-lg ${card.bg}`}>
-                                    <Icon className={`w-6 h-6 ${card.color}`} />
+                        <div key={card.id} className={`bg-white rounded-xl shadow-sm border ${card.border} p-4 flex flex-col hover:shadow-md transition-shadow gap-3`}>
+                            {/* Line 1: Icon + Title + Count */}
+                            <div className="flex items-center gap-3">
+                                <div className={`p-2 rounded-lg ${card.bg} shrink-0`}>
+                                    <Icon className={`w-5 h-5 ${card.color}`} />
                                 </div>
-                                <span className="bg-gray-100 text-gray-600 text-xs font-bold px-2 py-1 rounded-full font-mono">
+                                <h3 className="text-base font-bold text-gray-900 truncate flex-1">{card.title}</h3>
+                                <span className="bg-gray-100 text-gray-600 text-xs font-bold px-2 py-1 rounded-md font-mono shrink-0">
                                     {count.toLocaleString()} 筆
                                 </span>
                             </div>
                             
-                            <h3 className="text-lg font-bold text-gray-800 mb-2">{card.title}</h3>
-                            <p className="text-sm text-gray-500 mb-6 flex-1 leading-relaxed">
+                            {/* Line 2: Description */}
+                            <div className="text-sm text-gray-500 leading-snug line-clamp-1 min-h-[1.25rem]">
                                 {card.desc}
-                            </p>
+                            </div>
 
+                            {/* Line 3: Button */}
                             <button
                                 onClick={() => handleExport(card.id, card.title)}
                                 disabled={isProcessing || count === 0}
                                 className={`
-                                    w-full py-3 rounded-lg font-bold text-sm flex items-center justify-center gap-2 transition-all active:scale-95
+                                    w-full py-2.5 rounded-lg font-bold text-sm flex items-center justify-center gap-2 transition-all active:scale-95
                                     ${count === 0 
-                                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
-                                        : 'bg-white border-2 border-gray-200 text-gray-700 hover:border-primary-500 hover:text-primary-600'
+                                        ? 'bg-gray-50 text-gray-300 cursor-not-allowed border border-gray-100' 
+                                        : 'bg-white border border-gray-200 text-gray-700 hover:border-primary-500 hover:text-primary-600 hover:bg-primary-50'
                                     }
                                 `}
                             >
                                 {isProcessing ? (
-                                    <>Processing...</>
+                                    <span className="flex items-center gap-2 animate-pulse">
+                                        <DownloadCloud className="w-4 h-4" /> 處理中...
+                                    </span>
                                 ) : (
                                     <>
                                         <DownloadCloud className="w-4 h-4" />

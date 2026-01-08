@@ -484,7 +484,11 @@ const TabPrices: React.FC<TabPricesProps> = ({
       return { latestPrice, startPrice, yieldVal, returnVal, totalReturnVal, estYieldVal };
   };
 
-  const fmtP = (n: number) => n === 0 ? '-' : n.toFixed(2);
+  const fmtP = (n: number | string) => {
+    if (typeof n === 'string') return n;
+    return n === 0 ? '-' : n.toFixed(2);
+  };
+  
   const fmtPct = (n: number) => n === 0 ? '0.00%' : `${n.toFixed(2)}%`;
   const fmtCol = (n: number) => n > 0 ? 'text-red-600' : n < 0 ? 'text-green-600' : 'text-gray-800';
 

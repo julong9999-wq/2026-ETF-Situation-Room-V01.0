@@ -385,21 +385,9 @@ const TabDividends: React.FC<TabDividendsProps> = ({
           return Array.from(map.values()).sort((a,b) => b.date.localeCompare(a.date));
       }
       if (activeModal === 'TREND') return []; // Handled inside TrendModal props
-      if (activeModal === 'DIV') {
-          // Calculate Yield
-          // Yield = Div Amount / Latest Price
-          const latestPrice = priceData.filter(p => p.etfCode === selectedEtf).sort((a,b) => b.date.localeCompare(a.date))[0]?.price || 0;
-          
-          return divData.filter(d => d.etfCode === selectedEtf).sort((a,b) => b.exDate.localeCompare(a.exDate)).map(d => {
-              let yieldStr = '-';
-              if (latestPrice > 0) {
-                  yieldStr = ((d.amount / latestPrice) * 100).toFixed(2) + '%';
-              }
-              return {
-                  '年月': d.yearMonth, '除息日': d.exDate, '金額': d.amount, '單次殖利率': yieldStr, '發放日': d.paymentDate || '-'
-              };
-          });
-      }
+      
+      // Removed DIV block as it is not reachable/needed
+      
       if (activeModal === 'FILL') {
           return fillData.filter(d => d.etfCode === selectedEtf).sort((a,b) => b.exDate.localeCompare(a.exDate)).map(d => ({
               '除息日': d.exDate, '金額': d.amount, '前日股價': d.pricePreEx, '參考價': d.priceReference, '填息日': d.fillDate || '-', '填息天數': d.daysToFill
