@@ -3,22 +3,22 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <!-- CACHE BUSTING META TAGS -->
+    
+    <!-- AGGRESSIVE CACHE BUSTING (CRITICAL FOR BOOKMARKS) -->
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
     <meta http-equiv="Pragma" content="no-cache" />
     <meta http-equiv="Expires" content="0" />
     
-    <title>ETF Master Dashboard V1.5</title>
+    <title>ETF Master Dashboard V1.6</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
-      // POLYFILL: Fix for "process is not defined" error on Vercel/Browser environments
+      // POLYFILL: Fix for "process is not defined" error
       window.process = {
         env: {
           NODE_ENV: 'production',
           API_KEY: '' 
         }
       };
-      // POLYFILL: Some libs use 'global' instead of 'window'
       window.global = window;
     </script>
     <!-- GOOGLE ADSENSE SCRIPT -->
@@ -86,6 +86,5 @@
   <body class="bg-primary-50 text-primary-900 h-screen overflow-hidden">
     <div id="root"></div>
     <script type="module" src="./index.tsx"></script>
-    <!-- Version Marker: V1.5 - Force Update -->
   </body>
 </html>
