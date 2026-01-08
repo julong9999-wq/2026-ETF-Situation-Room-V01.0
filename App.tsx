@@ -6,8 +6,8 @@ import { Loader2, RefreshCw, CheckCircle2, LayoutDashboard, TrendingUp, Download
 import AdSenseBlock from './components/AdSenseBlock';
 
 // --- SYSTEM VERSION CONTROL ---
-const APP_VERSION = 'V.01.18'; // Internal Logic Version 
-const DISPLAY_VERSION = 'V1.12'; // UI Display Version (Verification)
+const APP_VERSION = 'V.01.19'; // Internal Logic Version 
+const DISPLAY_VERSION = 'V1.13'; // UI Display Version (Script Tag Cache Busting)
 const STORAGE_VERSION_KEY = 'app_system_version';
 
 // Placeholders
@@ -28,7 +28,7 @@ const UpdateOverlay = ({ serverVersion, onUpdate }: { serverVersion: string, onU
         </div>
         <h1 className="text-3xl font-bold mb-4 text-center">發現新版本 {serverVersion}</h1>
         <p className="text-blue-200 mb-8 text-center max-w-md text-lg">
-            系統已更新至 V1.12。此版本確認了快取清除機制運作正常，並進行了例行性資料同步優化。
+            系統已發布更新 (V1.13)。此版本透過修改核心載入參數，強制瀏覽器重新讀取最新程式碼，解決更新無效的問題。
         </p>
         <button 
             onClick={onUpdate}
@@ -53,28 +53,35 @@ const SystemModal: React.FC<SystemModalProps> = ({ onClose, currentVersion, disp
 
     const handleSoftReload = async () => {
         setIsReloading(true);
-        console.log("Executing Aggressive Reload...");
+        console.log("Executing Ultra Aggressive Reload...");
 
-        // 1. Try to clear Service Worker Caches (if any)
+        // 1. Unregister Service Workers (PWA killer)
+        if ('serviceWorker' in navigator) {
+            try {
+                const registrations = await navigator.serviceWorker.getRegistrations();
+                for (const registration of registrations) {
+                    await registration.unregister();
+                    console.log('Service Worker unregistered');
+                }
+            } catch(e) { console.warn(e); }
+        }
+
+        // 2. Clear Cache Storage
         if ('caches' in window) {
             try {
                 const keys = await caches.keys();
                 await Promise.all(keys.map(key => caches.delete(key)));
                 console.log("Caches cleared.");
-            } catch (e) {
-                console.warn("Failed to clear caches:", e);
-            }
+            } catch (e) { console.warn(e); }
         }
 
-        // 2. Force Navigation to a fresh URL
-        // We append a timestamp to the URL to force the browser to treat it as a new page request
-        // ignoring any cached index.html
+        // 3. Force Navigation
         setTimeout(() => {
             const url = new URL(window.location.href);
-            // Remove old timestamp if exists to keep URL clean(er)
             url.searchParams.delete('t'); 
             url.searchParams.set('t', Date.now().toString());
-            window.location.href = url.toString();
+            // Use replace to prevent back-button loops
+            window.location.replace(url.toString());
         }, 100);
     };
 
@@ -127,8 +134,8 @@ const SystemModal: React.FC<SystemModalProps> = ({ onClose, currentVersion, disp
                                     <RefreshCw className={`w-5 h-5 ${isReloading ? 'animate-spin' : ''}`} />
                                 </div>
                                 <div className="text-left">
-                                    <div className="font-bold text-sm">強制重新整理 (強力版)</div>
-                                    <div className="text-xs text-blue-400">清除快取並強制重載</div>
+                                    <div className="font-bold text-sm">強制重新整理 (V1.13)</div>
+                                    <div className="text-xs text-blue-400">清除 SW 快取並強制重載</div>
                                 </div>
                             </div>
                         </button>
@@ -247,18 +254,27 @@ const App: React.FC = () => {
   }, []);
 
   const handleUpdateClick = async () => {
-      // Use the same Aggressive Reload Logic as SystemModal
+      // 1. Unregister Service Workers
+      if ('serviceWorker' in navigator) {
+          try {
+              const registrations = await navigator.serviceWorker.getRegistrations();
+              for (const registration of registrations) {
+                  await registration.unregister();
+              }
+          } catch(e) {}
+      }
+      // 2. Clear Caches
       if ('caches' in window) {
           try {
               const keys = await caches.keys();
               await Promise.all(keys.map(key => caches.delete(key)));
           } catch (e) {}
       }
-      // Force navigation with timestamp query param
+      // 3. Force navigation with timestamp and replace
       const url = new URL(window.location.href);
       url.searchParams.delete('t');
       url.searchParams.set('t', Date.now().toString());
-      window.location.href = url.toString();
+      window.location.replace(url.toString());
   };
 
   const navItems: NavItem[] = [
@@ -297,7 +313,7 @@ const App: React.FC = () => {
       return (
           <div className="flex flex-col items-center justify-center h-screen bg-blue-50 text-blue-900">
               <Loader2 className="w-16 h-16 animate-spin mb-6 text-blue-600" />
-              <h2 className="text-2xl font-bold mb-2">系統載入中 (V1.12)...</h2>
+              <h2 className="text-2xl font-bold mb-2">系統載入中 (V1.13)...</h2>
               <div className="bg-white/50 px-6 py-4 rounded-xl text-center border border-blue-200 max-w-sm">
                   <p className="text-sm text-blue-800 font-bold mb-1">正在套用藍色佈景主題</p>
               </div>
@@ -363,7 +379,7 @@ const App: React.FC = () => {
             })}
           </nav>
           
-          {/* V1.12 Feature Highlight (Blue Style) */}
+          {/* V1.13 Feature Highlight (Blue Style) */}
           {sidebarOpen && (
             <div className="mx-2 mb-2 p-3 bg-blue-900/50 rounded-lg border border-blue-800 shadow-inner group relative overflow-hidden">
                 <div className="absolute top-0 right-0 p-1 opacity-20">
@@ -371,11 +387,11 @@ const App: React.FC = () => {
                 </div>
                 <div className="text-xs font-bold text-blue-300 mb-1 flex items-center gap-1.5 relative z-10">
                     <Zap className="w-3.5 h-3.5 fill-blue-400" /> 
-                    <span>Version 1.12</span>
+                    <span>Version 1.13</span>
                 </div>
                 <p className="text-[10px] text-blue-200 leading-relaxed font-mono relative z-10">
-                    更新機制驗證。 <br/>
-                    確保快取清除功能正常。
+                    強制腳本更新。<br/>
+                    解決瀏覽器快取問題。
                 </p>
             </div>
           )}
@@ -412,7 +428,7 @@ const App: React.FC = () => {
                     <div className="flex flex-col items-center gap-1">
                         <div className="text-xs text-blue-500 font-mono text-center">
                             <div>V1</div>
-                            <div>.12</div>
+                            <div>.13</div>
                         </div>
                         <Settings className="w-3 h-3 text-blue-500 group-hover:text-blue-300" />
                     </div>
