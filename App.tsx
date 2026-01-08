@@ -7,7 +7,7 @@ import AdSenseBlock from './components/AdSenseBlock';
 
 // --- SYSTEM VERSION CONTROL ---
 const APP_VERSION = 'V.01.7'; // Internal Logic Version
-const DISPLAY_VERSION = 'V01.1'; // UI Display Version
+const DISPLAY_VERSION = 'V01.2'; // UI Display Version (Updated for TabExport Redesign)
 const STORAGE_VERSION_KEY = 'app_system_version';
 
 // Placeholders

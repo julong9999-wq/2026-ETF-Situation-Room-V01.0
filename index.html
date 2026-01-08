@@ -3,6 +3,11 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <!-- CACHE BUSTING META TAGS -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
+    
     <title>ETF Master Dashboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -80,7 +85,7 @@
 </head>
   <body class="bg-primary-50 text-primary-900 h-screen overflow-hidden">
     <div id="root"></div>
-    <!-- CRITICAL FIX: Load the application entry point using relative path -->
-    <script type="module" src="./index.tsx"></script>
+    <!-- CRITICAL FIX: Added query parameter ?v=01.2 to force browser to reload the script -->
+    <script type="module" src="./index.tsx?v=01.2"></script>
   </body>
 </html>
