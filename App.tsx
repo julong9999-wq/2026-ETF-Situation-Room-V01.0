@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import TabAnalysisHub from './components/TabAnalysisHub';
 import { clearAllData, checkAndFetchSystemData } from './services/dataService';
 import { Loader2, RefreshCw, CheckCircle2 } from 'lucide-react';
+import AdSenseBlock from './components/AdSenseBlock';
 
 // --- SYSTEM VERSION CONTROL ---
 const APP_VERSION = 'V.01.6'; 
@@ -154,8 +155,8 @@ const App: React.FC = () => {
           </div>
         </div>
         
-        <div className="flex-1 overflow-y-auto py-4">
-          <nav className="space-y-1.5 px-2">
+        <div className="flex-1 overflow-y-auto py-4 flex flex-col">
+          <nav className="space-y-1.5 px-2 flex-1">
             {navItems.map((item) => {
               const isActive = activeTab === item.id;
               return (
@@ -174,6 +175,19 @@ const App: React.FC = () => {
               );
             })}
           </nav>
+          
+          {/* SIDEBAR AD SLOT */}
+          {sidebarOpen && (
+              <div className="px-4 pb-2 mt-auto">
+                 <AdSenseBlock 
+                    slot="1234567890" // REPLACE WITH REAL SLOT ID
+                    format="rectangle"
+                    style={{ minHeight: '250px', width: '100%' }}
+                    className="rounded-lg overflow-hidden opacity-90 hover:opacity-100 transition-opacity"
+                    label="贊助廣告"
+                 />
+              </div>
+          )}
         </div>
 
         <div className="p-4 border-t border-primary-800 bg-primary-950/50">

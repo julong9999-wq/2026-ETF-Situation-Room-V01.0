@@ -5,6 +5,7 @@ import TabPrices from './TabPrices';
 import TabDividends from './TabDividends';
 import TabFillAnalysis from './TabFillAnalysis';
 import { LayoutDashboard, Receipt, LineChart, PieChart, TrendingUp, Users } from 'lucide-react';
+import AdSenseBlock from './AdSenseBlock';
 
 const TabAnalysisHub: React.FC = () => {
   // Default to the first tab ('market') so the screen isn't empty
@@ -79,6 +80,15 @@ const TabAnalysisHub: React.FC = () => {
             <Users className="w-3 h-3 text-primary-600" />
             <span className="text-xs font-bold text-primary-700 font-mono">{visitorCount.toLocaleString()}</span>
         </div>
+      </div>
+      
+      {/* BANNER AD SLOT */}
+      <div className="flex-none bg-primary-50 px-2">
+         <AdSenseBlock 
+             slot="0987654321" // REPLACE WITH REAL SLOT ID
+             format="auto" 
+             style={{ display: 'block', height: '90px' }}
+         />
       </div>
 
       {/* Bottom Section: Form Content / Output Area */}
