@@ -2,7 +2,7 @@ import React, { ReactNode } from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 
-console.log("V1.13 Loaded - Strict Cache Mode Active");
+console.log("V1.14 Loaded - Cache Fix");
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {
