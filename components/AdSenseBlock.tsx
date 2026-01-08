@@ -11,7 +11,7 @@ interface AdSenseBlockProps {
 }
 
 const AdSenseBlock: React.FC<AdSenseBlockProps> = ({
-  client = "ca-pub-XXXXXXXXXXXXXXXX", // Default placeholder
+  client = "ca-pub-5925575464455571", // Real Publisher ID
   slot,
   format = "auto",
   responsive = true,
@@ -32,8 +32,9 @@ const AdSenseBlock: React.FC<AdSenseBlockProps> = ({
     }
   }, []); // Run once on mount
 
-  // If running on localhost or no real ID provided, we show a mock placeholder for UI testing
-  const isDev = window.location.hostname === 'localhost' || client === "ca-pub-XXXXXXXXXXXXXXXX";
+  // Only show placeholder if running on localhost
+  // AdSense doesn't work on localhost usually, so we mock it.
+  const isDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 
   if (isDev) {
       return (
@@ -41,6 +42,7 @@ const AdSenseBlock: React.FC<AdSenseBlockProps> = ({
               <span className="font-bold text-xs bg-gray-200 px-2 py-0.5 rounded text-gray-500 mb-1">{label}</span>
               <span className="text-xs">Google AdSense Space</span>
               <span className="text-[10px] opacity-70 mt-1">(ID: {slot})</span>
+              <span className="text-[10px] opacity-50 text-green-600 mt-1">Publisher ID Configured</span>
           </div>
       );
   }
