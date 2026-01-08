@@ -6,8 +6,8 @@ import { Loader2, RefreshCw, CheckCircle2, LayoutDashboard, TrendingUp, Download
 import AdSenseBlock from './components/AdSenseBlock';
 
 // --- SYSTEM VERSION CONTROL ---
-const APP_VERSION = 'V.01.12'; // Internal Logic Version 
-const DISPLAY_VERSION = 'V01.6'; // UI Display Version (Auto-Updater Enabled)
+const APP_VERSION = 'V.01.13'; // Internal Logic Version 
+const DISPLAY_VERSION = 'V01.7'; // UI Display Version (Reverted to Blue)
 const STORAGE_VERSION_KEY = 'app_system_version';
 
 // Placeholders
@@ -47,11 +47,11 @@ const SystemModal: React.FC<SystemModalProps> = ({ onClose, currentVersion, disp
     return (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
             <div className="bg-white rounded-xl w-full max-w-md shadow-2xl animate-in zoom-in-95 duration-200 overflow-hidden">
-                <div className="bg-indigo-800 text-white p-4 flex justify-between items-center">
+                <div className="bg-primary-800 text-white p-4 flex justify-between items-center">
                     <h3 className="font-bold text-lg flex items-center gap-2">
                         <Settings className="w-5 h-5" /> 系統設定與資訊
                     </h3>
-                    <button onClick={onClose} className="hover:bg-indigo-700 p-1 rounded-full transition-colors">
+                    <button onClick={onClose} className="hover:bg-primary-700 p-1 rounded-full transition-colors">
                         <X className="w-5 h-5" />
                     </button>
                 </div>
@@ -59,8 +59,8 @@ const SystemModal: React.FC<SystemModalProps> = ({ onClose, currentVersion, disp
                 <div className="p-6 space-y-6">
                     {/* Version Info */}
                     <div className="text-center space-y-1">
-                        <div className="w-16 h-16 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                            <CloudLightning className="w-8 h-8 text-indigo-600" />
+                        <div className="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                            <CloudLightning className="w-8 h-8 text-primary-600" />
                         </div>
                         <h2 className="text-xl font-bold text-gray-800">ETF 戰情室</h2>
                         <div className="flex justify-center gap-2 text-sm text-gray-500 font-mono">
@@ -141,7 +141,7 @@ const App: React.FC = () => {
           const response = await fetch(`./metadata.json?t=${new Date().getTime()}`);
           if (response.ok) {
               const data = await response.json();
-              const serverVersion = data.version; // e.g., "V01.6"
+              const serverVersion = data.version; 
               
               if (serverVersion && serverVersion !== DISPLAY_VERSION) {
                   console.log(`Update Detected: Server(${serverVersion}) vs Local(${DISPLAY_VERSION})`);
@@ -160,11 +160,12 @@ const App: React.FC = () => {
         // 1. Check for updates FIRST
         const hasUpdate = await checkForUpdates();
         
+        // If update detected, wait briefly then reload to ensure user gets new version immediately
+        // This is "Aggressive Mode" for testing
         if (hasUpdate) {
-            // If update found, we can optionally force reload immediately or show UI
-            // For better UX, we show the "Update Available" UI in sidebar, 
-            // but if it's a critical logic change, we might want to force it.
-            // For now, let's just proceed to load, the banner will prompt user.
+             console.log("Auto-Reloading for Update...");
+             setTimeout(() => window.location.reload(), 500);
+             return; // Stop initialization
         }
 
         const savedVersion = localStorage.getItem(STORAGE_VERSION_KEY);
@@ -239,30 +240,30 @@ const App: React.FC = () => {
 
   if (isInitializing) {
       return (
-          <div className="flex flex-col items-center justify-center h-screen bg-indigo-50 text-indigo-900">
-              <Loader2 className="w-16 h-16 animate-spin mb-6 text-indigo-600" />
-              <h2 className="text-2xl font-bold mb-2">系統升級中 (V01.6)...</h2>
-              <div className="bg-white/50 px-6 py-4 rounded-xl text-center border border-indigo-200 max-w-sm">
-                  <p className="text-sm text-indigo-800 font-bold mb-1">正在初始化自動更新機制</p>
-                  <p className="text-xs text-indigo-500">解決書籤快取問題</p>
+          <div className="flex flex-col items-center justify-center h-screen bg-primary-50 text-primary-900">
+              <Loader2 className="w-16 h-16 animate-spin mb-6 text-primary-600" />
+              <h2 className="text-2xl font-bold mb-2">系統升級中 (V01.7)...</h2>
+              <div className="bg-white/50 px-6 py-4 rounded-xl text-center border border-primary-200 max-w-sm">
+                  <p className="text-sm text-primary-800 font-bold mb-1">正在還原經典藍色介面</p>
+                  <p className="text-xs text-primary-500">自動更新測試</p>
               </div>
           </div>
       );
   }
 
-  // --- VISUAL CHANGE: Use Indigo-900 for V1.6 ---
+  // --- VISUAL CHANGE: Reverted to PRIMARY-900 (Original Blue) ---
   return (
     <div className="flex h-screen bg-primary-50 overflow-hidden">
-      {/* Sidebar - Indigo Theme for V1.6 */}
-      <div className={`${sidebarOpen ? 'w-60' : 'w-20'} bg-indigo-950 text-white transition-all duration-300 flex flex-col shadow-2xl z-20 border-r border-indigo-900`}>
-        <div className="p-5 border-b border-indigo-900">
+      {/* Sidebar - ORIGINAL BLUE THEME */}
+      <div className={`${sidebarOpen ? 'w-60' : 'w-20'} bg-primary-900 text-white transition-all duration-300 flex flex-col shadow-2xl z-20 border-r border-primary-800`}>
+        <div className="p-5 border-b border-primary-800">
           <div className={`flex flex-col ${!sidebarOpen && 'items-center'}`}>
              <div className="flex items-center justify-between w-full mb-1">
                  <div className={`flex items-center gap-2 ${!sidebarOpen && 'hidden'}`}>
                     <CloudLightning className="w-6 h-6 text-yellow-400" />
                     <span className="font-bold text-lg tracking-wider truncate">ETF 戰情室</span>
                  </div>
-                 <button onClick={() => setSidebarOpen(!sidebarOpen)} className="p-1.5 hover:bg-indigo-800 rounded-lg text-indigo-200 hover:text-white">
+                 <button onClick={() => setSidebarOpen(!sidebarOpen)} className="p-1.5 hover:bg-primary-800 rounded-lg text-primary-200 hover:text-white">
                     <span className="text-xl">☰</span>
                  </button>
              </div>
@@ -295,8 +296,8 @@ const App: React.FC = () => {
                   onClick={() => setActiveTab(item.id)}
                   className={`w-full flex items-center px-3 py-3 rounded-xl transition-all duration-200 mb-1 ${
                     isActive
-                      ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/50 border border-indigo-500' 
-                      : 'text-indigo-200 hover:bg-indigo-900 hover:text-white border border-transparent'
+                      ? 'bg-primary-700 text-white shadow-lg shadow-primary-900/50 border border-primary-600' 
+                      : 'text-primary-200 hover:bg-primary-800 hover:text-white border border-transparent'
                   } ${!sidebarOpen && 'justify-center'}`}
                 >
                   <span className={`${sidebarOpen ? 'mr-3' : ''}`}>
@@ -321,19 +322,19 @@ const App: React.FC = () => {
               </div>
           )}
 
-          {/* V1.6 Feature Highlight */}
+          {/* V1.7 Feature Highlight (Blue Style) */}
           {sidebarOpen && !updateAvailable && (
-            <div className="mx-2 mb-2 p-3 bg-indigo-900/50 rounded-lg border border-indigo-700/50 shadow-inner group relative overflow-hidden">
+            <div className="mx-2 mb-2 p-3 bg-primary-800/50 rounded-lg border border-primary-700/50 shadow-inner group relative overflow-hidden">
                 <div className="absolute top-0 right-0 p-1 opacity-20">
-                     <CheckCircle2 className="w-12 h-12 text-indigo-400" />
+                     <CheckCircle2 className="w-12 h-12 text-primary-400" />
                 </div>
-                <div className="text-xs font-bold text-indigo-300 mb-1 flex items-center gap-1.5 relative z-10">
-                    <Zap className="w-3.5 h-3.5 fill-indigo-400" /> 
-                    <span>自動更新機制 V1.6</span>
+                <div className="text-xs font-bold text-primary-300 mb-1 flex items-center gap-1.5 relative z-10">
+                    <Zap className="w-3.5 h-3.5 fill-primary-400" /> 
+                    <span>自動更新機制 V1.7</span>
                 </div>
-                <p className="text-[10px] text-indigo-200 leading-relaxed font-mono relative z-10">
-                    解決書籤快取問題。<br/>
-                    每次開啟自動檢查版本。
+                <p className="text-[10px] text-primary-200 leading-relaxed font-mono relative z-10">
+                    介面已還原為經典藍色。<br/>
+                    自動更新測試成功。
                 </p>
             </div>
           )}
@@ -355,24 +356,24 @@ const App: React.FC = () => {
         {/* Footer */}
         <div 
             onClick={() => setShowSystemModal(true)}
-            className="p-4 border-t border-indigo-900 bg-indigo-950 cursor-pointer hover:bg-indigo-900 transition-colors group"
+            className="p-4 border-t border-primary-800 bg-primary-950 cursor-pointer hover:bg-primary-900 transition-colors group"
         >
             <div className={`flex flex-col items-center ${sidebarOpen ? 'items-start' : 'items-center'}`}>
                 {sidebarOpen ? (
                     <div className="w-full flex justify-between items-end">
                         <div>
                             <p className="text-sm font-bold text-white tracking-wide">julong chen</p>
-                            <p className="text-xs text-indigo-400 mt-0.5">版本 {DISPLAY_VERSION}</p>
+                            <p className="text-xs text-primary-400 mt-0.5">版本 {DISPLAY_VERSION}</p>
                         </div>
-                        <Settings className="w-4 h-4 text-indigo-500 group-hover:text-white group-hover:rotate-90 transition-all" />
+                        <Settings className="w-4 h-4 text-primary-500 group-hover:text-white group-hover:rotate-90 transition-all" />
                     </div>
                 ) : (
                     <div className="flex flex-col items-center gap-1">
-                        <div className="text-xs text-indigo-500 font-mono text-center">
+                        <div className="text-xs text-primary-500 font-mono text-center">
                             <div>V01</div>
-                            <div>.6</div>
+                            <div>.7</div>
                         </div>
-                        <Settings className="w-3 h-3 text-indigo-500 group-hover:text-indigo-300" />
+                        <Settings className="w-3 h-3 text-primary-500 group-hover:text-primary-300" />
                     </div>
                 )}
             </div>
@@ -383,10 +384,10 @@ const App: React.FC = () => {
       <div className="flex-1 flex flex-col h-screen overflow-hidden relative">
         <header className="bg-white shadow-sm border-b border-primary-200 p-4 flex justify-between items-center md:hidden z-10">
             <div className="flex items-center gap-2">
-                <Presentation className="w-5 h-5 text-indigo-900" />
-                <div className="font-bold text-indigo-900 text-lg">ETF 戰情室</div>
+                <Presentation className="w-5 h-5 text-primary-900" />
+                <div className="font-bold text-primary-900 text-lg">ETF 戰情室</div>
             </div>
-            <button onClick={() => setSidebarOpen(!sidebarOpen)} className="text-indigo-700"><span className="text-xl">☰</span></button>
+            <button onClick={() => setSidebarOpen(!sidebarOpen)} className="text-primary-700"><span className="text-xl">☰</span></button>
         </header>
         <main className="flex-1 overflow-hidden relative bg-primary-50">
           {getCurrentComponent()}
