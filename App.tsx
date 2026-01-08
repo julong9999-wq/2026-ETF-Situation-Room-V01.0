@@ -6,8 +6,8 @@ import { Loader2, RefreshCw, CheckCircle2, LayoutDashboard, TrendingUp, Download
 import AdSenseBlock from './components/AdSenseBlock';
 
 // --- SYSTEM VERSION CONTROL ---
-const APP_VERSION = 'V.01.16'; // Internal Logic Version 
-const DISPLAY_VERSION = 'V1.10'; // UI Display Version (Update Test)
+const APP_VERSION = 'V.01.17'; // Internal Logic Version 
+const DISPLAY_VERSION = 'V1.11'; // UI Display Version (Fix Update Logic)
 const STORAGE_VERSION_KEY = 'app_system_version';
 
 // Placeholders
@@ -28,7 +28,7 @@ const UpdateOverlay = ({ serverVersion, onUpdate }: { serverVersion: string, onU
         </div>
         <h1 className="text-3xl font-bold mb-4 text-center">發現新版本 {serverVersion}</h1>
         <p className="text-blue-200 mb-8 text-center max-w-md text-lg">
-            系統已發布更新 (V1.10)。包含自動更新機制的驗證與效能優化。請點擊下方按鈕以載入最新內容。
+            系統已發布更新 (V1.11)。我們優化了更新機制，解決了點擊更新無效的問題。
         </p>
         <button 
             onClick={onUpdate}
@@ -51,11 +51,31 @@ interface SystemModalProps {
 const SystemModal: React.FC<SystemModalProps> = ({ onClose, currentVersion, displayVersion }) => {
     const [isReloading, setIsReloading] = useState(false);
 
-    const handleSoftReload = () => {
+    const handleSoftReload = async () => {
         setIsReloading(true);
-        // Force bypass cache reload
-        window.location.href = window.location.href; 
-        window.location.reload();
+        console.log("Executing Aggressive Reload...");
+
+        // 1. Try to clear Service Worker Caches (if any)
+        if ('caches' in window) {
+            try {
+                const keys = await caches.keys();
+                await Promise.all(keys.map(key => caches.delete(key)));
+                console.log("Caches cleared.");
+            } catch (e) {
+                console.warn("Failed to clear caches:", e);
+            }
+        }
+
+        // 2. Force Navigation to a fresh URL
+        // We append a timestamp to the URL to force the browser to treat it as a new page request
+        // ignoring any cached index.html
+        setTimeout(() => {
+            const url = new URL(window.location.href);
+            // Remove old timestamp if exists to keep URL clean(er)
+            url.searchParams.delete('t'); 
+            url.searchParams.set('t', Date.now().toString());
+            window.location.href = url.toString();
+        }, 100);
     };
 
     const handleFactoryReset = () => {
@@ -107,8 +127,8 @@ const SystemModal: React.FC<SystemModalProps> = ({ onClose, currentVersion, disp
                                     <RefreshCw className={`w-5 h-5 ${isReloading ? 'animate-spin' : ''}`} />
                                 </div>
                                 <div className="text-left">
-                                    <div className="font-bold text-sm">強制重新整理</div>
-                                    <div className="text-xs text-blue-400">清除快取並重新載入</div>
+                                    <div className="font-bold text-sm">強制重新整理 (強力版)</div>
+                                    <div className="text-xs text-blue-400">清除快取並強制重載</div>
                                 </div>
                             </div>
                         </button>
@@ -226,10 +246,19 @@ const App: React.FC = () => {
     initApp();
   }, []);
 
-  const handleUpdateClick = () => {
-      // Hard Reload
-      // Use query param to ensure browser fetches fresh
-      window.location.search = `?v=${new Date().getTime()}`;
+  const handleUpdateClick = async () => {
+      // Use the same Aggressive Reload Logic as SystemModal
+      if ('caches' in window) {
+          try {
+              const keys = await caches.keys();
+              await Promise.all(keys.map(key => caches.delete(key)));
+          } catch (e) {}
+      }
+      // Force navigation with timestamp query param
+      const url = new URL(window.location.href);
+      url.searchParams.delete('t');
+      url.searchParams.set('t', Date.now().toString());
+      window.location.href = url.toString();
   };
 
   const navItems: NavItem[] = [
@@ -268,7 +297,7 @@ const App: React.FC = () => {
       return (
           <div className="flex flex-col items-center justify-center h-screen bg-blue-50 text-blue-900">
               <Loader2 className="w-16 h-16 animate-spin mb-6 text-blue-600" />
-              <h2 className="text-2xl font-bold mb-2">系統載入中 (V1.10)...</h2>
+              <h2 className="text-2xl font-bold mb-2">系統載入中 (V1.11)...</h2>
               <div className="bg-white/50 px-6 py-4 rounded-xl text-center border border-blue-200 max-w-sm">
                   <p className="text-sm text-blue-800 font-bold mb-1">正在套用藍色佈景主題</p>
               </div>
@@ -334,7 +363,7 @@ const App: React.FC = () => {
             })}
           </nav>
           
-          {/* V1.10 Feature Highlight (Blue Style) */}
+          {/* V1.11 Feature Highlight (Blue Style) */}
           {sidebarOpen && (
             <div className="mx-2 mb-2 p-3 bg-blue-900/50 rounded-lg border border-blue-800 shadow-inner group relative overflow-hidden">
                 <div className="absolute top-0 right-0 p-1 opacity-20">
@@ -342,11 +371,11 @@ const App: React.FC = () => {
                 </div>
                 <div className="text-xs font-bold text-blue-300 mb-1 flex items-center gap-1.5 relative z-10">
                     <Zap className="w-3.5 h-3.5 fill-blue-400" /> 
-                    <span>Version 1.10</span>
+                    <span>Version 1.11</span>
                 </div>
                 <p className="text-[10px] text-blue-200 leading-relaxed font-mono relative z-10">
-                    自動更新測試: 階段 2。<br/>
-                    確保 V1.9 成功觸發提示。
+                    更新機制優化: <br/>
+                    強制清除快取並重載。
                 </p>
             </div>
           )}
@@ -383,7 +412,7 @@ const App: React.FC = () => {
                     <div className="flex flex-col items-center gap-1">
                         <div className="text-xs text-blue-500 font-mono text-center">
                             <div>V1</div>
-                            <div>.10</div>
+                            <div>.11</div>
                         </div>
                         <Settings className="w-3 h-3 text-blue-500 group-hover:text-blue-300" />
                     </div>

@@ -2,7 +2,7 @@ import React, { ReactNode } from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 
-console.log("V1.10 Loaded");
+console.log("V1.11 Loaded - Cache Busting Active");
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {
@@ -42,8 +42,8 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
       // 1. Clear everything
       localStorage.clear();
       sessionStorage.clear();
-      // 2. Force reload ignoring cache
-      window.location.reload();
+      // 2. Force reload ignoring cache with timestamp
+      window.location.href = window.location.pathname + "?t=" + Date.now();
   };
 
   render() {
