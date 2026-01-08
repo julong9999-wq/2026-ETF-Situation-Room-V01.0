@@ -13,8 +13,9 @@ const TabAnalysisHub: React.FC = () => {
   const [visitorCount, setVisitorCount] = useState<number>(12045);
 
   // --- SHARED FILTER STATE (For Linkage) ---
-  const [sharedMainFilter, setSharedMainFilter] = useState('全部');
-  const [sharedSubFilter, setSharedSubFilter] = useState('ALL');
+  // Default values changed to '季配' and '季一' as requested
+  const [sharedMainFilter, setSharedMainFilter] = useState('季配');
+  const [sharedSubFilter, setSharedSubFilter] = useState('季一');
 
   useEffect(() => {
       // Simulate a visitor counter

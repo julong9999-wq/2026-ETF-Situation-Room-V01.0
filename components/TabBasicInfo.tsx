@@ -93,7 +93,6 @@ const TabBasicInfo: React.FC<TabBasicInfoProps> = ({
             if (Array.isArray(sizes)) {
                 sizes.forEach(s => {
                     if (s && s.etfCode) {
-                        // CRITICAL FIX: Robust normalization of code
                         const code = String(s.etfCode).trim().toUpperCase();
                         if (!sMap.has(code)) sMap.set(code, []);
                         sMap.get(code)!.push(s);
@@ -107,11 +106,9 @@ const TabBasicInfo: React.FC<TabBasicInfoProps> = ({
             for (const b of baseList) {
                 if (!b || typeof b !== 'object' || !b.etfCode) continue;
 
-                // CRITICAL FIX: Match the normalization used above
                 const code = String(b.etfCode).trim().toUpperCase();
                 const sizeRecs = sMap.get(code) || [];
                 
-                // Sort by date descending to get latest
                 sizeRecs.sort((x, y) => (y.date || '').localeCompare(x.date || ''));
 
                 const latestSize = sizeRecs.length > 0 ? sizeRecs[0].size : 0;
@@ -269,22 +266,25 @@ const TabBasicInfo: React.FC<TabBasicInfoProps> = ({
   }
 
   return (
-    <div className="h-full flex flex-col p-2 space-y-2">
-      {/* Filter Panel */}
-      <div className="bg-white p-2 rounded-lg shadow-sm border border-primary-200 flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
-            
-            {/* Level 1: Main Buttons */}
-            <div className="flex gap-1 shrink-0 bg-primary-50 p-1 rounded-lg">
+    <div className="h-full flex flex-col p-2 gap-2 relative overflow-hidden">
+      {/* 
+        Redesigned 2-Row Layout 
+        Row 1: Main Filters (Left) + Actions (Right)
+        Row 2: Sub Filters (Full Width)
+      */}
+      <div className="bg-white p-2 rounded-lg shadow-sm border border-primary-200 flex flex-col gap-2 flex-none">
+        {/* ROW 1: Main Category Buttons & Actions */}
+        <div className="flex items-center justify-between">
+            <div className="flex gap-1 overflow-x-auto no-scrollbar">
                 {['全部', '季配', '月配', '債券', '主動', '國際', '半年'].map(cat => (
                     <button
                         key={cat}
                         onClick={() => { setMainFilter(cat); setSubFilter('ALL'); }}
                         className={`
-                            px-3 py-1.5 rounded-md text-sm font-bold whitespace-nowrap transition-all 
+                            px-3 py-1.5 rounded-md text-sm font-bold whitespace-nowrap transition-all border
                             ${mainFilter === cat 
-                                ? 'bg-white text-primary-700 shadow border border-primary-200' 
-                                : 'text-primary-500 hover:bg-primary-100 hover:text-primary-700'}
+                                ? 'bg-primary-600 text-white border-primary-600 shadow-sm' 
+                                : 'bg-white text-primary-500 border-primary-100 hover:bg-primary-50 hover:text-primary-700'}
                         `}
                     >
                         {cat}
@@ -292,44 +292,42 @@ const TabBasicInfo: React.FC<TabBasicInfoProps> = ({
                 ))}
             </div>
 
-            {/* Level 2: Sub Buttons */}
-            {showSubFilters && (
-                <div className="flex items-center animate-in fade-in slide-in-from-left-2 duration-300">
-                    <div className="h-6 w-px bg-primary-200 mx-2"></div>
-                    <div className="flex gap-1 shrink-0">
-                        {subOptions.map(sub => (
-                            <button 
-                                key={sub}
-                                onClick={() => setSubFilter(sub === '全部' ? 'ALL' : sub)} 
-                                className={`
-                                    px-2 py-1 rounded text-xs whitespace-nowrap transition-colors font-medium
-                                    ${(subFilter === sub || (subFilter === 'ALL' && sub === '全部'))
-                                        ? 'bg-primary-600 text-white shadow-sm' 
-                                        : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}
-                                `}
-                            >
-                                {sub}
-                            </button>
-                        ))}
-                    </div>
+            {/* Actions: Count + Export */}
+            <div className="flex items-center gap-2 shrink-0 pl-2 border-l border-gray-100">
+                <div className="flex items-center gap-1 text-primary-400 text-xs font-medium bg-primary-50 px-2 py-1 rounded border border-primary-100">
+                    <span className="font-bold">Count:</span>
+                    {filteredData.length}
                 </div>
-            )}
+                <button onClick={handleExport} className="flex items-center gap-1 px-3 py-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-md text-sm font-bold hover:bg-emerald-100 whitespace-nowrap">
+                    <span>匯出表單</span>
+                </button>
+            </div>
         </div>
 
-        {/* Count & Export */}
-        <div className="flex items-center gap-2 ml-auto shrink-0">
-            <div className="flex items-center gap-1 text-primary-400 text-xs font-medium bg-primary-50 px-2 py-1 rounded border border-primary-100">
-                <span className="font-bold">Count:</span>
-                {filteredData.length}
+        {/* ROW 2: Sub Filters (Conditionally Rendered) */}
+        {showSubFilters && (
+            <div className="flex items-center gap-1 overflow-x-auto no-scrollbar border-t border-gray-100 pt-2 animate-in fade-in slide-in-from-top-1">
+                {/* Remove Label "細項:" */}
+                {subOptions.map(sub => (
+                    <button 
+                        key={sub}
+                        onClick={() => setSubFilter(sub === '全部' ? 'ALL' : sub)} 
+                        className={`
+                            px-2.5 py-1 rounded-md text-xs whitespace-nowrap transition-colors font-medium border
+                            ${(subFilter === sub || (subFilter === 'ALL' && sub === '全部'))
+                                ? 'bg-gray-700 text-white border-gray-700' 
+                                : 'bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100'}
+                        `}
+                    >
+                        {sub}
+                    </button>
+                ))}
             </div>
-            <button onClick={handleExport} className="flex items-center gap-1 px-3 py-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-md text-sm font-bold hover:bg-emerald-100 whitespace-nowrap">
-                <span>↓ 匯出</span>
-            </button>
-        </div>
+        )}
       </div>
 
       {/* Table */}
-      <div className="flex-1 overflow-auto bg-white rounded-xl shadow-sm border border-primary-200">
+      <div className="flex-1 overflow-auto bg-white rounded-xl shadow-sm border border-primary-200 min-h-0">
         <table className="w-full text-left border-collapse">
             <thead className="bg-primary-100 sticky top-0 z-10 shadow-sm">
                 <tr>

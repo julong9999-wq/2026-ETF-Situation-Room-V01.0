@@ -3,7 +3,7 @@ import React, { useEffect, useRef } from 'react';
 interface AdSenseBlockProps {
   client?: string; // ca-pub-XXXXXXXXXXXXXXXX
   slot: string;    // The ad slot ID from Google AdSense interface
-  format?: 'auto' | 'fluid' | 'rectangle';
+  format?: 'auto' | 'fluid' | 'rectangle' | 'vertical';
   responsive?: boolean;
   style?: React.CSSProperties;
   className?: string;
@@ -22,43 +22,59 @@ const AdSenseBlock: React.FC<AdSenseBlockProps> = ({
   const adRef = useRef<HTMLModElement>(null);
 
   useEffect(() => {
-    // Prevent execution on server-side or if window is undefined
     if (typeof window === 'undefined') return;
 
-    // Add a small delay to ensure the DOM element has a calculated width before requesting the ad.
-    // This fixes the "adsbygoogle.push() error: No slot size for availableWidth=0" error
-    // which occurs when the ad is requested before the container has a layout (e.g., inside animations or flex containers).
-    const timer = setTimeout(() => {
-        try {
-            // Only push if the ref exists.
-            // Note: We normally check if it's already loaded, but AdSense script handles duplicates gracefully usually.
+    // Helper to push ad safely
+    const pushAd = () => {
+         try {
             // @ts-ignore
             if (window.adsbygoogle && adRef.current) {
-                // Double check if the element has width (not 0) to avoid the error specifically
-                if (adRef.current.offsetWidth > 0 || (adRef.current.parentElement && adRef.current.parentElement.offsetWidth > 0)) {
+                // Critical check: Ensure element is actually visible in the DOM layout
+                const rect = adRef.current.getBoundingClientRect();
+                const isVisible = rect.width > 0 && rect.height > 0 && window.getComputedStyle(adRef.current).display !== 'none';
+                
+                if (isVisible) {
                    // @ts-ignore
                    (window.adsbygoogle = window.adsbygoogle || []).push({});
                 } else {
-                   // Fallback: If still 0 width (hidden), try pushing anyway after another short delay or just log warning
-                   // Usually the timeout is enough.
-                   // @ts-ignore
-                   (window.adsbygoogle = window.adsbygoogle || []).push({});
+                   // If not visible yet, maybe wait a bit? (Optional logic, usually IntersectionObserver handles this)
+                   // console.warn("AdBlock skipped push: Element has 0 dimensions.");
                 }
             }
         } catch (e) {
             console.error("AdSense Push Error:", e);
         }
-    }, 200); // 200ms delay to allow for layout shifts/transitions
+    };
 
-    return () => clearTimeout(timer);
-  }, [slot]); // Re-run if slot changes
+    // Use IntersectionObserver to wait until element is visible/has dimensions
+    if ('IntersectionObserver' in window && adRef.current) {
+        const observer = new IntersectionObserver((entries) => {
+            const entry = entries[0];
+            // Trigger when element intersects viewport (implies it is not display:none)
+            if (entry.isIntersecting && entry.intersectionRatio > 0) {
+                // Small delay to ensure layout is final
+                setTimeout(() => {
+                     // Double check dimensions inside timeout before pushing
+                     if(adRef.current && adRef.current.offsetWidth > 0) {
+                         pushAd();
+                     }
+                }, 200);
+                observer.disconnect(); // Only load once
+            }
+        });
+        observer.observe(adRef.current);
+        return () => observer.disconnect();
+    } else {
+        // Fallback for environments without IntersectionObserver
+        const timer = setTimeout(pushAd, 1000);
+        return () => clearTimeout(timer);
+    }
 
-  // Only show placeholder if running on localhost
-  // AdSense doesn't work on localhost usually, so we mock it.
+  }, [slot]);
+
   const isDev = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
 
   if (isDev) {
-      // Adjusted minHeight to 60px to allow smaller ads in dev mode
       return (
           <div className={`bg-gray-100 border-2 border-dashed border-gray-300 flex flex-col items-center justify-center text-gray-400 text-sm p-2 ${className}`} style={{ minHeight: '60px', ...style }}>
               <span className="font-bold text-[10px] bg-gray-200 px-1.5 py-0.5 rounded text-gray-500 mb-0.5">{label}</span>
@@ -68,7 +84,6 @@ const AdSenseBlock: React.FC<AdSenseBlockProps> = ({
       );
   }
 
-  // Reduced my-2 to my-1 to save vertical space
   return (
     <div className={`overflow-hidden my-1 ${className}`}>
         {label && <div className="text-[9px] text-gray-300 text-center mb-0.5 transform scale-90 origin-bottom">{label}</div>}

@@ -232,13 +232,13 @@ export const getFillAnalysisData = async (): Promise<FillAnalysisData[]> => {
             } 
             else if (exYear < 2026) {
                  // RULE: History (Before 2026/01/01 -> So <= 2025/12/31)
-                 pricePreEx = "歷史資料";
-                 priceReference = "歷史資料";
+                 pricePreEx = "無資料";
+                 priceReference = "無資料";
                  fillDate = "";
-                 fillPrice = "歷史資料";
-                 daysToFill = "歷史資料";
+                 fillPrice = "無資料";
+                 daysToFill = "無資料";
                  isFilled = false;
-                 if(!preExDate) preExDate = "歷史資料";
+                 if(!preExDate) preExDate = "無資料";
             } 
             else {
                 // RULE: Normal Calculation (2026 onwards)
@@ -273,11 +273,11 @@ export const getFillAnalysisData = async (): Promise<FillAnalysisData[]> => {
                  daysToFill = "待除息資訊";
                  preExDate = "待除息資訊";
              } else if (exYear < 2026) {
-                 pricePreEx = "歷史資料";
-                 priceReference = "歷史資料";
-                 fillPrice = "歷史資料";
-                 daysToFill = "歷史資料";
-                 preExDate = "歷史資料";
+                 pricePreEx = "無資料";
+                 priceReference = "無資料";
+                 fillPrice = "無資料";
+                 daysToFill = "無資料";
+                 preExDate = "無資料";
              } else {
                  daysToFill = "無資料";
              }
