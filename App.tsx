@@ -176,13 +176,13 @@ const App: React.FC = () => {
             })}
           </nav>
           
-          {/* SIDEBAR AD SLOT */}
+          {/* SIDEBAR AD SLOT - Reduced minHeight */}
           {sidebarOpen && (
               <div className="px-4 pb-2 mt-auto">
                  <AdSenseBlock 
                     slot="1234567890" // REPLACE WITH REAL SLOT ID
                     format="rectangle"
-                    style={{ minHeight: '250px', width: '100%' }}
+                    style={{ minHeight: '150px', width: '100%' }}
                     className="rounded-lg overflow-hidden opacity-90 hover:opacity-100 transition-opacity"
                     label="贊助廣告"
                  />

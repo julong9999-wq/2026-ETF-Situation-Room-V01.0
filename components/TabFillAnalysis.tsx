@@ -187,7 +187,12 @@ const TabFillAnalysis: React.FC<TabFillAnalysisProps> = ({
       return { latestPrice, startPrice, yieldVal, estYieldVal, returnVal, totalReturnVal };
   };
 
-  const fmtP = (n: number) => n === 0 ? '-' : n.toFixed(2);
+  // Fixed fmtP to handle strings ("待除息資訊" etc.) without crashing
+  const fmtP = (n: number | string) => {
+    if (typeof n === 'string') return n;
+    return n === 0 ? '-' : n.toFixed(2);
+  };
+  
   const fmtPct = (n: number) => n === 0 ? '0.00%' : `${n.toFixed(2)}%`;
   const fmtCol = (n: number) => n > 0 ? 'text-red-600' : n < 0 ? 'text-green-600' : 'text-gray-800';
 

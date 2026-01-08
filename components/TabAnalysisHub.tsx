@@ -50,9 +50,11 @@ const TabAnalysisHub: React.FC = () => {
 
   return (
     <div className="flex flex-col h-full bg-primary-50">
-      {/* Top Section: Sub-function Buttons (Toolbar) - Compact Version */}
-      <div className="bg-white border-b border-primary-200 shadow-sm z-20 flex-none flex justify-between items-center pr-3 py-1">
-        <div className="flex items-center gap-1.5 px-3 overflow-x-auto no-scrollbar">
+      {/* Top Section: Toolbar (Buttons Left, Counter Right) */}
+      <div className="bg-white border-b border-primary-200 shadow-sm z-20 flex-none p-2 flex items-center gap-2">
+         
+         {/* Buttons Area */}
+         <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar flex-1 pb-1">
             {features.map((feature) => {
                 const isActive = activeTab === feature.id;
                 const Icon = feature.icon;
@@ -74,26 +76,41 @@ const TabAnalysisHub: React.FC = () => {
                 );
             })}
         </div>
-
-        {/* Visitor Counter - Compact */}
-        <div className="hidden md:flex items-center gap-2 bg-primary-50 px-2 py-1 rounded-full border border-primary-100">
-            <Users className="w-3 h-3 text-primary-600" />
+        
+        {/* Visitor Counter */}
+        <div className="flex-none flex items-center gap-1.5 bg-primary-50 px-2.5 py-1.5 rounded-full border border-primary-100 shadow-sm">
+            <Users className="w-3.5 h-3.5 text-primary-600" />
             <span className="text-xs font-bold text-primary-700 font-mono">{visitorCount.toLocaleString()}</span>
         </div>
+
       </div>
       
-      {/* BANNER AD SLOT */}
-      <div className="flex-none bg-primary-50 px-2">
-         <AdSenseBlock 
-             slot="0987654321" // REPLACE WITH REAL SLOT ID
-             format="auto" 
-             style={{ display: 'block', height: '90px' }}
-         />
-      </div>
+      {/* Main Content Area: Split Layout (Left: Content, Right: Ad) */}
+      {/* Added min-h-0 to ensure flex child scrolling works correctly */}
+      <div className="flex-1 flex min-h-0 overflow-hidden relative">
+        
+        {/* Left: The Active Sub-form (Takes remaining space) */}
+        {/* Use flex-col and min-h-0 to strictly constrain children */}
+        <div className="flex-1 flex flex-col min-w-0 min-h-0 overflow-hidden relative">
+            {activeFeature?.component}
+        </div>
 
-      {/* Bottom Section: Form Content / Output Area */}
-      <div className="flex-1 overflow-hidden relative">
-        {activeFeature?.component}
+        {/* Right: Vertical Ad Sidebar (Hidden on mobile, visible on desktop) */}
+        <div className="hidden lg:flex flex-none w-[200px] border-l border-primary-200 bg-gray-50 flex-col items-center p-2 z-10 min-h-0 overflow-hidden">
+            <div className="text-[10px] text-gray-400 mb-2 font-mono tracking-widest flex-none">SPONSORED</div>
+            <div className="w-full flex-1 flex flex-col gap-4 overflow-y-auto no-scrollbar">
+                 {/* Ad Block 1 - Vertical Skyscraper style */}
+                 <div className="w-full rounded bg-white border border-gray-200 shadow-sm overflow-hidden flex-shrink-0" style={{ minHeight: '400px' }}>
+                     <AdSenseBlock 
+                         slot="0987654321" 
+                         format="vertical" 
+                         style={{ display: 'block', width: '100%', height: '100%' }}
+                         label="熱門推薦"
+                     />
+                 </div>
+            </div>
+        </div>
+
       </div>
     </div>
   );
