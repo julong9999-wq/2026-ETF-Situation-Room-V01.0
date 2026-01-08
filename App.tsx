@@ -6,8 +6,8 @@ import { Loader2, RefreshCw, CheckCircle2, LayoutDashboard, TrendingUp, Download
 import AdSenseBlock from './components/AdSenseBlock';
 
 // --- SYSTEM VERSION CONTROL ---
-const APP_VERSION = 'V.01.8'; // Internal Logic Version
-const DISPLAY_VERSION = 'V01.3'; // UI Display Version (Testing Update Mechanism)
+const APP_VERSION = 'V.01.9'; // Internal Logic Version (Incremented to force cleanup)
+const DISPLAY_VERSION = 'V01.3'; // UI Display Version
 const STORAGE_VERSION_KEY = 'app_system_version';
 
 // Placeholders
