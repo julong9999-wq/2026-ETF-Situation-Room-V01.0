@@ -4,15 +4,14 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     
-    <!-- AGGRESSIVE CACHE BUSTING (CRITICAL FOR BOOKMARKS) -->
+    <!-- AGGRESSIVE CACHE BUSTING -->
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
     <meta http-equiv="Pragma" content="no-cache" />
     <meta http-equiv="Expires" content="0" />
     
-    <title>ETF Master Dashboard V1.7</title>
+    <title>ETF Master Dashboard V1.8</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
-      // POLYFILL: Fix for "process is not defined" error
       window.process = {
         env: {
           NODE_ENV: 'production',
@@ -21,7 +20,7 @@
       };
       window.global = window;
     </script>
-    <!-- GOOGLE ADSENSE SCRIPT -->
+    <!-- GOOGLE ADSENSE -->
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5925575464455571" crossorigin="anonymous"></script>
     <script>
       tailwind.config = {
@@ -41,22 +40,6 @@
                 900: '#1e3a8a',
                 950: '#172554',
               },
-              slate: {
-                50: '#f8fafc',
-                800: '#1e293b',
-                900: '#0f172a',
-              }
-            },
-            fontSize: {
-              'xs': ['16px', '24px'],
-              'sm': ['16px', '24px'],
-              'base': ['18px', '28px'],
-              'lg': ['20px', '28px'],
-              'xl': ['24px', '32px'],
-              '2xl': ['30px', '36px'],
-              'table-header': ['18px', '26px'],
-              'table-body': ['16px', '24px'],
-              'mini': ['16px', '20px']
             }
           },
         },
@@ -83,8 +66,9 @@
 }
 </script>
 </head>
-  <body class="bg-primary-50 text-primary-900 h-screen overflow-hidden">
+  <body class="bg-blue-50 text-slate-900 h-screen overflow-hidden">
     <div id="root"></div>
-    <script type="module" src="./index.tsx"></script>
+    <!-- ADDED ?v=1.8 TO FORCE RELOAD OF SCRIPT -->
+    <script type="module" src="./index.tsx?v=1.8"></script>
   </body>
 </html>
