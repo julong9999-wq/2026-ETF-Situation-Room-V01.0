@@ -6,8 +6,8 @@ import { Loader2, RefreshCw, CheckCircle2, LayoutDashboard, TrendingUp, Download
 import AdSenseBlock from './components/AdSenseBlock';
 
 // --- SYSTEM VERSION CONTROL ---
-const APP_VERSION = 'V.01.7'; // Internal Logic Version
-const DISPLAY_VERSION = 'V01.2'; // UI Display Version (Updated for TabExport Redesign)
+const APP_VERSION = 'V.01.8'; // Internal Logic Version
+const DISPLAY_VERSION = 'V01.3'; // UI Display Version (Testing Update Mechanism)
 const STORAGE_VERSION_KEY = 'app_system_version';
 
 // Placeholders
@@ -286,6 +286,24 @@ const App: React.FC = () => {
             })}
           </nav>
           
+          {/* New Functional Slogans Section */}
+          {sidebarOpen && (
+            <div className="px-4 py-3 mb-2 mx-2 bg-primary-800/50 rounded-lg border border-primary-700/50">
+                <div className="flex items-center gap-2 mb-1.5 text-xs font-bold text-primary-300">
+                    <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse"/>
+                    系統核心目標
+                </div>
+                <div className="space-y-1">
+                    <div className="text-xs text-primary-100 flex items-center gap-2">
+                        <span className="text-amber-400">⚡</span> 數據驅動精準決策
+                    </div>
+                    <div className="text-xs text-primary-100 flex items-center gap-2">
+                        <span className="text-sky-400">💎</span> 洞察全市場獲利契機
+                    </div>
+                </div>
+            </div>
+          )}
+
           {/* SIDEBAR AD SLOT */}
           {sidebarOpen && (
               <div className="px-4 pb-2 mt-auto">
@@ -318,7 +336,7 @@ const App: React.FC = () => {
                     <div className="flex flex-col items-center gap-1">
                         <div className="text-xs text-primary-500 font-mono text-center">
                             <div>V01</div>
-                            <div>.1</div>
+                            <div>.3</div>
                         </div>
                         <Settings className="w-3 h-3 text-primary-600 group-hover:text-primary-400" />
                     </div>
