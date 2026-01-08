@@ -2,7 +2,7 @@ import React, { ReactNode } from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 
-console.log("V1.11 Loaded - Cache Busting Active");
+console.log("V1.12 Loaded...");
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {
