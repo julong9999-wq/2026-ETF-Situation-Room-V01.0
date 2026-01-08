@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import TabAnalysisHub from './components/TabAnalysisHub';
 import { clearAllData, checkAndFetchSystemData } from './services/dataService';
-import { Loader2, RefreshCw, CheckCircle2 } from 'lucide-react';
+import { Loader2, RefreshCw, CheckCircle2, LayoutDashboard, TrendingUp, Download, Presentation } from 'lucide-react';
 import AdSenseBlock from './components/AdSenseBlock';
 
 // --- SYSTEM VERSION CONTROL ---
-const APP_VERSION = 'V.01.6'; 
+const APP_VERSION = 'V.01.6'; // Internal Logic Version
+const DISPLAY_VERSION = 'V01.0'; // UI Display Version
 const STORAGE_VERSION_KEY = 'app_system_version';
 
 // Placeholders
@@ -15,7 +16,7 @@ const TabExport = () => <div className="p-8 text-center text-primary-500 text-xl
 type NavItem = {
   id: string;
   name: string;
-  icon: string;
+  icon: React.ElementType;
   component: React.ReactNode;
 };
 
@@ -83,19 +84,19 @@ const App: React.FC = () => {
     {
       id: 'ANALYSIS',
       name: '資料分析',
-      icon: '📊',
+      icon: LayoutDashboard,
       component: <TabAnalysisHub />
     },
     {
       id: 'PERFORMANCE',
       name: '績效分析',
-      icon: '🏆',
+      icon: TrendingUp,
       component: <TabPerformance />
     },
     {
       id: 'EXPORT',
       name: '表單匯出',
-      icon: '📥',
+      icon: Download,
       component: <TabExport />
     }
   ];
@@ -127,18 +128,16 @@ const App: React.FC = () => {
           <div className={`flex flex-col ${!sidebarOpen && 'items-center'}`}>
              <div className="flex items-center justify-between w-full mb-1">
                  <div className={`flex items-center gap-2 ${!sidebarOpen && 'hidden'}`}>
-                    <span className="text-xl">📈</span>
+                    <Presentation className="w-6 h-6 text-white" />
                     <span className="font-bold text-lg tracking-wider truncate">ETF 戰情室</span>
                  </div>
                  <button onClick={() => setSidebarOpen(!sidebarOpen)} className="p-1.5 hover:bg-primary-800 rounded-lg text-primary-200 hover:text-white">
                     <span className="text-xl">☰</span>
                  </button>
              </div>
-             <div className={`${!sidebarOpen && 'hidden'} px-1 flex items-center justify-between`}>
-                <span className="inline-block px-2 py-0.5 rounded bg-primary-800 text-primary-300 text-xs font-mono border border-primary-700">
-                    {APP_VERSION}
-                </span>
-                
+             
+             {/* Status Indicators (No Version Text at top) */}
+             <div className={`${!sidebarOpen && 'hidden'} px-1 flex items-center h-5 mt-1`}>
                 {/* Background Sync Indicator */}
                 {isBackgroundUpdating ? (
                     <div className="flex items-center gap-1 text-xs text-amber-300 animate-pulse" title="背景資料更新中...">
@@ -159,6 +158,7 @@ const App: React.FC = () => {
           <nav className="space-y-1.5 px-2 flex-1">
             {navItems.map((item) => {
               const isActive = activeTab === item.id;
+              const Icon = item.icon;
               return (
                 <button
                   key={item.id}
@@ -169,18 +169,20 @@ const App: React.FC = () => {
                       : 'text-primary-200 hover:bg-primary-800 hover:text-white border border-transparent'
                   } ${!sidebarOpen && 'justify-center'}`}
                 >
-                  <span className={`text-lg ${sidebarOpen ? 'mr-3' : ''}`}>{item.icon}</span>
+                  <span className={`${sidebarOpen ? 'mr-3' : ''}`}>
+                      <Icon className="w-5 h-5" />
+                  </span>
                   {sidebarOpen && <span className="text-base font-bold tracking-wide">{item.name}</span>}
                 </button>
               );
             })}
           </nav>
           
-          {/* SIDEBAR AD SLOT - Reduced minHeight */}
+          {/* SIDEBAR AD SLOT */}
           {sidebarOpen && (
               <div className="px-4 pb-2 mt-auto">
                  <AdSenseBlock 
-                    slot="1234567890" // REPLACE WITH REAL SLOT ID
+                    slot="1234567890" 
                     format="rectangle"
                     style={{ minHeight: '150px', width: '100%' }}
                     className="rounded-lg overflow-hidden opacity-90 hover:opacity-100 transition-opacity"
@@ -190,15 +192,18 @@ const App: React.FC = () => {
           )}
         </div>
 
+        {/* Footer: Author & Version */}
         <div className="p-4 border-t border-primary-800 bg-primary-950/50">
-            <div className={`flex items-center ${sidebarOpen ? '' : 'justify-center'}`}>
-                <div className={`w-8 h-8 rounded-full bg-primary-700 flex items-center justify-center border border-primary-600 ${!sidebarOpen && 'mb-2'}`}>
-                    <span className="text-sm">👤</span>
-                </div>
-                {sidebarOpen && (
-                    <div className="ml-2.5 overflow-hidden">
-                        <p className="text-sm font-bold text-white truncate">使用者</p>
-                        <p className="text-xs text-primary-400">標準模式</p>
+            <div className={`flex flex-col items-center ${sidebarOpen ? 'items-start' : 'items-center'}`}>
+                {sidebarOpen ? (
+                    <div className="w-full">
+                        <p className="text-sm font-bold text-white tracking-wide">julong chen</p>
+                        <p className="text-xs text-primary-400 mt-0.5 text-right">版本 {DISPLAY_VERSION}</p>
+                    </div>
+                ) : (
+                    <div className="text-xs text-primary-500 font-mono text-center">
+                        <div>V01</div>
+                        <div>.0</div>
                     </div>
                 )}
             </div>
@@ -209,10 +214,10 @@ const App: React.FC = () => {
       <div className="flex-1 flex flex-col h-screen overflow-hidden relative">
         <header className="bg-white shadow-sm border-b border-primary-200 p-4 flex justify-between items-center md:hidden z-10">
             <div className="flex items-center gap-2">
+                <Presentation className="w-5 h-5 text-primary-900" />
                 <div className="font-bold text-primary-900 text-lg">ETF 戰情室</div>
                 <div className="flex items-center gap-2">
                      {isBackgroundUpdating && <RefreshCw className="w-4 h-4 text-amber-500 animate-spin" />}
-                     <span className="px-1.5 py-0.5 rounded bg-primary-100 text-primary-600 text-xs font-bold">{APP_VERSION}</span>
                 </div>
             </div>
             <button onClick={() => setSidebarOpen(!sidebarOpen)} className="text-primary-700"><span className="text-xl">☰</span></button>

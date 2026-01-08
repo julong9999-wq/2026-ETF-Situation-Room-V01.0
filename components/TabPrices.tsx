@@ -450,6 +450,7 @@ const TabPrices: React.FC<TabPricesProps> = ({
       const myDivs = divData.filter(d => d.etfCode === etf.etfCode).sort((a,b) => b.exDate.localeCompare(a.exDate));
       const todayStr = new Date().toISOString().split('T')[0];
       const pastDivs = myDivs.filter(d => d.exDate <= todayStr);
+      const futureDivs = myDivs.filter(d => d.exDate > todayStr);
       
       let count = 0;
       if (etf.dividendFreq?.includes('季')) count = 4;
@@ -463,6 +464,12 @@ const TabPrices: React.FC<TabPricesProps> = ({
           if (latestPrice > 0) yieldVal = (sumDiv / latestPrice) * 100;
       }
 
+      let estYieldVal: number | null = null;
+      if (futureDivs.length > 0 && count > 0) {
+          const sumDiv = [...futureDivs, ...pastDivs].slice(0, count).reduce((acc, curr) => acc + curr.amount, 0);
+          if (latestPrice > 0) estYieldVal = (sumDiv / latestPrice) * 100;
+      }
+
       let returnVal = 0;
       if (startPrice > 0 && latestPrice > 0) returnVal = ((latestPrice - startPrice) / startPrice) * 100;
 
@@ -474,7 +481,7 @@ const TabPrices: React.FC<TabPricesProps> = ({
           totalReturnVal = ((latestPrice + totalDivs - startPrice) / startPrice) * 100;
       }
 
-      return { latestPrice, startPrice, yieldVal, returnVal, totalReturnVal, estYieldVal: 0 };
+      return { latestPrice, startPrice, yieldVal, returnVal, totalReturnVal, estYieldVal };
   };
 
   const fmtP = (n: number) => n === 0 ? '-' : n.toFixed(2);
@@ -635,6 +642,7 @@ const TabPrices: React.FC<TabPricesProps> = ({
                           </div>
                           <div className="flex justify-between items-center leading-none">
                                <div className="flex items-baseline gap-1"><span className="text-[11px] text-gray-500">起</span><span className="text-[16px] font-light text-gray-500 font-mono">{fmtP(metrics.startPrice)}</span></div>
+                               <div className="flex items-baseline gap-1"><span className="text-[11px] text-gray-500">預</span><span className="text-[16px] font-light text-gray-500 font-mono">{metrics.estYieldVal === null ? <span className="text-gray-400 text-xs">空值</span> : fmtPct(metrics.estYieldVal)}</span></div>
                                <div className="flex items-baseline gap-1"><span className="text-[11px] text-gray-500">含</span><span className={`text-[16px] font-light font-mono ${fmtCol(metrics.totalReturnVal)}`}>{fmtPct(metrics.totalReturnVal)}</span></div>
                           </div>
                       </div>
