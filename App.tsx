@@ -2,12 +2,12 @@ import React, { useState, useEffect } from 'react';
 import TabAnalysisHub from './components/TabAnalysisHub';
 import TabExport from './components/TabExport';
 import { clearAllData, checkAndFetchSystemData } from './services/dataService';
-import { Loader2, RefreshCw, CheckCircle2, LayoutDashboard, TrendingUp, Download, Presentation, Settings, Power, RotateCcw, X, Info } from 'lucide-react';
+import { Loader2, RefreshCw, CheckCircle2, LayoutDashboard, TrendingUp, Download, Presentation, Settings, Power, RotateCcw, X, Info, Bell } from 'lucide-react';
 import AdSenseBlock from './components/AdSenseBlock';
 
 // --- SYSTEM VERSION CONTROL ---
-const APP_VERSION = 'V.01.9'; // Internal Logic Version (Incremented to force cleanup)
-const DISPLAY_VERSION = 'V01.3'; // UI Display Version
+const APP_VERSION = 'V.01.10'; // Internal Logic Version (Incremented to force cleanup)
+const DISPLAY_VERSION = 'V01.4'; // UI Display Version
 const STORAGE_VERSION_KEY = 'app_system_version';
 
 // Placeholders
@@ -286,7 +286,7 @@ const App: React.FC = () => {
             })}
           </nav>
           
-          {/* New Functional Slogans Section */}
+          {/* Functional Slogans Section */}
           {sidebarOpen && (
             <div className="px-4 py-3 mb-2 mx-2 bg-primary-800/50 rounded-lg border border-primary-700/50">
                 <div className="flex items-center gap-2 mb-1.5 text-xs font-bold text-primary-300">
@@ -302,6 +302,20 @@ const App: React.FC = () => {
                     </div>
                 </div>
             </div>
+          )}
+          
+          {/* NEW: System Announcement for V1.4 Testing */}
+          {sidebarOpen && (
+              <div className="mx-2 mb-2 p-3 bg-amber-500/10 rounded-lg border border-amber-500/20 shadow-inner">
+                  <div className="text-xs font-bold text-amber-300 mb-1 flex items-center gap-1.5">
+                      <Bell className="w-3.5 h-3.5 animate-bounce" /> 
+                      <span>系統公告</span>
+                  </div>
+                  <p className="text-[11px] text-amber-100/90 leading-relaxed font-medium">
+                      <span className="text-white font-bold">V1.4 版本</span> 測試中。<br/>
+                      新增即時公告欄位功能。
+                  </p>
+              </div>
           )}
 
           {/* SIDEBAR AD SLOT */}
@@ -336,7 +350,7 @@ const App: React.FC = () => {
                     <div className="flex flex-col items-center gap-1">
                         <div className="text-xs text-primary-500 font-mono text-center">
                             <div>V01</div>
-                            <div>.3</div>
+                            <div>.4</div>
                         </div>
                         <Settings className="w-3 h-3 text-primary-600 group-hover:text-primary-400" />
                     </div>
