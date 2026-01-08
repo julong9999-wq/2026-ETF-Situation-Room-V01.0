@@ -1,17 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import TabAnalysisHub from './components/TabAnalysisHub';
+import TabExport from './components/TabExport';
 import { clearAllData, checkAndFetchSystemData } from './services/dataService';
 import { Loader2, RefreshCw, CheckCircle2, LayoutDashboard, TrendingUp, Download, Presentation } from 'lucide-react';
 import AdSenseBlock from './components/AdSenseBlock';
 
 // --- SYSTEM VERSION CONTROL ---
-const APP_VERSION = 'V.01.6'; // Internal Logic Version
-const DISPLAY_VERSION = 'V01.0'; // UI Display Version
+const APP_VERSION = 'V.01.7'; // Internal Logic Version (BUMPED)
+const DISPLAY_VERSION = 'V01.1'; // UI Display Version (BUMPED for visual confirmation)
 const STORAGE_VERSION_KEY = 'app_system_version';
 
 // Placeholders
 const TabPerformance = () => <div className="p-8 text-center text-primary-500 text-xl font-bold">績效分析功能區 (規劃中)</div>;
-const TabExport = () => <div className="p-8 text-center text-primary-500 text-xl font-bold">表單匯出功能區 (規劃中)</div>;
 
 type NavItem = {
   id: string;
@@ -110,10 +110,10 @@ const App: React.FC = () => {
       return (
           <div className="flex flex-col items-center justify-center h-screen bg-primary-50 text-primary-700">
               <Loader2 className="w-16 h-16 animate-spin mb-6 text-primary-600" />
-              <h2 className="text-2xl font-bold mb-2">系統初次初始化中...</h2>
+              <h2 className="text-2xl font-bold mb-2">系統更新中...</h2>
               <div className="bg-white/50 px-6 py-4 rounded-xl text-center border border-primary-100 max-w-sm">
-                  <p className="text-sm text-primary-600 font-bold mb-1">正在建立本機資料庫</p>
-                  <p className="text-xs text-primary-400">首次載入需下載完整歷史數據 (約 15-20 秒)</p>
+                  <p className="text-sm text-primary-600 font-bold mb-1">正在升級至版本 {DISPLAY_VERSION}</p>
+                  <p className="text-xs text-primary-400">系統正在重新建立資料庫結構 (約 10-15 秒)</p>
                   <p className="text-xs text-primary-400 mt-1">請勿關閉視窗，完成後將自動進入。</p>
               </div>
           </div>
@@ -203,7 +203,7 @@ const App: React.FC = () => {
                 ) : (
                     <div className="text-xs text-primary-500 font-mono text-center">
                         <div>V01</div>
-                        <div>.0</div>
+                        <div>.1</div>
                     </div>
                 )}
             </div>
