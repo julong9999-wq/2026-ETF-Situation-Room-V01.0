@@ -6,8 +6,8 @@ import { Loader2, RefreshCw, CheckCircle2, LayoutDashboard, TrendingUp, Download
 import AdSenseBlock from './components/AdSenseBlock';
 
 // --- SYSTEM VERSION CONTROL ---
-const APP_VERSION = 'V.01.34'; // Internal Logic Version (Bumped for V1.28)
-const DISPLAY_VERSION = 'V1.28'; // UI Display Version
+const APP_VERSION = 'V.01.35'; // Internal Logic Version (Bumped for V1.29)
+const DISPLAY_VERSION = 'V1.29'; // UI Display Version
 const BUILD_TIME = new Date().toLocaleString('zh-TW', { hour12: false }); // Captures build time
 const STORAGE_VERSION_KEY = 'app_system_version';
 
@@ -390,7 +390,7 @@ const App: React.FC = () => {
   // --- MAIN LAYOUT (HARDCODED COLORS) ---
   return (
     <div className="flex h-screen bg-blue-50 overflow-hidden">
-      {/* Sidebar - EXPLICIT INDIGO 950 for V1.28 DISTINCTION */}
+      {/* Sidebar - EXPLICIT INDIGO 950 for V1.29 DISTINCTION */}
       <div className={`${sidebarOpen ? 'w-60' : 'w-20'} bg-[#1e1b4b] text-white transition-all duration-300 flex flex-col shadow-2xl z-20 border-r border-indigo-900`}>
         <div className="p-5 border-b border-indigo-900 bg-[#312e81]">
           <div className={`flex flex-col ${!sidebarOpen && 'items-center'}`}>
@@ -445,7 +445,7 @@ const App: React.FC = () => {
             })}
           </nav>
           
-          {/* V1.28 Feature Highlight */}
+          {/* V1.29 Feature Highlight */}
           {sidebarOpen && (
             <div className="mx-2 mb-2 p-3 bg-indigo-900/80 rounded-lg border border-indigo-700 shadow-inner group relative overflow-hidden">
                 <div className="absolute top-0 right-0 p-1 opacity-20">
@@ -456,8 +456,8 @@ const App: React.FC = () => {
                     <span>Version {DISPLAY_VERSION}</span>
                 </div>
                 <p className="text-[10px] text-indigo-100 leading-relaxed font-mono relative z-10">
-                    V1.28 Verified<br/>
-                    Script Cache Busted
+                    V1.29 Verified<br/>
+                    Build Fix & Cache Strat
                 </p>
             </div>
           )}
