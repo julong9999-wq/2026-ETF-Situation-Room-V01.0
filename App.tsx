@@ -6,8 +6,8 @@ import { Loader2, RefreshCw, CheckCircle2, LayoutDashboard, TrendingUp, Download
 import AdSenseBlock from './components/AdSenseBlock';
 
 // --- SYSTEM VERSION CONTROL ---
-const APP_VERSION = 'V.01.32'; // Internal Logic Version (Bumped for V1.26)
-const DISPLAY_VERSION = 'V1.26'; // UI Display Version
+const APP_VERSION = 'V.01.33'; // Internal Logic Version (Bumped for V1.27)
+const DISPLAY_VERSION = 'V1.27'; // UI Display Version
 const STORAGE_VERSION_KEY = 'app_system_version';
 
 // Placeholders
@@ -21,6 +21,7 @@ type NavItem = {
 };
 
 // --- UPDATE PROMPT COMPONENT ---
+// Fixed: Now uses serverVersion prop for text instead of hardcoded string
 const UpdateOverlay = ({ serverVersion, onUpdate }: { serverVersion: string, onUpdate: () => void }) => (
     <div className="fixed inset-0 z-[100] bg-indigo-900/95 backdrop-blur-md flex flex-col items-center justify-center p-6 text-white animate-in fade-in duration-300">
         <div className="bg-white/10 p-6 rounded-full mb-6 animate-bounce">
@@ -28,13 +29,13 @@ const UpdateOverlay = ({ serverVersion, onUpdate }: { serverVersion: string, onU
         </div>
         <h1 className="text-3xl font-bold mb-4 text-center">偵測到版本更新 {serverVersion}</h1>
         <p className="text-indigo-200 mb-8 text-center max-w-md text-lg">
-            新版本 V1.26 已發布。
+            新版本 {serverVersion} 已發布。
         </p>
         <button 
             onClick={onUpdate}
             className="group relative bg-white hover:bg-gray-100 text-indigo-900 font-bold text-xl px-10 py-4 rounded-full shadow-2xl transition-all hover:scale-105 active:scale-95 flex items-center gap-3"
         >
-            <span>立即更新 V1.26</span>
+            <span>立即更新 {serverVersion}</span>
             <ArrowRight className="w-6 h-6 group-hover:translate-x-1 transition-transform" />
         </button>
         <div className="mt-8 text-sm text-indigo-400/60 font-mono">Current: {DISPLAY_VERSION}</div>
@@ -375,9 +376,9 @@ const App: React.FC = () => {
       return (
           <div className="flex flex-col items-center justify-center h-screen bg-blue-50 text-blue-900">
               <Loader2 className="w-16 h-16 animate-spin mb-6 text-blue-600" />
-              <h2 className="text-2xl font-bold mb-2">系統載入中 (V1.26)...</h2>
+              <h2 className="text-2xl font-bold mb-2">系統載入中 ({DISPLAY_VERSION})...</h2>
               <div className="bg-white/50 px-6 py-4 rounded-xl text-center border border-blue-200 max-w-sm">
-                  <p className="text-sm text-blue-800 font-bold mb-1">正在套用 V1.26 更新</p>
+                  <p className="text-sm text-blue-800 font-bold mb-1">正在套用 {DISPLAY_VERSION} 更新</p>
                   <p className="text-xs text-blue-600">強力快取清除機制</p>
               </div>
           </div>
@@ -442,7 +443,7 @@ const App: React.FC = () => {
             })}
           </nav>
           
-          {/* V1.26 Feature Highlight */}
+          {/* V1.27 Feature Highlight */}
           {sidebarOpen && (
             <div className="mx-2 mb-2 p-3 bg-indigo-900/80 rounded-lg border border-indigo-700 shadow-inner group relative overflow-hidden">
                 <div className="absolute top-0 right-0 p-1 opacity-20">
@@ -450,11 +451,11 @@ const App: React.FC = () => {
                 </div>
                 <div className="text-xs font-bold text-indigo-300 mb-1 flex items-center gap-1.5 relative z-10">
                     <Zap className="w-3.5 h-3.5 fill-indigo-400" /> 
-                    <span>Version 1.26</span>
+                    <span>Version {DISPLAY_VERSION}</span>
                 </div>
                 <p className="text-[10px] text-indigo-100 leading-relaxed font-mono relative z-10">
-                    強力快取清除機制<br/>
-                    伺服器版本除錯
+                    V1.27 Update Verification<br/>
+                    動態版本號顯示
                 </p>
             </div>
           )}
@@ -491,7 +492,7 @@ const App: React.FC = () => {
                     <div className="flex flex-col items-center gap-1">
                         <div className="text-xs text-blue-500 font-mono text-center">
                             <div>V1</div>
-                            <div>.26</div>
+                            <div>.{DISPLAY_VERSION.split('.')[1]}</div>
                         </div>
                         <Settings className="w-3 h-3 text-blue-500 group-hover:text-blue-300" />
                     </div>
