@@ -6,8 +6,8 @@ import { Loader2, RefreshCw, CheckCircle2, LayoutDashboard, TrendingUp, Download
 import AdSenseBlock from './components/AdSenseBlock';
 
 // --- SYSTEM VERSION CONTROL ---
-const APP_VERSION = 'V.01.28'; // Internal Logic Version 
-const DISPLAY_VERSION = 'V1.22'; // UI Display Version
+const APP_VERSION = 'V.01.29'; // Internal Logic Version 
+const DISPLAY_VERSION = 'V1.23'; // UI Display Version
 const STORAGE_VERSION_KEY = 'app_system_version';
 
 // Placeholders
@@ -28,13 +28,13 @@ const UpdateOverlay = ({ serverVersion, onUpdate }: { serverVersion: string, onU
         </div>
         <h1 className="text-3xl font-bold mb-4 text-center">偵測到版本更新 {serverVersion}</h1>
         <p className="text-indigo-200 mb-8 text-center max-w-md text-lg">
-            新版本 V1.22 已發布。
+            新版本 V1.23 已發布。
         </p>
         <button 
             onClick={onUpdate}
             className="group relative bg-white hover:bg-gray-100 text-indigo-900 font-bold text-xl px-10 py-4 rounded-full shadow-2xl transition-all hover:scale-105 active:scale-95 flex items-center gap-3"
         >
-            <span>立即更新 V1.22</span>
+            <span>立即更新 V1.23</span>
             <ArrowRight className="w-6 h-6 group-hover:translate-x-1 transition-transform" />
         </button>
         <div className="mt-8 text-sm text-indigo-400/60 font-mono">Current: {DISPLAY_VERSION}</div>
@@ -195,9 +195,19 @@ const App: React.FC = () => {
   // --- AUTO UPDATER LOGIC ---
   const checkForUpdates = async (manual = false) => {
       try {
+          if (window.location.protocol === 'file:') {
+              if (manual) alert("本機檔案模式 (File Protocol) 無法使用自動更新功能，請使用網頁伺服器 (Web Server)。");
+              return false;
+          }
+
           console.log("Checking for updates...");
-          // CRITICAL: Use Absolute Path and Cache Buster
-          const response = await fetch(`/metadata.json?t=${Date.now()}`);
+          
+          // CRITICAL: DYNAMIC URL RESOLUTION (V1.23)
+          // Resolve metadata.json relative to current window location (handles subpaths correctly)
+          const targetUrl = new URL('metadata.json', window.location.href).href;
+          console.log("Fetching update from:", targetUrl);
+
+          const response = await fetch(`${targetUrl}?t=${Date.now()}`);
           if (response.ok) {
               const data = await response.json();
               const serverVersion = data.version; 
@@ -212,7 +222,7 @@ const App: React.FC = () => {
               }
           } else {
               console.error(`Check failed with status: ${response.status}`);
-              if (manual) alert(`無法連接至更新伺服器 (Status: ${response.status})`);
+              if (manual) alert(`無法連接至更新伺服器\n目標 URL: ${targetUrl}\n錯誤代碼: ${response.status} ${response.statusText}`);
           }
       } catch (e: any) {
           console.error("Failed to check version", e);
@@ -329,9 +339,10 @@ const App: React.FC = () => {
       return (
           <div className="flex flex-col items-center justify-center h-screen bg-blue-50 text-blue-900">
               <Loader2 className="w-16 h-16 animate-spin mb-6 text-blue-600" />
-              <h2 className="text-2xl font-bold mb-2">系統載入中 (V1.22)...</h2>
+              <h2 className="text-2xl font-bold mb-2">系統載入中 (V1.23)...</h2>
               <div className="bg-white/50 px-6 py-4 rounded-xl text-center border border-blue-200 max-w-sm">
-                  <p className="text-sm text-blue-800 font-bold mb-1">正在套用 V1.22 更新</p>
+                  <p className="text-sm text-blue-800 font-bold mb-1">正在套用 V1.23 更新</p>
+                  <p className="text-xs text-blue-600">使用動態路徑解析修復更新連線問題</p>
               </div>
           </div>
       );
@@ -395,7 +406,7 @@ const App: React.FC = () => {
             })}
           </nav>
           
-          {/* V1.22 Feature Highlight */}
+          {/* V1.23 Feature Highlight */}
           {sidebarOpen && (
             <div className="mx-2 mb-2 p-3 bg-indigo-900/80 rounded-lg border border-indigo-700 shadow-inner group relative overflow-hidden">
                 <div className="absolute top-0 right-0 p-1 opacity-20">
@@ -403,11 +414,11 @@ const App: React.FC = () => {
                 </div>
                 <div className="text-xs font-bold text-indigo-300 mb-1 flex items-center gap-1.5 relative z-10">
                     <Zap className="w-3.5 h-3.5 fill-indigo-400" /> 
-                    <span>Version 1.22</span>
+                    <span>Version 1.23</span>
                 </div>
                 <p className="text-[10px] text-indigo-100 leading-relaxed font-mono relative z-10">
-                    更新路徑修正<br/>
-                    錯誤代碼顯示
+                    動態路徑解析<br/>
+                    錯誤診斷模式
                 </p>
             </div>
           )}
@@ -444,7 +455,7 @@ const App: React.FC = () => {
                     <div className="flex flex-col items-center gap-1">
                         <div className="text-xs text-blue-500 font-mono text-center">
                             <div>V1</div>
-                            <div>.22</div>
+                            <div>.23</div>
                         </div>
                         <Settings className="w-3 h-3 text-blue-500 group-hover:text-blue-300" />
                     </div>

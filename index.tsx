@@ -1,8 +1,8 @@
-import React, { ReactNode } from 'react';
+import React, { Component, ReactNode } from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 
-console.log("V1.22 Loaded - Path Fix");
+console.log("V1.23 Loaded - Dynamic Path");
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {
@@ -19,7 +19,7 @@ interface ErrorBoundaryState {
   errorInfo: any;
 }
 
-class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
+class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   constructor(props: ErrorBoundaryProps) {
     super(props);
     this.state = {
@@ -29,7 +29,7 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
     };
   }
 
-  static getDerivedStateFromError(error: any) {
+  static getDerivedStateFromError(error: any): Partial<ErrorBoundaryState> {
     return { hasError: true, error };
   }
 
