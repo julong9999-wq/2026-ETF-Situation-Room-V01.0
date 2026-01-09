@@ -2,7 +2,7 @@ import React, { Component, ReactNode } from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 
-console.log("V1.33 Loaded - Rose Theme & Snapshot Guard");
+console.log("System Reset - V01.0 Loaded");
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {
@@ -36,10 +36,8 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   }
 
   handleHardReset = () => {
-      // 1. Clear everything
       localStorage.clear();
       sessionStorage.clear();
-      // 2. Force reload ignoring cache with timestamp
       window.location.href = window.location.pathname + "?t=" + Date.now();
   };
 
@@ -55,7 +53,7 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
             padding: '20px', 
             fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif', 
             color: '#4b5563', 
-            backgroundColor: '#fff1f2', 
+            backgroundColor: '#f8fafc', 
             display: 'flex', 
             flexDirection: 'column', 
             alignItems: 'center', 
@@ -65,31 +63,27 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
             overflow: 'auto'
         }}>
           <div style={{ fontSize: '80px', marginBottom: '20px', opacity: 0.8 }}>🔧</div>
-          <h1 style={{ fontSize: '24px', fontWeight: 'bold', marginBottom: '8px', color: '#881337' }}>系統自動偵測到異常</h1>
-          <p style={{ marginBottom: '24px', color: '#9f1239' }}>可能是因為資料來源連結失效，導致匯入了錯誤的內容。</p>
+          <h1 style={{ fontSize: '24px', fontWeight: 'bold', marginBottom: '8px', color: '#1e293b' }}>系統自動偵測到異常</h1>
+          <p style={{ marginBottom: '24px', color: '#64748b' }}>可能是因為資料來源連結失效，導致匯入了錯誤的內容。</p>
           
           <button 
             onClick={this.handleHardReset}
             style={{
                 marginTop: '10px',
                 padding: '16px 32px',
-                backgroundColor: '#e11d48',
+                backgroundColor: '#3b82f6',
                 color: 'white',
                 border: 'none',
                 borderRadius: '12px',
                 fontSize: '18px',
                 fontWeight: 'bold',
                 cursor: 'pointer',
-                boxShadow: '0 4px 6px -1px rgba(225, 29, 72, 0.4)',
+                boxShadow: '0 4px 6px -1px rgba(59, 130, 246, 0.4)',
                 transition: 'transform 0.1s'
             }}
           >
             🚀 點擊這裡：強制修復並重啟
           </button>
-
-          <p style={{ marginTop: '20px', fontSize: '12px', color: '#fda4af' }}>
-            點擊後將清除暫存資料並重新整理頁面。
-          </p>
         </div>
       );
     }

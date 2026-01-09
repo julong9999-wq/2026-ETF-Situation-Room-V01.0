@@ -2,20 +2,16 @@ import React, { useState, useEffect } from 'react';
 import TabAnalysisHub from './components/TabAnalysisHub';
 import TabExport from './components/TabExport';
 import { clearAllData, checkAndFetchSystemData } from './services/dataService';
-import { Loader2, RefreshCw, CheckCircle2, LayoutDashboard, TrendingUp, Download, Presentation, Settings, Power, RotateCcw, X, CloudLightning, Zap, ArrowRight, Moon, Search, Clock, ShieldCheck, AlertTriangle, ExternalLink } from 'lucide-react';
+import { Loader2, RefreshCw, CheckCircle2, LayoutDashboard, TrendingUp, Download, Presentation, Settings, Power, RotateCcw, X, CloudLightning, Zap, ArrowRight, Moon, Search, Clock, ShieldCheck } from 'lucide-react';
 import AdSenseBlock from './components/AdSenseBlock';
 
 // --- SYSTEM VERSION CONTROL ---
-const APP_VERSION = 'V.01.39'; // Internal Logic Version (Bumped for V1.33)
-const DISPLAY_VERSION = 'V1.33'; // UI Display Version
-const BUILD_TIME = new Date().toLocaleString('zh-TW', { hour12: false }); 
+const APP_VERSION = 'V.01.00'; // Reset Logic Version
+const DISPLAY_VERSION = 'V01.0'; // UI Display Version
 const STORAGE_VERSION_KEY = 'app_system_version';
 
-// PRODUCTION URL - The Source of Truth
-const PRODUCTION_URL = 'https://2026-etf-situation-room-v01-0.vercel.app';
-
 // Placeholders
-const TabPerformance = () => <div className="p-8 text-center text-rose-500 text-xl font-bold">績效分析功能區 (規劃中)</div>;
+const TabPerformance = () => <div className="p-8 text-center text-blue-500 text-xl font-bold">績效分析功能區 (規劃中)</div>;
 
 type NavItem = {
   id: string;
@@ -25,43 +21,23 @@ type NavItem = {
 };
 
 // --- UPDATE PROMPT COMPONENT ---
-const UpdateOverlay = ({ serverVersion, onUpdate, isRedirect }: { serverVersion: string, onUpdate: () => void, isRedirect?: boolean }) => (
-    <div className="fixed inset-0 z-[100] bg-rose-900/95 backdrop-blur-md flex flex-col items-center justify-center p-6 text-white animate-in fade-in duration-300">
+const UpdateOverlay = ({ serverVersion, onUpdate }: { serverVersion: string, onUpdate: () => void }) => (
+    <div className="fixed inset-0 z-[100] bg-slate-900/95 backdrop-blur-md flex flex-col items-center justify-center p-6 text-white animate-in fade-in duration-300">
         <div className="bg-white/10 p-6 rounded-full mb-6 animate-bounce">
             <Zap className="w-16 h-16 text-yellow-300 fill-yellow-300" />
         </div>
         <h1 className="text-3xl font-bold mb-4 text-center">偵測到版本更新 {serverVersion}</h1>
-        <p className="text-rose-200 mb-8 text-center max-w-md text-lg">
-            {isRedirect 
-                ? "您正在使用舊版連結 (Snapshot)。請前往正式官網以獲取最新版本。" 
-                : `新版本 ${serverVersion} 已發布，請立即更新以獲取最佳體驗。`
-            }
+        <p className="text-slate-200 mb-8 text-center max-w-md text-lg">
+            新版本 {serverVersion} 已發布，請立即更新以獲取最佳體驗。
         </p>
         <button 
             onClick={onUpdate}
-            className="group relative bg-white hover:bg-gray-100 text-rose-900 font-bold text-xl px-10 py-4 rounded-full shadow-2xl transition-all hover:scale-105 active:scale-95 flex items-center gap-3"
+            className="group relative bg-white hover:bg-gray-100 text-slate-900 font-bold text-xl px-10 py-4 rounded-full shadow-2xl transition-all hover:scale-105 active:scale-95 flex items-center gap-3"
         >
-            <span>{isRedirect ? "前往最新版官網" : `立即更新 ${serverVersion}`}</span>
+            <span>立即更新 {serverVersion}</span>
             <ArrowRight className="w-6 h-6 group-hover:translate-x-1 transition-transform" />
         </button>
-        <div className="mt-8 text-sm text-rose-400/60 font-mono">Current: {DISPLAY_VERSION}</div>
-    </div>
-);
-
-// --- SNAPSHOT WARNING BANNER ---
-const SnapshotBanner = () => (
-    <div className="fixed bottom-0 left-0 right-0 bg-red-600 text-white z-[60] py-3 px-4 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] flex items-center justify-center gap-4 animate-in slide-in-from-bottom duration-500">
-        <div className="flex items-center gap-2">
-            <AlertTriangle className="w-5 h-5 text-yellow-300 fill-yellow-300 animate-pulse" />
-            <span className="font-bold">警告：您正在使用歷史快照連結 (Snapshot URL)</span>
-        </div>
-        <span className="hidden md:inline text-red-100 text-sm">此頁面無法自動更新，資料可能過時。</span>
-        <a 
-            href={PRODUCTION_URL} 
-            className="bg-white text-red-600 px-4 py-1 rounded-full text-sm font-bold hover:bg-red-50 hover:scale-105 transition-all flex items-center gap-1 shadow-sm"
-        >
-            前往正式官網 <ExternalLink className="w-3 h-3" />
-        </a>
+        <div className="mt-8 text-sm text-slate-400/60 font-mono">Current: {DISPLAY_VERSION}</div>
     </div>
 );
 
@@ -70,11 +46,10 @@ interface SystemModalProps {
     onClose: () => void;
     currentVersion: string;
     displayVersion: string;
-    buildTime: string;
     onCheckUpdate: () => Promise<string>;
 }
 
-const SystemModal: React.FC<SystemModalProps> = ({ onClose, currentVersion, displayVersion, buildTime, onCheckUpdate }) => {
+const SystemModal: React.FC<SystemModalProps> = ({ onClose, currentVersion, displayVersion, onCheckUpdate }) => {
     const [isReloading, setIsReloading] = useState(false);
     const [isChecking, setIsChecking] = useState(false);
     const [checkResult, setCheckResult] = useState<string | null>(null);
@@ -106,7 +81,7 @@ const SystemModal: React.FC<SystemModalProps> = ({ onClose, currentVersion, disp
     };
 
     const handleFactoryReset = () => {
-        if (confirm('警告：這將刪除所有本地暫存的 CSV 資料並將系統還原至初始狀態。\n\n確定要執行嗎？')) {
+        if (confirm('警告：這將刪除所有資料並將系統還原至初始狀態。\n\n確定要執行嗎？')) {
             setIsReloading(true);
             clearAllData();
             localStorage.clear(); 
@@ -116,68 +91,53 @@ const SystemModal: React.FC<SystemModalProps> = ({ onClose, currentVersion, disp
         }
     };
 
-    const isSnapshotUrl = window.location.hostname.includes('vercel.app') && window.location.hostname.split('-').length > 4;
-
     return (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
             <div className="bg-white rounded-xl w-full max-w-md shadow-2xl animate-in zoom-in-95 duration-200 overflow-hidden flex flex-col max-h-[90vh]">
-                <div className="bg-rose-900 text-white p-4 flex justify-between items-center shrink-0">
+                <div className="bg-slate-800 text-white p-4 flex justify-between items-center shrink-0">
                     <h3 className="font-bold text-lg flex items-center gap-2">
-                        <Settings className="w-5 h-5" /> 系統設定與資訊
+                        <Settings className="w-5 h-5" /> 系統設定
                     </h3>
-                    <button onClick={onClose} className="hover:bg-rose-700 p-1 rounded-full transition-colors">
+                    <button onClick={onClose} className="hover:bg-slate-700 p-1 rounded-full transition-colors">
                         <X className="w-5 h-5" />
                     </button>
                 </div>
                 
                 <div className="p-6 space-y-6 overflow-y-auto">
                     <div className="text-center space-y-1">
-                        <div className="w-16 h-16 bg-rose-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                            <ShieldCheck className="w-8 h-8 text-rose-600" />
+                        <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                            <ShieldCheck className="w-8 h-8 text-blue-600" />
                         </div>
                         <h2 className="text-xl font-bold text-gray-800">ETF 戰情室</h2>
                         <div className="flex justify-center gap-2 text-sm text-gray-500 font-mono">
                             <span className="bg-gray-100 px-2 py-0.5 rounded">UI: {displayVersion}</span>
                             <span className="bg-gray-100 px-2 py-0.5 rounded">Core: {currentVersion}</span>
                         </div>
-                        <div className="text-xs text-gray-400 font-mono mt-1">Built: {buildTime}</div>
-                        
-                        {isSnapshotUrl && (
-                            <div className="mt-3 bg-red-50 border border-red-200 p-2 rounded text-xs text-red-700 flex items-start gap-2 text-left">
-                                <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
-                                <div>
-                                    <span className="font-bold">警告：</span> 這是快照網址。請使用正式官網。
-                                    <a href={PRODUCTION_URL} className="block mt-1 text-blue-600 underline">前往正式網站</a>
-                                </div>
-                            </div>
-                        )}
                     </div>
 
                     <div className="border-t border-gray-100 my-4"></div>
 
                     <div className="space-y-3">
-                        <div className="text-xs font-bold text-gray-400 uppercase tracking-wider ml-1">維護選項</div>
-                        
                          <button 
                             onClick={handleCheckUpdateClick}
                             disabled={isChecking}
-                            className="w-full flex flex-col p-4 bg-emerald-50 hover:bg-emerald-100 text-emerald-900 rounded-xl transition-all border border-emerald-100 group"
+                            className="w-full flex flex-col p-4 bg-blue-50 hover:bg-blue-100 text-blue-900 rounded-xl transition-all border border-blue-100 group"
                         >
                             <div className="flex items-center justify-between w-full">
                                 <div className="flex items-center gap-3">
                                     <div className="bg-white p-2 rounded-lg shadow-sm group-hover:scale-110 transition-transform">
-                                        <Search className={`w-5 h-5 text-emerald-500 ${isChecking ? 'animate-pulse' : ''}`} />
+                                        <Search className={`w-5 h-5 text-blue-500 ${isChecking ? 'animate-pulse' : ''}`} />
                                     </div>
                                     <div className="text-left">
-                                        <div className="font-bold text-sm">檢查是否有新版本</div>
-                                        <div className="text-xs text-emerald-600 opacity-70">連線伺服器 (Auto Cross-Check)</div>
+                                        <div className="font-bold text-sm">檢查更新</div>
+                                        <div className="text-xs text-blue-600 opacity-70">Check for Updates</div>
                                     </div>
                                 </div>
-                                {isChecking && <RefreshCw className="w-4 h-4 animate-spin text-emerald-500" />}
+                                {isChecking && <RefreshCw className="w-4 h-4 animate-spin text-blue-500" />}
                             </div>
                             
                             {checkResult && (
-                                <div className="mt-3 w-full bg-white/50 p-2 rounded text-xs text-left font-mono text-emerald-800 border border-emerald-100 whitespace-pre-wrap">
+                                <div className="mt-3 w-full bg-white/50 p-2 rounded text-xs text-left font-mono text-blue-800 border border-blue-100 whitespace-pre-wrap">
                                     {checkResult}
                                 </div>
                             )}
@@ -186,20 +146,19 @@ const SystemModal: React.FC<SystemModalProps> = ({ onClose, currentVersion, disp
                         <button 
                             onClick={handleSoftReload}
                             disabled={isReloading}
-                            className="w-full flex items-center justify-between p-4 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-xl transition-all border border-blue-100 group"
+                            className="w-full flex items-center justify-between p-4 bg-slate-50 hover:bg-slate-100 text-slate-700 rounded-xl transition-all border border-slate-100 group"
                         >
                             <div className="flex items-center gap-3">
                                 <div className="bg-white p-2 rounded-lg shadow-sm group-hover:scale-110 transition-transform">
                                     <RefreshCw className={`w-5 h-5 ${isReloading ? 'animate-spin' : ''}`} />
                                 </div>
                                 <div className="text-left">
-                                    <div className="font-bold text-sm">強制重新整理</div>
-                                    <div className="text-xs text-blue-400">清除快取並強制從伺服器下載</div>
+                                    <div className="font-bold text-sm">重新整理</div>
+                                    <div className="text-xs text-slate-400">Reload System</div>
                                 </div>
                             </div>
                         </button>
 
-                        <div className="text-xs font-bold text-gray-400 uppercase tracking-wider ml-1 mt-4">危險區域</div>
                         <button 
                             onClick={handleFactoryReset}
                             disabled={isReloading}
@@ -210,17 +169,13 @@ const SystemModal: React.FC<SystemModalProps> = ({ onClose, currentVersion, disp
                                     <RotateCcw className="w-5 h-5 text-red-500" />
                                 </div>
                                 <div className="text-left">
-                                    <div className="font-bold text-sm">系統重置 (Factory Reset)</div>
-                                    <div className="text-xs text-red-400">清除所有資料庫快取</div>
+                                    <div className="font-bold text-sm">系統重置 (Reset)</div>
+                                    <div className="text-xs text-red-400">Clear Data & Cache</div>
                                 </div>
                             </div>
                             <Power className="w-4 h-4 text-red-300" />
                         </button>
                     </div>
-                </div>
-
-                <div className="bg-gray-50 p-3 text-center text-xs text-gray-400 shrink-0">
-                    System ID: {Math.random().toString(36).substr(2, 9).toUpperCase()}
                 </div>
             </div>
         </div>
@@ -235,63 +190,26 @@ const App: React.FC = () => {
   const [isBackgroundUpdating, setIsBackgroundUpdating] = useState(false);
   const [lastUpdateStatus, setLastUpdateStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [showSystemModal, setShowSystemModal] = useState(false);
-  
   const [updateAvailable, setUpdateAvailable] = useState<string | null>(null);
-  const [isRedirectNeeded, setIsRedirectNeeded] = useState(false);
 
-  // Snapshot Detection
-  const isSnapshotUrl = window.location.hostname.includes('vercel.app') && 
-                        window.location.hostname.split('-').length > 4;
-
-  // --- AUTO UPDATER LOGIC (CROSS-ORIGIN AWARE) ---
   const checkForUpdates = async (manual = false): Promise<string> => {
       try {
           if (window.location.protocol === 'file:') return "本機檔案模式無法更新。";
-
-          console.log("Checking for updates...");
           let serverVersion = null;
-          let source = 'local_relative';
-          let isProductionFetch = false;
-
-          // 1. Try Fetching from PRODUCTION URL if we are on a snapshot
-          // This allows "stuck" snapshots to know about the real new version.
-          if (isSnapshotUrl && PRODUCTION_URL) {
-              try {
-                  console.log("Attempting Cross-Origin Production Check...");
-                  const prodMetaUrl = `${PRODUCTION_URL}/metadata.json`;
-                  const response = await fetch(`${prodMetaUrl}?t=${Date.now()}`, {
-                      cache: 'no-store',
-                      headers: { 'Pragma': 'no-cache', 'Cache-Control': 'no-cache' }
-                  });
-                  if (response.ok) {
-                      const data = await response.json();
-                      serverVersion = data.version;
-                      source = 'production_cross_origin';
-                      isProductionFetch = true;
-                  }
-              } catch(e) {
-                  console.warn("Cross-origin check failed (CORS?):", e);
+          
+          try {
+              const targetUrl = new URL('metadata.json', window.location.href).href;
+              const response = await fetch(`${targetUrl}?t=${Date.now()}`, {
+                  cache: 'no-store',
+                  headers: { 'Pragma': 'no-cache', 'Cache-Control': 'no-cache' }
+              });
+              if (response.ok) {
+                  const data = await response.json();
+                  serverVersion = data.version;
               }
-          }
+          } catch (e) {}
 
-          // 2. Fallback to Relative Check (Standard)
           if (!serverVersion) {
-            try {
-                const targetUrl = new URL('metadata.json', window.location.href).href;
-                const response = await fetch(`${targetUrl}?t=${Date.now()}`, {
-                    cache: 'no-store',
-                    headers: { 'Pragma': 'no-cache', 'Cache-Control': 'no-cache' }
-                });
-                if (response.ok) {
-                    const data = await response.json();
-                    serverVersion = data.version;
-                }
-            } catch (e) {}
-          }
-
-          // 3. Fallback to HTML scraping
-          if (!serverVersion) {
-              source = 'html_fallback';
               try {
                   const pageUrl = window.location.origin + window.location.pathname;
                   const response = await fetch(`${pageUrl}?t=${Date.now()}`, { cache: 'no-store' });
@@ -304,39 +222,27 @@ const App: React.FC = () => {
           }
 
           if (serverVersion && serverVersion !== DISPLAY_VERSION) {
-               console.log(`Update Detected (${source}): Server(${serverVersion}) vs Local(${DISPLAY_VERSION})`);
+               console.log(`Update Detected: Server(${serverVersion}) vs Local(${DISPLAY_VERSION})`);
                setUpdateAvailable(serverVersion);
-               // If we found a newer version via Production Check while on Snapshot, force redirect
-               if (isProductionFetch && isSnapshotUrl) {
-                   setIsRedirectNeeded(true);
-                   return `偵測到正式官網有新版本 ${serverVersion}！\n您目前位於舊版快照，請點擊更新跳轉。`;
-               }
-               return `偵測到新版本 ${serverVersion}！(來源: ${source})\n請點擊更新按鈕。`;
+               return `偵測到新版本 ${serverVersion}！`;
           } else {
-               if (serverVersion) {
-                   return `檢查結果：目前已是最新 (${serverVersion})。\n來源: ${source}`;
-               } else {
-                   return `檢查更新失敗：無法讀取版本資訊`;
-               }
+               return serverVersion ? `檢查結果：目前已是最新 (${serverVersion})。` : `檢查更新失敗`;
           }
 
       } catch (e: any) {
-          console.error("Failed to check version", e);
-          return `檢查過程發生錯誤: ${e.message}`;
+          return `錯誤: ${e.message}`;
       }
-      return "";
   };
 
   useEffect(() => {
     const initApp = async () => {
-        const checkMsg = await checkForUpdates(false);
-        
         const savedVersion = localStorage.getItem(STORAGE_VERSION_KEY);
         const hasCachedMarket = !!localStorage.getItem('db_market_data');
         const isVersionMatch = savedVersion === APP_VERSION;
 
+        // Force Clear Data if Version mismatch (or returning to V01.0)
         if (!isVersionMatch) {
-            console.log(`Logic Version mismatch: Local(${savedVersion}) vs App(${APP_VERSION}). Cleaning up...`);
+            console.log(`Version Reset: Local(${savedVersion}) -> App(${APP_VERSION}). Clearing Data.`);
             clearAllData(); 
             localStorage.removeItem('admin_csv_urls'); 
             localStorage.setItem(STORAGE_VERSION_KEY, APP_VERSION);
@@ -345,13 +251,7 @@ const App: React.FC = () => {
             setIsInitializing(false);
         }
 
-        const dbKeys = ['db_basic_info', 'db_market_data', 'db_price_data', 'db_dividend_data', 'db_size_data'];
-        dbKeys.forEach(key => {
-            const val = localStorage.getItem(key);
-            if (val && (val.includes('<!DOCTYPE') || val.includes('<html') || val.includes('檔案可能已遭到移動'))) {
-                localStorage.removeItem(key);
-            }
-        });
+        checkForUpdates(false);
 
         setIsBackgroundUpdating(true);
         try {
@@ -371,13 +271,6 @@ const App: React.FC = () => {
   }, []);
 
   const handleUpdateClick = async () => {
-      // If redirect needed (Snapshot -> Production), go there
-      if (isRedirectNeeded) {
-          window.location.href = PRODUCTION_URL;
-          return;
-      }
-
-      // Standard Reload
       if ('serviceWorker' in navigator) {
           try {
               const registrations = await navigator.serviceWorker.getRegistrations();
@@ -395,24 +288,9 @@ const App: React.FC = () => {
   };
 
   const navItems: NavItem[] = [
-    {
-      id: 'ANALYSIS',
-      name: '資料分析',
-      icon: LayoutDashboard,
-      component: <TabAnalysisHub />
-    },
-    {
-      id: 'PERFORMANCE',
-      name: '績效分析',
-      icon: TrendingUp,
-      component: <TabPerformance />
-    },
-    {
-      id: 'EXPORT',
-      name: '表單匯出',
-      icon: Download,
-      component: <TabExport />
-    }
+    { id: 'ANALYSIS', name: '資料分析', icon: LayoutDashboard, component: <TabAnalysisHub /> },
+    { id: 'PERFORMANCE', name: '績效分析', icon: TrendingUp, component: <TabPerformance /> },
+    { id: 'EXPORT', name: '表單匯出', icon: Download, component: <TabExport /> }
   ];
 
   const getCurrentComponent = () => {
@@ -421,35 +299,34 @@ const App: React.FC = () => {
   };
 
   if (updateAvailable) {
-      return <UpdateOverlay serverVersion={updateAvailable} onUpdate={handleUpdateClick} isRedirect={isRedirectNeeded} />;
+      return <UpdateOverlay serverVersion={updateAvailable} onUpdate={handleUpdateClick} />;
   }
 
   if (isInitializing) {
       return (
-          <div className="flex flex-col items-center justify-center h-screen bg-rose-50 text-rose-900">
-              <Loader2 className="w-16 h-16 animate-spin mb-6 text-rose-600" />
-              <h2 className="text-2xl font-bold mb-2">系統載入中 ({DISPLAY_VERSION})...</h2>
-              <div className="bg-white/50 px-6 py-4 rounded-xl text-center border border-rose-200 max-w-sm">
-                  <p className="text-sm text-rose-800 font-bold mb-1">正在套用 {DISPLAY_VERSION} 更新</p>
-                  <p className="text-xs text-rose-600">快照防護與跨來源更新</p>
+          <div className="flex flex-col items-center justify-center h-screen bg-slate-50 text-slate-900">
+              <Loader2 className="w-16 h-16 animate-spin mb-6 text-blue-600" />
+              <h2 className="text-2xl font-bold mb-2">系統重置中 ({DISPLAY_VERSION})...</h2>
+              <div className="bg-white/50 px-6 py-4 rounded-xl text-center border border-slate-200 max-w-sm">
+                  <p className="text-sm text-slate-600">正在清除舊版資料並初始化</p>
               </div>
           </div>
       );
   }
 
-  // --- MAIN LAYOUT (UPDATED TO ROSE THEME V1.33) ---
+  // --- ORIGINAL BLUE/SLATE THEME ---
   return (
-    <div className="flex h-screen bg-rose-50 overflow-hidden relative">
-      {/* Sidebar - ROSE 950 for V1.33 */}
-      <div className={`${sidebarOpen ? 'w-60' : 'w-20'} bg-rose-950 text-white transition-all duration-300 flex flex-col shadow-2xl z-20 border-r border-rose-900`}>
-        <div className="p-5 border-b border-rose-800 bg-[#4c0519]">
+    <div className="flex h-screen bg-slate-50 overflow-hidden relative">
+      {/* Sidebar - Slate 900 (Original) */}
+      <div className={`${sidebarOpen ? 'w-60' : 'w-20'} bg-slate-900 text-white transition-all duration-300 flex flex-col shadow-2xl z-20 border-r border-slate-800`}>
+        <div className="p-5 border-b border-slate-800 bg-slate-950">
           <div className={`flex flex-col ${!sidebarOpen && 'items-center'}`}>
              <div className="flex items-center justify-between w-full mb-1">
                  <div className={`flex items-center gap-2 ${!sidebarOpen && 'hidden'}`}>
-                    <CloudLightning className="w-6 h-6 text-yellow-400" />
+                    <CloudLightning className="w-6 h-6 text-blue-400" />
                     <span className="font-bold text-lg tracking-wider truncate">ETF 戰情室</span>
                  </div>
-                 <button onClick={() => setSidebarOpen(!sidebarOpen)} className="p-1.5 hover:bg-rose-800 rounded-lg text-rose-400 hover:text-white">
+                 <button onClick={() => setSidebarOpen(!sidebarOpen)} className="p-1.5 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white">
                     <span className="text-xl">☰</span>
                  </button>
              </div>
@@ -471,7 +348,7 @@ const App: React.FC = () => {
           </div>
         </div>
         
-        <div className="flex-1 overflow-y-auto py-4 flex flex-col bg-rose-950">
+        <div className="flex-1 overflow-y-auto py-4 flex flex-col bg-slate-900">
           <nav className="space-y-1.5 px-2 flex-1">
             {navItems.map((item) => {
               const isActive = activeTab === item.id;
@@ -482,8 +359,8 @@ const App: React.FC = () => {
                   onClick={() => setActiveTab(item.id)}
                   className={`w-full flex items-center px-3 py-3 rounded-xl transition-all duration-200 mb-1 ${
                     isActive
-                      ? 'bg-rose-800 text-white shadow-lg border border-rose-700' 
-                      : 'text-rose-400 hover:bg-rose-800 hover:text-white border border-transparent'
+                      ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/50' 
+                      : 'text-slate-400 hover:bg-slate-800 hover:text-white'
                   } ${!sidebarOpen && 'justify-center'}`}
                 >
                   <span className={`${sidebarOpen ? 'mr-3' : ''}`}>
@@ -494,23 +371,6 @@ const App: React.FC = () => {
               );
             })}
           </nav>
-          
-          {/* V1.33 Feature Highlight */}
-          {sidebarOpen && (
-            <div className="mx-2 mb-2 p-3 bg-rose-900/50 rounded-lg border border-rose-800 shadow-inner group relative overflow-hidden">
-                <div className="absolute top-0 right-0 p-1 opacity-20">
-                     <Moon className="w-12 h-12 text-rose-500" />
-                </div>
-                <div className="text-xs font-bold text-rose-300 mb-1 flex items-center gap-1.5 relative z-10">
-                    <Zap className="w-3.5 h-3.5 fill-yellow-400 text-yellow-400" /> 
-                    <span>Version {DISPLAY_VERSION}</span>
-                </div>
-                <p className="text-[10px] text-rose-400 leading-relaxed font-mono relative z-10">
-                    Rose Theme Edition<br/>
-                    Build: {BUILD_TIME.split(' ')[0]}
-                </p>
-            </div>
-          )}
 
           {/* SIDEBAR AD SLOT */}
           {sidebarOpen && (
@@ -529,7 +389,7 @@ const App: React.FC = () => {
         {/* Footer */}
         <div 
             onClick={() => setShowSystemModal(true)}
-            className="p-4 border-t border-rose-900 bg-[#4c0519] cursor-pointer hover:bg-rose-900 transition-colors group"
+            className="p-4 border-t border-slate-800 bg-slate-950 cursor-pointer hover:bg-slate-900 transition-colors group"
         >
             <div className={`flex flex-col items-center ${sidebarOpen ? 'items-start' : 'items-center'}`}>
                 {sidebarOpen ? (
@@ -537,19 +397,18 @@ const App: React.FC = () => {
                         <div>
                             <p className="text-sm font-bold text-white tracking-wide">julong chen</p>
                             <div className="flex items-center gap-1">
-                                <p className="text-xs text-rose-400 mt-0.5">版本 {DISPLAY_VERSION}</p>
-                                <span className="text-[9px] text-rose-500 opacity-70 border border-rose-700 px-1 rounded">{BUILD_TIME.split(' ')[0]}</span>
+                                <p className="text-xs text-slate-400 mt-0.5">版本 {DISPLAY_VERSION}</p>
                             </div>
                         </div>
-                        <Settings className="w-4 h-4 text-rose-400 group-hover:text-white group-hover:rotate-90 transition-all" />
+                        <Settings className="w-4 h-4 text-slate-500 group-hover:text-white group-hover:rotate-90 transition-all" />
                     </div>
                 ) : (
                     <div className="flex flex-col items-center gap-1">
-                        <div className="text-xs text-rose-500 font-mono text-center">
+                        <div className="text-xs text-slate-500 font-mono text-center">
                             <div>V1</div>
-                            <div>.{DISPLAY_VERSION.split('.')[1]}</div>
+                            <div>.0</div>
                         </div>
-                        <Settings className="w-3 h-3 text-rose-400 group-hover:text-rose-300" />
+                        <Settings className="w-3 h-3 text-slate-500 group-hover:text-slate-300" />
                     </div>
                 )}
             </div>
@@ -558,27 +417,23 @@ const App: React.FC = () => {
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col h-screen overflow-hidden relative">
-        <header className="bg-white shadow-sm border-b border-rose-200 p-4 flex justify-between items-center md:hidden z-10">
+        <header className="bg-white shadow-sm border-b border-slate-200 p-4 flex justify-between items-center md:hidden z-10">
             <div className="flex items-center gap-2">
-                <Presentation className="w-5 h-5 text-rose-900" />
-                <div className="font-bold text-rose-900 text-lg">ETF 戰情室</div>
+                <Presentation className="w-5 h-5 text-blue-900" />
+                <div className="font-bold text-slate-900 text-lg">ETF 戰情室</div>
             </div>
-            <button onClick={() => setSidebarOpen(!sidebarOpen)} className="text-rose-700"><span className="text-xl">☰</span></button>
+            <button onClick={() => setSidebarOpen(!sidebarOpen)} className="text-slate-700"><span className="text-xl">☰</span></button>
         </header>
-        <main className="flex-1 overflow-hidden relative bg-rose-50">
+        <main className="flex-1 overflow-hidden relative bg-slate-50">
           {getCurrentComponent()}
         </main>
       </div>
-
-      {/* SNAPSHOT BANNER (Shows only on snapshot URLs) */}
-      {isSnapshotUrl && <SnapshotBanner />}
 
       {showSystemModal && (
           <SystemModal 
             onClose={() => setShowSystemModal(false)}
             currentVersion={APP_VERSION}
             displayVersion={DISPLAY_VERSION}
-            buildTime={BUILD_TIME}
             onCheckUpdate={() => checkForUpdates(true)}
           />
       )}
