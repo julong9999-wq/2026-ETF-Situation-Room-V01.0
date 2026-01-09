@@ -235,11 +235,10 @@ const TabAdvancedSearch: React.FC = () => {
         const scriptContent = `
 /**
  * ETF 戰情室 - 自動化週報生成腳本
- * 修正版: V3.1
- * 1. 修復國際大盤排序問題 (解決標題跑到底部)
- * 2. 擴充資料欄位偵測 (修復國際大盤/填息資料空白)
- * 3. ETF代碼強制文字格式 (解決 0050 變 50 問題)
- * 4. 過濾邏輯修正 (國際但季配者保留，其餘國際/半年配排除)
+ * 修正版: V3.2
+ * 1. 嚴格欄位偵測：排除「昨日」、「開盤」、「漲跌」等關鍵字，解決抓錯價格問題。
+ * 2. 日期標準化：強制轉換所有日期為 yyyy-MM-dd，解決比對失敗問題。
+ * 3. 數值清理：處理千分位與空白。
  */
 
 var CONFIG = {
@@ -284,18 +283,28 @@ function step1_UpdateMarket(dates) {
     var csv = fetchCsv(url);
     if (csv.length < 2) return;
     var h = csv[0];
+    
+    // 嚴格排除 "昨日", "Change", "Prev"
+    var exPrice = ['昨日', '前日', '開盤', '漲跌', 'Closeyest', 'Open', 'Change', 'Prev'];
+    
     var idx = {
       name: findIdx(h, ['指數名稱', 'IndexName', '名稱']), 
       date: findIdx(h, ['日期', 'tradetime', 'Date']),
       prev: findIdx(h, ['昨日收盤', 'closeyest', 'Prev']), 
-      open: findIdx(h, ['開盤', 'priceopen', 'open', 'Open']),
+      open: findIdx(h, ['開盤', 'priceopen', 'open', 'Open'], ['漲跌']), // 排除漲跌
       high: findIdx(h, ['高價', 'high', 'High']), 
       low: findIdx(h, ['低價', 'low', 'Low']),
-      price: findIdx(h, ['現價', 'price', 'Close', '收盤價', '收盤']), 
-      chg: findIdx(h, ['漲跌點數', 'change', '漲跌']),
+      // 重點修正：現價欄位不能抓到 Open, Prev, Change
+      price: findIdx(h, ['現價', 'price', 'Close', '收盤價', '收盤'], exPrice), 
+      chg: findIdx(h, ['漲跌點數', 'change', '漲跌'], ['幅度', 'Percent']),
       pct: findIdx(h, ['漲跌幅度', 'percent', 'changepercent', '幅度'])
     };
     
+    // 若找不到關鍵欄位，嘗試放寬條件但仍需小心
+    if (idx.price === -1) {
+       idx.price = findIdx(h, ['Close', '收盤'], ['Prev', '昨日']);
+    }
+
     if (idx.name === -1 || idx.price === -1) return;
 
     for (var i = 1; i < csv.length; i++) {
@@ -307,19 +316,19 @@ function step1_UpdateMarket(dates) {
         allRows.push([
           d, 
           r[idx.name], 
-          safeVal(r[idx.prev]), 
-          safeVal(r[idx.open]), 
-          safeVal(r[idx.high]), 
-          safeVal(r[idx.low]), 
-          safeVal(r[idx.price]), 
-          safeVal(r[idx.chg]), 
-          safeVal(r[idx.pct])
+          cleanNum(r[idx.prev]), 
+          cleanNum(r[idx.open]), 
+          cleanNum(r[idx.high]), 
+          cleanNum(r[idx.low]), 
+          cleanNum(r[idx.price]), 
+          cleanNum(r[idx.chg]), 
+          cleanNum(r[idx.pct])
         ]);
       }
     }
   });
   
-  // *** V3.1 修正: 先取出標題列，排序後再放回，避免標題跑到底部 ***
+  // 修正: 排序並保留標題
   var header = allRows.shift();
   allRows.sort(function(a,b) {
      var wA = getIndexWeight(a[1]); var wB = getIndexWeight(b[1]);
@@ -366,11 +375,7 @@ function step2_ExecETFPrice(dates) {
       var isForeign = (cat.indexOf('國外') > -1 || type.indexOf('國外') > -1 || mkt.indexOf('國外') > -1 || cat.indexOf('國際') > -1 || type.indexOf('國際') > -1 || name.indexOf('國際') > -1);
       
       if (keep && isForeign) {
-         if (freq.indexOf('季') > -1) {
-             keep = true;
-         } else {
-             keep = false;
-         }
+         if (freq.indexOf('季') > -1) { keep = true; } else { keep = false; }
       }
       
       if (keep) {
@@ -387,15 +392,27 @@ function step2_ExecETFPrice(dates) {
   
   if (priceCsv.length > 1) {
     var h = priceCsv[0];
-    var idxP = { code: findIdx(h, ['代碼']), date: findIdx(h, ['日期']), price: findIdx(h, ['收盤', 'price', 'Close']) };
+    
+    // *** V3.2 關鍵修正：嚴格欄位選擇 ***
+    // 排除 'Open', 'High', 'Low', 'Prev', 'Change', 'Volume' 以確保只抓到 'Close'
+    var exPrice = ['Open', 'High', 'Low', 'Prev', 'Change', 'Volume', '開盤', '最高', '最低', '昨收', '漲跌', '昨日'];
+    var idxP = { 
+        code: findIdx(h, ['代碼', 'Code', 'Symbol']), 
+        date: findIdx(h, ['日期', 'Date', 'Time']), 
+        price: findIdx(h, ['收盤', 'price', 'Close', 'Price', '現價', '股價'], exPrice) 
+    };
+
     for (var i = 1; i < priceCsv.length; i++) {
       var r = priceCsv[i];
-      var d = formatDate(r[idxP.date]);
+      var d = formatDate(r[idxP.date]); // 強制標準化日期
       var c = String(r[idxP.code]).trim();
       
-      if (validCodes[c] && d >= dates.lastFriday && d <= dates.thisFriday) {
+      // 確保價格有效
+      var pVal = cleanNum(r[idxP.price]);
+      
+      if (validCodes[c] && d >= dates.lastFriday && d <= dates.thisFriday && pVal !== "") {
         if (!priceMap[c]) priceMap[c] = {};
-        priceMap[c][d] = r[idxP.price];
+        priceMap[c][d] = pVal;
         if (!dateSet[d]) { dateSet[d] = true; uniqueDates.push(d); }
       }
     }
@@ -455,7 +472,7 @@ function step3_UpdateDividend(dates) {
       var r = csv[i];
       var d = formatDate(r[idx.ex]);
       if (d >= dates.thisMonday && d <= dates.thisFriday) {
-        output.push(["'" + r[idx.code], r[idx.name], d, r[idx.amt], r[idx.pay]]);
+        output.push(["'" + r[idx.code], r[idx.name], d, cleanNum(r[idx.amt]), r[idx.pay]]);
       }
     }
   }
@@ -471,13 +488,20 @@ function step4_UpdateFill(dates) {
     var c = fetchCsv(u);
     if (c.length < 2) return;
     var h = c[0];
-    var idx = { code: findIdx(h,['代碼']), date: findIdx(h,['日期']), price: findIdx(h,['價','Price','收盤']) };
+    // 同樣使用嚴格排除
+    var exPrice = ['Open', 'High', 'Low', 'Prev', 'Change', 'Volume'];
+    var idx = { 
+        code: findIdx(h,['代碼']), 
+        date: findIdx(h,['日期']), 
+        price: findIdx(h,['價','Price','收盤'], exPrice) 
+    };
     for (var i=1; i<c.length; i++) {
       var d = formatDate(c[i][idx.date]);
       if (d > '2025-12-01') { 
         var code = String(c[i][idx.code]).trim();
         if (!priceMap[code]) priceMap[code] = [];
-        priceMap[code].push({ d: d, p: parseFloat(c[i][idx.price]) });
+        var val = parseFloat(cleanNum(c[i][idx.price]));
+        if (!isNaN(val)) priceMap[code].push({ d: d, p: val });
       }
     }
   };
@@ -526,7 +550,7 @@ function step4_UpdateFill(dates) {
         if (prices[k].p >= preExPrice) {
           if (prices[k].d >= dates.thisMonday && prices[k].d <= dates.thisFriday) {
             var days = Math.floor((new Date(prices[k].d) - new Date(exDate)) / (86400000));
-            output.push(["'" + code, r[idx.name], exDate, r[idx.amt], preExPrice, prices[k].d, prices[k].p, "是", days]);
+            output.push(["'" + code, r[idx.name], exDate, cleanNum(r[idx.amt]), preExPrice, prices[k].d, prices[k].p, "是", days]);
           }
           break; 
         }
@@ -556,11 +580,18 @@ function getWeeklyDates() {
 function formatDate(d) { 
   if(!d) return "";
   var s = String(d).replace(/\\//g, "-").trim();
-  if (s.match(/^\\d{4}-\\d{1,2}-\\d{1,2}/)) {
-     var p = s.split('-');
+  // 支援 2023/1/1 or 2023-1-1
+  if (s.match(/^\\d{4}[-\/]\\d{1,2}[-\/]\\d{1,2}/)) {
+     var p = s.split(/[-\/]/);
      return p[0] + '-' + (p[1].length<2?'0'+p[1]:p[1]) + '-' + (p[2].length<2?'0'+p[2]:p[2]);
   }
   return s;
+}
+
+function cleanNum(v) {
+  if (v === undefined || v === null) return "";
+  // 移除逗號
+  return String(v).replace(/,/g, "").trim();
 }
 
 function safeVal(v) {
@@ -577,10 +608,28 @@ function fetchCsv(url) {
   } catch(e){ return []; }
 }
 
-function findIdx(h, keys) { 
+function findIdx(h, keys, exclude) { 
   if (!h) return -1;
+  // 1. 優先全字匹配
   for(var i=0; i<h.length; i++) {
     var cell = String(h[i]).trim();
+    if (exclude && exclude.length > 0) {
+       var skip = false;
+       for(var e=0; e<exclude.length; e++) { if (cell.indexOf(exclude[e]) > -1) skip = true; }
+       if (skip) continue;
+    }
+    for(var k=0; k<keys.length; k++) {
+       if (cell === keys[k]) return i;
+    }
+  }
+  // 2. 模糊匹配 (仍須檢查 exclude)
+  for(var i=0; i<h.length; i++) {
+    var cell = String(h[i]).trim();
+    if (exclude && exclude.length > 0) {
+       var skip = false;
+       for(var e=0; e<exclude.length; e++) { if (cell.indexOf(exclude[e]) > -1) skip = true; }
+       if (skip) continue;
+    }
     for(var k=0; k<keys.length; k++) {
        if (cell.indexOf(keys[k]) > -1) return i;
     }
@@ -621,7 +670,7 @@ function getWeight(cat, freq) {
         `;
 
         navigator.clipboard.writeText(scriptContent).then(() => {
-            alert("✅ 自動化腳本 V3.1 已複製！\n\n更新：\n1. 修復國際大盤標題列排序錯誤 (標語不會再跑到底部)\n\n請至 Apps Script 貼上並執行。");
+            alert("✅ 自動化腳本 V3.2 已複製！\n\n更新重點：\n1. 修正「股價抓錯」問題 (嚴格排除 Prev/Open/Change 欄位)\n2. 統一日期格式 (解決比對失敗)\n\n請至 Apps Script 貼上並執行。");
         }).catch(err => {
             console.error('Failed to copy: ', err);
             alert("複製失敗，請手動選取程式碼。");
