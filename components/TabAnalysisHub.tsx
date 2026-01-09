@@ -10,6 +10,7 @@ const TabAnalysisHub: React.FC = () => {
   const [activeTab, setActiveTab] = useState<string>('market');
   const [onlineUsers, setOnlineUsers] = useState<number>(1245);
 
+  // Default values set to 季配 (Quarterly) and 季一 (Q1/Jan)
   const [sharedMainFilter, setSharedMainFilter] = useState('季配');
   const [sharedSubFilter, setSharedSubFilter] = useState('季一');
 

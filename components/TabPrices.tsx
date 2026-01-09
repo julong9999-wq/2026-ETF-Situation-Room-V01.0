@@ -272,8 +272,8 @@ const RecentInfoModal = ({ allBasicInfo, allPriceData, onClose }: { allBasicInfo
 
 // --- MAIN COMPONENT ---
 const TabPrices: React.FC<TabPricesProps> = ({ 
-    mainFilter = '全部', 
-    subFilter = 'ALL', 
+    mainFilter = '季配', 
+    subFilter = '季一', 
     setMainFilter = (_v: string) => {}, 
     setSubFilter = (_v: string) => {} 
 }) => {
@@ -387,7 +387,7 @@ const TabPrices: React.FC<TabPricesProps> = ({
           const totalDivs = periodDivs.reduce((acc, c) => acc + c.amount, 0);
           totalReturnVal = ((latestPrice + totalDivs - startPrice) / startPrice) * 100;
       }
-      return { latestPrice, startPrice, yieldVal, estYieldVal, returnVal, totalReturnVal };
+      return { latestPrice, startPrice, yieldVal, returnVal, totalReturnVal, estYieldVal };
   };
 
   const fmtP = (n: number | string) => { if (typeof n === 'string') return n; return n === 0 ? '-' : n.toFixed(2); };
@@ -456,16 +456,22 @@ const TabPrices: React.FC<TabPricesProps> = ({
       {/* 2-Row Filter Header */}
       <div className="bg-white p-3 rounded-lg shadow-sm border border-blue-200 flex flex-col gap-3 flex-none">
           {/* Row 1 */}
-          <div className="flex items-center justify-between">
-              <div className="flex gap-2 overflow-x-auto no-scrollbar">
+          <div className="flex items-center justify-between gap-2 overflow-x-auto no-scrollbar">
+              <div className="flex items-center gap-2 overflow-x-auto no-scrollbar mask-gradient-right">
                 {['全部', '季配', '月配', '債券', '主動', '國際', '半年'].map(cat => (
                     <button key={cat} onClick={() => { setMainFilter(cat); setSubFilter('ALL'); }}
-                        className={`px-4 py-1.5 rounded-lg text-base font-bold whitespace-nowrap transition-all border ${mainFilter === cat ? 'bg-blue-600 text-white border-blue-600 shadow-md' : 'bg-white text-blue-500 border-blue-100 hover:bg-blue-50 hover:text-blue-700'}`}>
+                        className={`px-3 py-1.5 rounded-lg text-base font-bold whitespace-nowrap transition-all border shrink-0 ${mainFilter === cat ? 'bg-blue-600 text-white border-blue-600 shadow-md' : 'bg-white text-blue-500 border-blue-100 hover:bg-blue-50 hover:text-blue-700'}`}>
                         {cat}
                     </button>
                 ))}
+                {subOptions.length > 0 && <div className="h-6 w-px bg-gray-300 shrink-0 mx-1"></div>}
+                {subOptions.map(sub => (
+                      <button key={sub} onClick={() => setSubFilter(sub === '全部' ? 'ALL' : sub)}
+                          className={`px-3 py-1.5 rounded-lg text-base whitespace-nowrap transition-colors font-bold border shrink-0 ${(subFilter === sub || (subFilter === 'ALL' && sub === '全部')) ? 'bg-blue-800 text-white border-blue-800 shadow-sm' : 'bg-gray-50 text-gray-500 border-gray-200 hover:bg-white hover:text-blue-600 hover:border-blue-200'}`}>{sub}</button>
+                  ))}
               </div>
-              <div className="flex items-center gap-2 shrink-0 pl-3 border-l border-gray-100">
+              
+              <div className="flex items-center gap-2 shrink-0 pl-2 border-l border-gray-100">
                 <div className="flex items-center gap-2 bg-gray-50 px-2 py-1.5 rounded-md border border-gray-200 shadow-inner">
                     <input type="date" value={startDate} onChange={e=>setStartDate(e.target.value)} className="bg-transparent text-[15px] w-32 font-mono outline-none text-gray-700 font-bold"/>
                     <span className="text-sm text-gray-400">~</span>
@@ -473,22 +479,28 @@ const TabPrices: React.FC<TabPricesProps> = ({
                 </div>
                 {/* RECENT INFO BUTTON */}
                 <button onClick={() => setActiveModal('RECENT')} className="flex items-center gap-2 px-3 py-1.5 bg-amber-50 text-amber-700 border border-amber-200 rounded-lg hover:bg-amber-100 font-bold text-base whitespace-nowrap shadow-sm">
-                    <Info className="w-4 h-4" /> <span>近期資訊</span>
+                    <Info className="w-4 h-4" /> 近期資訊
                 </button>
                 <button onClick={handleExport} className="flex items-center gap-2 px-3 py-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg hover:bg-emerald-100 font-bold text-base whitespace-nowrap shadow-sm" disabled={!selectedEtf}>
-                    <Download className="w-4 h-4" /> <span>匯出表單</span>
+                    <Download className="w-4 h-4" /> 匯出表單
                 </button>
               </div>
           </div>
-          {/* Row 2 */}
-          {subOptions.length > 0 && (
-              <div className="flex items-center gap-2 overflow-x-auto no-scrollbar border-t border-gray-100 pt-2 animate-in fade-in slide-in-from-top-1">
-                  {subOptions.map(sub => (
-                      <button key={sub} onClick={() => setSubFilter(sub === '全部' ? 'ALL' : sub)}
-                          className={`px-3 py-1.5 rounded-lg text-base whitespace-nowrap transition-colors font-bold border ${(subFilter === sub || (subFilter === 'ALL' && sub === '全部')) ? 'bg-blue-800 text-white border-blue-800 shadow-sm' : 'bg-gray-50 text-gray-500 border-gray-200 hover:bg-white hover:text-blue-600 hover:border-blue-200'}`}>{sub}</button>
-                  ))}
-              </div>
-          )}
+          {/* Chart Buttons Row */}
+          <div className="flex items-center justify-end gap-2 pt-2 border-t border-gray-100">
+                <button onClick={() => setActiveModal('TECH')} className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 text-white rounded-lg text-base font-bold hover:bg-blue-700 transition-colors shadow-sm">
+                    <LineChart className="w-4 h-4" /> 技術線圖
+                </button>
+                <button onClick={() => setActiveModal('DIV')} className="flex items-center gap-2 px-3 py-1.5 bg-purple-600 text-white rounded-lg text-base font-bold hover:bg-purple-700 transition-colors shadow-sm">
+                    <PieChart className="w-4 h-4" /> 除息資訊
+                </button>
+                <button onClick={() => setActiveModal('FILL')} className="flex items-center gap-2 px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-base font-bold hover:bg-emerald-700 transition-colors shadow-sm">
+                    <CheckCircle2 className="w-4 h-4" /> 填息分析
+                </button>
+                <button onClick={() => setActiveModal('TREND')} className="flex items-center gap-2 px-3 py-1.5 bg-orange-500 text-white rounded-lg text-base font-bold hover:bg-orange-600 transition-colors shadow-sm">
+                    <TrendingUp className="w-4 h-4" /> 月趨勢圖
+                </button>
+          </div>
       </div>
 
       {/* Main Content: Fixed Scroll Logic */}
@@ -537,21 +549,6 @@ const TabPrices: React.FC<TabPricesProps> = ({
                             <div className="flex items-center gap-3">
                                 <h3 className="font-bold text-blue-900 text-lg">{selectedEtf} 歷史股價</h3>
                                 <span className="text-base font-medium text-blue-600">({detailData.length} 筆)</span>
-                            </div>
-                            
-                            <div className="flex items-center gap-2">
-                                <button onClick={() => setActiveModal('TECH')} className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 text-white rounded-lg text-base font-bold hover:bg-blue-700 transition-colors shadow-sm">
-                                    <LineChart className="w-4 h-4" /> 技術線圖
-                                </button>
-                                <button onClick={() => setActiveModal('DIV')} className="flex items-center gap-2 px-3 py-1.5 bg-purple-600 text-white rounded-lg text-base font-bold hover:bg-purple-700 transition-colors shadow-sm">
-                                    <PieChart className="w-4 h-4" /> 除息資訊
-                                </button>
-                                <button onClick={() => setActiveModal('FILL')} className="flex items-center gap-2 px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-base font-bold hover:bg-emerald-700 transition-colors shadow-sm">
-                                    <CheckCircle2 className="w-4 h-4" /> 填息分析
-                                </button>
-                                <button onClick={() => setActiveModal('TREND')} className="flex items-center gap-2 px-3 py-1.5 bg-orange-500 text-white rounded-lg text-base font-bold hover:bg-orange-600 transition-colors shadow-sm">
-                                    <TrendingUp className="w-4 h-4" /> 月趨勢圖
-                                </button>
                             </div>
                         </div>
                         <div className="flex-1 overflow-auto min-h-0">

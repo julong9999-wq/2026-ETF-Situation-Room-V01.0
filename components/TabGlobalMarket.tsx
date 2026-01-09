@@ -181,13 +181,13 @@ const TabGlobalMarket: React.FC = () => {
              
              <div className="flex gap-2">
                 <button onClick={() => setShowChartModal(true)} className="flex items-center justify-center gap-1 px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-bold text-base whitespace-nowrap shadow-md transition-colors">
-                    <LineChartIcon className="w-4 h-4" /> <span className="hidden sm:inline">線圖</span>
+                    <LineChartIcon className="w-4 h-4" /> 技術線圖
                 </button>
                 <button onClick={() => setShowRecentModal(true)} className="flex items-center justify-center gap-1 px-3 py-1.5 bg-amber-50 text-amber-700 border border-amber-200 rounded-lg hover:bg-amber-100 font-bold text-base whitespace-nowrap shadow-sm">
-                    <Info className="w-4 h-4" /> <span className="hidden sm:inline">資訊</span>
+                    <Info className="w-4 h-4" /> 近期資訊
                 </button>
                 <button onClick={handleExport} className="flex items-center justify-center gap-1 px-3 py-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg hover:bg-emerald-100 font-bold text-base whitespace-nowrap shadow-sm">
-                    <Download className="w-4 h-4" /> <span className="hidden sm:inline">匯出</span>
+                    <Download className="w-4 h-4" /> 匯出表單
                 </button>
              </div>
           </div>

@@ -122,7 +122,7 @@ const getRowBgColor = (etf: BasicInfo, isSelected: boolean) => {
 };
 
 const TabFillAnalysis: React.FC<TabFillAnalysisProps> = ({ 
-    mainFilter = '全部', subFilter = 'ALL', setMainFilter = (_v: string) => {}, setSubFilter = (_v: string) => {} 
+    mainFilter = '季配', subFilter = '季一', setMainFilter = (_v: string) => {}, setSubFilter = (_v: string) => {} 
 }) => {
   const [fillData, setFillData] = useState<FillAnalysisData[]>([]);
   const [basicInfo, setBasicInfo] = useState<BasicInfo[]>([]);
@@ -251,7 +251,7 @@ const TabFillAnalysis: React.FC<TabFillAnalysisProps> = ({
       if (!selectedEtf) return alert("請先選擇一檔 ETF");
       if (detailData.length === 0) return alert("無資料可匯出");
       const headers = ['代碼', '名稱', '所屬年月', '除息日期', '除息金額', '除息前一天', '除息前一天股價', '除息參考價', '分析比對日期', '分析比對價格', '分析是否填息成功', '幾天填息'];
-      const csvData = detailData.map(d => ({ '代碼': d.etfCode, '名稱': d.etfName, '所屬年月': d.yearMonth, '除息日期': d.exDate, '除息金額': d.amount, '除息前一天': d.preExDate, '除息前一天股價': d.pricePreEx, '除息參考價': d.priceReference, '分析比對日期': d.fillDate, '分析比對價格': d.fillPrice, '分析是否填息成功': d.isFilled ? '是' : '否', '填息天數': d.daysToFill }));
+      const csvData = detailData.map(d => ({ '代碼': d.etfCode, '名稱': d.etfName, '所屬年月': d.yearMonth, '除息日期': d.exDate, '除息金額': d.amount, '除息前一天': d.preExDate, '除息前一天股價': d.pricePreEx, '除息參考價': d.priceReference, '分析比對日期': d.fillDate, '分析比對價格': d.fillPrice, '分析是否填息成功': d.isFilled ? '是' : '否', '幾天填息': d.daysToFill }));
       exportToCSV(`${selectedEtf}_FillAnalysis`, headers, csvData);
   };
 
@@ -283,32 +283,42 @@ const TabFillAnalysis: React.FC<TabFillAnalysisProps> = ({
       
       {/* Filters */}
       <div className="bg-white p-3 rounded-lg shadow-sm border border-blue-200 flex flex-col gap-3 flex-none">
-          <div className="flex items-center justify-between">
-              <div className="flex gap-2 overflow-x-auto no-scrollbar">
+          <div className="flex items-center justify-between gap-2 overflow-x-auto no-scrollbar">
+              <div className="flex items-center gap-2 overflow-x-auto no-scrollbar mask-gradient-right">
                 {['全部', '季配', '月配', '債券', '主動', '國際', '半年'].map(cat => (
                     <button key={cat} onClick={() => { setMainFilter(cat); setSubFilter('ALL'); }}
-                        className={`px-4 py-1.5 rounded-lg text-base font-bold whitespace-nowrap transition-all border ${mainFilter === cat ? 'bg-blue-600 text-white border-blue-600 shadow-md' : 'bg-white text-blue-500 border-blue-100 hover:bg-blue-50 hover:text-blue-700'}`}>
+                        className={`px-3 py-1.5 rounded-lg text-base font-bold whitespace-nowrap transition-all border shrink-0 ${mainFilter === cat ? 'bg-blue-600 text-white border-blue-600 shadow-md' : 'bg-white text-blue-500 border-blue-100 hover:bg-blue-50 hover:text-blue-700'}`}>
                         {cat}
                     </button>
                 ))}
+                {subOptions.length > 0 && <div className="h-6 w-px bg-gray-300 shrink-0 mx-1"></div>}
+                {subOptions.map(sub => (
+                      <button key={sub} onClick={() => setSubFilter(sub === '全部' ? 'ALL' : sub)}
+                          className={`px-3 py-1.5 rounded-lg text-base whitespace-nowrap transition-colors font-bold border shrink-0 ${(subFilter === sub || (subFilter === 'ALL' && sub === '全部')) ? 'bg-blue-800 text-white border-blue-800 shadow-sm' : 'bg-gray-50 text-gray-500 border-gray-200 hover:bg-white hover:text-blue-600 hover:border-blue-200'}`}>{sub}</button>
+                  ))}
               </div>
-              <div className="flex items-center gap-2 shrink-0 pl-3 border-l border-gray-100">
+              
+              <div className="flex items-center gap-2 shrink-0 pl-2 border-l border-gray-100">
                 <div className="flex items-center gap-2 bg-gray-50 px-2 py-1.5 rounded-md border border-gray-200 shadow-inner">
                     <input type="date" value={startDate} onChange={e=>setStartDate(e.target.value)} className="bg-transparent text-[15px] w-32 font-mono outline-none text-gray-700 font-bold"/>
                     <span className="text-sm text-gray-400">~</span>
                     <input type="date" value={endDate} onChange={e=>setEndDate(e.target.value)} className="bg-transparent text-[15px] w-32 font-mono outline-none text-gray-700 font-bold"/>
                 </div>
-                <button onClick={handleExport} className="flex items-center gap-2 px-3 py-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg hover:bg-emerald-100 font-bold text-base whitespace-nowrap shadow-sm" disabled={!selectedEtf}><Download className="w-4 h-4" /> <span>匯出表單</span></button>
+                <button onClick={handleExport} className="flex items-center gap-2 px-3 py-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg hover:bg-emerald-100 font-bold text-base whitespace-nowrap shadow-sm" disabled={!selectedEtf}><Download className="w-4 h-4" /> 匯出表單</button>
               </div>
           </div>
-          {subOptions.length > 0 && (
-              <div className="flex items-center gap-2 overflow-x-auto no-scrollbar border-t border-gray-100 pt-2 animate-in fade-in slide-in-from-top-1">
-                  {subOptions.map(sub => (
-                      <button key={sub} onClick={() => setSubFilter(sub === '全部' ? 'ALL' : sub)}
-                          className={`px-3 py-1.5 rounded-lg text-base whitespace-nowrap transition-colors font-bold border ${(subFilter === sub || (subFilter === 'ALL' && sub === '全部')) ? 'bg-blue-800 text-white border-blue-800 shadow-sm' : 'bg-gray-50 text-gray-500 border-gray-200 hover:bg-white hover:text-blue-600 hover:border-blue-200'}`}>{sub}</button>
-                  ))}
-              </div>
-          )}
+          {/* Chart Buttons Row */}
+          <div className="flex items-center justify-end gap-2 pt-2 border-t border-gray-100">
+                <button onClick={() => setActiveModal('TECH')} className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 text-white rounded-lg text-base font-bold hover:bg-blue-700 transition-colors shadow-sm">
+                    <LineChart className="w-4 h-4" /> 技術線圖
+                </button>
+                <button onClick={() => setActiveModal('DIV')} className="flex items-center gap-2 px-3 py-1.5 bg-purple-600 text-white rounded-lg text-base font-bold hover:bg-purple-700 transition-colors shadow-sm">
+                    <PieChart className="w-4 h-4" /> 除息資訊
+                </button>
+                <button onClick={() => setActiveModal('TREND')} className="flex items-center gap-2 px-3 py-1.5 bg-orange-500 text-white rounded-lg text-base font-bold hover:bg-orange-600 transition-colors shadow-sm">
+                    <TrendingUp className="w-4 h-4" /> 月趨勢圖
+                </button>
+          </div>
       </div>
 
       <div className="flex-1 flex gap-2 overflow-hidden min-h-0">
