@@ -4,12 +4,12 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     
-    <!-- AGGRESSIVE CACHE BUSTING V1.18 -->
+    <!-- V1.19: EXTREME NO-CACHE HEADERS -->
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
     <meta http-equiv="Pragma" content="no-cache" />
     <meta http-equiv="Expires" content="0" />
     
-    <title>ETF Master Dashboard V1.18</title>
+    <title>ETF Master Dashboard V1.19</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
       window.process = {
@@ -20,19 +20,16 @@
       };
       window.global = window;
 
-      // --- VERSION CHECK SCRIPT ---
-      // This script runs before the app loads to ensure we aren't stuck in a cache loop
-      (function() {
-        // If we just updated, clear old caches immediately
-        if (window.location.search.includes('v=')) {
-           console.log("Version tag detected, clearing caches...");
-           if ('caches' in window) {
-             caches.keys().then(function(names) {
-               for (let name of names) caches.delete(name);
-             });
-           }
-        }
-      })();
+      // --- KILL SWITCH FOR SERVICE WORKERS (V1.19) ---
+      // Execute immediately to remove any old PWA caches that might be intercepting requests
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(function(registrations) {
+          for(let registration of registrations) {
+            registration.unregister();
+            console.log("Old Service Worker Unregistered");
+          }
+        });
+      }
     </script>
     <!-- GOOGLE ADSENSE -->
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5925575464455571" crossorigin="anonymous"></script>
@@ -82,6 +79,7 @@
 </head>
   <body class="bg-blue-50 text-slate-900 h-screen overflow-hidden">
     <div id="root"></div>
-    <script type="module" src="./index.tsx"></script>
+    <!-- V1.19 CRITICAL FIX: Added ?v=1.19 to the src. This forces the browser to download the new TSX file ignoring old cache. -->
+    <script type="module" src="./index.tsx?v=1.19"></script>
   </body>
 </html>
