@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { getPriceData, getBasicInfo, getHistoryData, getFillAnalysisData, getDividendData, exportToCSV } from '../services/dataService';
 import { PriceData, BasicInfo, HistoryData, FillAnalysisData, DividendData } from '../types';
 import { Download, Database, CheckCircle2, AlertCircle, LineChart, PieChart, TrendingUp, Info, X } from 'lucide-react';
-import { createChart, ColorType, IChartApi } from 'lightweight-charts';
+import { createChart, ColorType } from 'lightweight-charts';
 
 interface TabPricesProps {
     mainFilter?: string;
@@ -569,8 +569,11 @@ const TabPrices: React.FC<TabPricesProps> = ({
                                     {detailData.map((d, i) => {
                                         const exInfo = fillData.find(f => f.etfCode === selectedEtf && f.exDate === d.date);
                                         const fillInfo = fillData.find(f => f.etfCode === selectedEtf && f.fillDate === d.date);
+                                        
+                                        // --- LOGIC UPDATE: Calculate Change based on Ref Price if Ex-Date ---
                                         let displayChange = d.price - d.prevClose;
                                         let displayPct = 0;
+                                        
                                         if (exInfo) {
                                             const refPrice = d.prevClose - exInfo.amount;
                                             displayChange = d.price - refPrice;
@@ -578,8 +581,11 @@ const TabPrices: React.FC<TabPricesProps> = ({
                                         } else {
                                             displayPct = d.prevClose > 0 ? (displayChange / d.prevClose) * 100 : 0;
                                         }
+                                        
+                                        // Visual Styling
                                         let rowClass = 'hover:bg-blue-50 transition-colors';
-                                        if (exInfo) rowClass = 'bg-red-50/50'; else if (fillInfo) rowClass = 'bg-green-50/50'; 
+                                        if (exInfo) rowClass = 'bg-red-50 hover:bg-red-100'; 
+                                        else if (fillInfo) rowClass = 'bg-green-50 hover:bg-green-100'; 
 
                                         return (
                                             <React.Fragment key={i}>
@@ -593,11 +599,25 @@ const TabPrices: React.FC<TabPricesProps> = ({
                                                     <td className={`p-2.5 text-right font-mono font-bold ${fmtCol(displayChange)}`}>{displayChange > 0 ? '+' : ''}{fmtP(displayChange)}</td>
                                                     <td className={`p-2.5 text-right font-mono font-bold pr-4 ${fmtCol(displayChange)}`}>{fmtPct(displayPct)}</td>
                                                 </tr>
-                                                {(exInfo || fillInfo) && (
-                                                    <tr className={exInfo ? "bg-red-50 border-b border-red-100" : "bg-green-50 border-b border-green-100"}>
-                                                        <td colSpan={8} className="p-2 text-center text-sm font-bold tracking-wide">
-                                                            {exInfo && <span className="text-red-700 flex items-center justify-center gap-2"><AlertCircle className="w-4 h-4" />{`*** 除息前一日股價: ${fmtP(d.prevClose)}, (除息金額: ${fmtP(exInfo.amount)}), 除息參考價: ${fmtP(d.prevClose - exInfo.amount)} ***`}</span>}
-                                                            {fillInfo && <span className="text-green-700 flex items-center justify-center gap-2"><CheckCircle2 className="w-4 h-4" />{`*** 除息前一日股價: ${fmtP(fillInfo.pricePreEx)}, (填息天數: ${fillInfo.daysToFill}天), 今日股價: ${fmtP(d.price)} ***`}</span>}
+                                                {/* Ex-Dividend Note */}
+                                                {exInfo && (
+                                                    <tr className="bg-red-50/50 border-b border-red-100">
+                                                        <td colSpan={8} className="p-2 text-center text-sm font-bold tracking-wide animate-in fade-in">
+                                                            <span className="text-red-700 flex items-center justify-center gap-2">
+                                                                <AlertCircle className="w-4 h-4" />
+                                                                {`*** 除息前一日股價: ${fmtP(d.prevClose)}, (除息金額: ${fmtP(exInfo.amount)}), 除息參考價: ${fmtP(d.prevClose - exInfo.amount)} ***`}
+                                                            </span>
+                                                        </td>
+                                                    </tr>
+                                                )}
+                                                {/* Fill Note (Updated to User Spec) */}
+                                                {fillInfo && (
+                                                    <tr className="bg-green-50/50 border-b border-green-100">
+                                                        <td colSpan={8} className="p-2 text-center text-sm font-bold tracking-wide animate-in fade-in">
+                                                            <span className="text-green-700 flex items-center justify-center gap-2">
+                                                                <CheckCircle2 className="w-4 h-4" />
+                                                                {`*** 除息前一日股價: ${fmtP(fillInfo.pricePreEx)}, (填息天數: ${fillInfo.daysToFill}天), 今日股價: ${fmtP(d.price)} ***`}
+                                                            </span>
                                                         </td>
                                                     </tr>
                                                 )}
