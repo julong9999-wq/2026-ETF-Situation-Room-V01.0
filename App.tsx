@@ -2,12 +2,13 @@ import React, { useState, useEffect } from 'react';
 import TabAnalysisHub from './components/TabAnalysisHub';
 import TabExport from './components/TabExport';
 import { clearAllData, checkAndFetchSystemData } from './services/dataService';
-import { Loader2, RefreshCw, CheckCircle2, LayoutDashboard, TrendingUp, Download, Presentation, Settings, Power, RotateCcw, X, CloudLightning, Zap, ArrowRight, Moon, Search } from 'lucide-react';
+import { Loader2, RefreshCw, CheckCircle2, LayoutDashboard, TrendingUp, Download, Presentation, Settings, Power, RotateCcw, X, CloudLightning, Zap, ArrowRight, Moon, Search, Clock } from 'lucide-react';
 import AdSenseBlock from './components/AdSenseBlock';
 
 // --- SYSTEM VERSION CONTROL ---
-const APP_VERSION = 'V.01.33'; // Internal Logic Version (Bumped for V1.27)
-const DISPLAY_VERSION = 'V1.27'; // UI Display Version
+const APP_VERSION = 'V.01.34'; // Internal Logic Version (Bumped for V1.28)
+const DISPLAY_VERSION = 'V1.28'; // UI Display Version
+const BUILD_TIME = new Date().toLocaleString('zh-TW', { hour12: false }); // Captures build time
 const STORAGE_VERSION_KEY = 'app_system_version';
 
 // Placeholders
@@ -21,7 +22,6 @@ type NavItem = {
 };
 
 // --- UPDATE PROMPT COMPONENT ---
-// Fixed: Now uses serverVersion prop for text instead of hardcoded string
 const UpdateOverlay = ({ serverVersion, onUpdate }: { serverVersion: string, onUpdate: () => void }) => (
     <div className="fixed inset-0 z-[100] bg-indigo-900/95 backdrop-blur-md flex flex-col items-center justify-center p-6 text-white animate-in fade-in duration-300">
         <div className="bg-white/10 p-6 rounded-full mb-6 animate-bounce">
@@ -47,10 +47,11 @@ interface SystemModalProps {
     onClose: () => void;
     currentVersion: string;
     displayVersion: string;
+    buildTime: string;
     onCheckUpdate: () => void;
 }
 
-const SystemModal: React.FC<SystemModalProps> = ({ onClose, currentVersion, displayVersion, onCheckUpdate }) => {
+const SystemModal: React.FC<SystemModalProps> = ({ onClose, currentVersion, displayVersion, buildTime, onCheckUpdate }) => {
     const [isReloading, setIsReloading] = useState(false);
 
     const handleSoftReload = async () => {
@@ -94,11 +95,11 @@ const SystemModal: React.FC<SystemModalProps> = ({ onClose, currentVersion, disp
     return (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
             <div className="bg-white rounded-xl w-full max-w-md shadow-2xl animate-in zoom-in-95 duration-200 overflow-hidden">
-                <div className="bg-blue-800 text-white p-4 flex justify-between items-center">
+                <div className="bg-indigo-900 text-white p-4 flex justify-between items-center">
                     <h3 className="font-bold text-lg flex items-center gap-2">
                         <Settings className="w-5 h-5" /> 系統設定與資訊
                     </h3>
-                    <button onClick={onClose} className="hover:bg-blue-700 p-1 rounded-full transition-colors">
+                    <button onClick={onClose} className="hover:bg-indigo-700 p-1 rounded-full transition-colors">
                         <X className="w-5 h-5" />
                     </button>
                 </div>
@@ -106,14 +107,15 @@ const SystemModal: React.FC<SystemModalProps> = ({ onClose, currentVersion, disp
                 <div className="p-6 space-y-6">
                     {/* Version Info */}
                     <div className="text-center space-y-1">
-                        <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                            <CloudLightning className="w-8 h-8 text-blue-600" />
+                        <div className="w-16 h-16 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                            <CloudLightning className="w-8 h-8 text-indigo-600" />
                         </div>
                         <h2 className="text-xl font-bold text-gray-800">ETF 戰情室</h2>
                         <div className="flex justify-center gap-2 text-sm text-gray-500 font-mono">
                             <span className="bg-gray-100 px-2 py-0.5 rounded">UI: {displayVersion}</span>
                             <span className="bg-gray-100 px-2 py-0.5 rounded">Core: {currentVersion}</span>
                         </div>
+                        <div className="text-xs text-gray-400 font-mono mt-1">Built: {buildTime}</div>
                     </div>
 
                     <div className="border-t border-gray-100 my-4"></div>
@@ -379,25 +381,25 @@ const App: React.FC = () => {
               <h2 className="text-2xl font-bold mb-2">系統載入中 ({DISPLAY_VERSION})...</h2>
               <div className="bg-white/50 px-6 py-4 rounded-xl text-center border border-blue-200 max-w-sm">
                   <p className="text-sm text-blue-800 font-bold mb-1">正在套用 {DISPLAY_VERSION} 更新</p>
-                  <p className="text-xs text-blue-600">強力快取清除機制</p>
+                  <p className="text-xs text-blue-600">強力快取清除機制 (Script Buster)</p>
               </div>
           </div>
       );
   }
 
-  // --- MAIN LAYOUT (HARDCODED BLUE COLORS) ---
+  // --- MAIN LAYOUT (HARDCODED COLORS) ---
   return (
     <div className="flex h-screen bg-blue-50 overflow-hidden">
-      {/* Sidebar - EXPLICIT BLUE 950 */}
-      <div className={`${sidebarOpen ? 'w-60' : 'w-20'} bg-[#172554] text-white transition-all duration-300 flex flex-col shadow-2xl z-20 border-r border-blue-900`}>
-        <div className="p-5 border-b border-blue-900">
+      {/* Sidebar - EXPLICIT INDIGO 950 for V1.28 DISTINCTION */}
+      <div className={`${sidebarOpen ? 'w-60' : 'w-20'} bg-[#1e1b4b] text-white transition-all duration-300 flex flex-col shadow-2xl z-20 border-r border-indigo-900`}>
+        <div className="p-5 border-b border-indigo-900 bg-[#312e81]">
           <div className={`flex flex-col ${!sidebarOpen && 'items-center'}`}>
              <div className="flex items-center justify-between w-full mb-1">
                  <div className={`flex items-center gap-2 ${!sidebarOpen && 'hidden'}`}>
                     <CloudLightning className="w-6 h-6 text-yellow-400" />
                     <span className="font-bold text-lg tracking-wider truncate">ETF 戰情室</span>
                  </div>
-                 <button onClick={() => setSidebarOpen(!sidebarOpen)} className="p-1.5 hover:bg-blue-800 rounded-lg text-blue-200 hover:text-white">
+                 <button onClick={() => setSidebarOpen(!sidebarOpen)} className="p-1.5 hover:bg-indigo-800 rounded-lg text-indigo-200 hover:text-white">
                     <span className="text-xl">☰</span>
                  </button>
              </div>
@@ -419,7 +421,7 @@ const App: React.FC = () => {
           </div>
         </div>
         
-        <div className="flex-1 overflow-y-auto py-4 flex flex-col">
+        <div className="flex-1 overflow-y-auto py-4 flex flex-col bg-[#1e1b4b]">
           <nav className="space-y-1.5 px-2 flex-1">
             {navItems.map((item) => {
               const isActive = activeTab === item.id;
@@ -430,8 +432,8 @@ const App: React.FC = () => {
                   onClick={() => setActiveTab(item.id)}
                   className={`w-full flex items-center px-3 py-3 rounded-xl transition-all duration-200 mb-1 ${
                     isActive
-                      ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/50 border border-blue-500' 
-                      : 'text-blue-200 hover:bg-blue-900 hover:text-white border border-transparent'
+                      ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/50 border border-indigo-500' 
+                      : 'text-indigo-200 hover:bg-indigo-900 hover:text-white border border-transparent'
                   } ${!sidebarOpen && 'justify-center'}`}
                 >
                   <span className={`${sidebarOpen ? 'mr-3' : ''}`}>
@@ -443,7 +445,7 @@ const App: React.FC = () => {
             })}
           </nav>
           
-          {/* V1.27 Feature Highlight */}
+          {/* V1.28 Feature Highlight */}
           {sidebarOpen && (
             <div className="mx-2 mb-2 p-3 bg-indigo-900/80 rounded-lg border border-indigo-700 shadow-inner group relative overflow-hidden">
                 <div className="absolute top-0 right-0 p-1 opacity-20">
@@ -454,8 +456,8 @@ const App: React.FC = () => {
                     <span>Version {DISPLAY_VERSION}</span>
                 </div>
                 <p className="text-[10px] text-indigo-100 leading-relaxed font-mono relative z-10">
-                    V1.27 Update Verification<br/>
-                    動態版本號顯示
+                    V1.28 Verified<br/>
+                    Script Cache Busted
                 </p>
             </div>
           )}
@@ -477,24 +479,27 @@ const App: React.FC = () => {
         {/* Footer */}
         <div 
             onClick={() => setShowSystemModal(true)}
-            className="p-4 border-t border-blue-900 bg-[#172554] cursor-pointer hover:bg-blue-900 transition-colors group"
+            className="p-4 border-t border-indigo-900 bg-[#312e81] cursor-pointer hover:bg-indigo-900 transition-colors group"
         >
             <div className={`flex flex-col items-center ${sidebarOpen ? 'items-start' : 'items-center'}`}>
                 {sidebarOpen ? (
                     <div className="w-full flex justify-between items-end">
                         <div>
                             <p className="text-sm font-bold text-white tracking-wide">julong chen</p>
-                            <p className="text-xs text-blue-400 mt-0.5">版本 {DISPLAY_VERSION}</p>
+                            <div className="flex items-center gap-1">
+                                <p className="text-xs text-indigo-300 mt-0.5">版本 {DISPLAY_VERSION}</p>
+                                <span className="text-[9px] text-indigo-400 opacity-70 border border-indigo-600 px-1 rounded">{BUILD_TIME.split(' ')[0]}</span>
+                            </div>
                         </div>
-                        <Settings className="w-4 h-4 text-blue-500 group-hover:text-white group-hover:rotate-90 transition-all" />
+                        <Settings className="w-4 h-4 text-indigo-400 group-hover:text-white group-hover:rotate-90 transition-all" />
                     </div>
                 ) : (
                     <div className="flex flex-col items-center gap-1">
-                        <div className="text-xs text-blue-500 font-mono text-center">
+                        <div className="text-xs text-indigo-300 font-mono text-center">
                             <div>V1</div>
                             <div>.{DISPLAY_VERSION.split('.')[1]}</div>
                         </div>
-                        <Settings className="w-3 h-3 text-blue-500 group-hover:text-blue-300" />
+                        <Settings className="w-3 h-3 text-indigo-400 group-hover:text-indigo-300" />
                     </div>
                 )}
             </div>
@@ -520,6 +525,7 @@ const App: React.FC = () => {
             onClose={() => setShowSystemModal(false)}
             currentVersion={APP_VERSION}
             displayVersion={DISPLAY_VERSION}
+            buildTime={BUILD_TIME}
             onCheckUpdate={() => checkForUpdates(true)}
           />
       )}
