@@ -73,17 +73,59 @@ const TabAdvancedSearch: React.FC = () => {
         };
     }, [refDate]);
 
+    // --- HELPERS FOR SORTING ---
+    const getIndexWeight = (name: string) => {
+        if (name.includes('加權')) return 1;
+        if (name.includes('道瓊')) return 2;
+        if (name.includes('那斯')) return 3;
+        if (name.includes('費半') || name.includes('費城')) return 4;
+        if (name.includes('標普') || name.includes('S&P')) return 5;
+        return 6;
+    };
+
+    const getEtfSortWeight = (row: any) => {
+        const cat = String(row['商品分類'] || '');
+        const freq = String(row['配息週期'] || '');
+        
+        // Priority 5: Bonds (Last in specific list)
+        if (cat.includes('債')) return 5;
+
+        // Priority 4: Monthly
+        if (freq.includes('月')) return 4;
+
+        // Priority 1: Q1
+        if (freq.includes('季一') || freq.includes('1,4') || freq.includes('01,04')) return 1;
+
+        // Priority 2: Q2
+        if (freq.includes('季二') || freq.includes('2,5') || freq.includes('02,05')) return 2;
+
+        // Priority 3: Q3
+        if (freq.includes('季三') || freq.includes('3,6') || freq.includes('03,06')) return 3;
+
+        return 6;
+    };
+
     // --- REPORT DATA PROCESSING ---
 
     // 1. GLOBAL MARKET: Last Fri -> This Fri
+    // Sort: Index Priority -> Date Ascending (Far to Near)
     const reportMarket = useMemo(() => {
         if (mainTab !== 'WEEKLY' || reportType !== 'MARKET') return [];
         const start = dateRange.lastFriday;
         const end = dateRange.thisFriday;
-        return marketData.filter(d => d.date >= start && d.date <= end).sort((a,b) => b.date.localeCompare(a.date));
+        return marketData
+            .filter(d => d.date >= start && d.date <= end)
+            .sort((a,b) => {
+                const wA = getIndexWeight(a.indexName);
+                const wB = getIndexWeight(b.indexName);
+                if (wA !== wB) return wA - wB;
+                // Date Ascending (Old -> New)
+                return a.date.localeCompare(b.date);
+            });
     }, [marketData, mainTab, reportType, dateRange]);
 
     // 2. ETF PRICE: Last Fri -> This Fri (Exclude International & Semi-Annual)
+    // Sort: Category Priority -> Code Ascending
     const reportPrice = useMemo(() => {
         if (mainTab !== 'WEEKLY' || reportType !== 'PRICE') return { headers: [], rows: [] };
         
@@ -99,15 +141,26 @@ const TabAdvancedSearch: React.FC = () => {
             const name = (b.etfName || '').trim();
             const code = (b.etfCode || '').trim();
 
-            // Exclude International
-            if (cat.includes('國際') || cat.includes('國外')) return false;
-            if (type.includes('國際') || type.includes('國外')) return false;
-            if (market.includes('國外')) return false;
+            // 1. Specific Exclusions
             if (code === '00911') return false; 
 
-            // Exclude Semi-Annual
-            if (freq.includes('半年')) return false;
-            if (cat.includes('半年')) return false;
+            // 2. Exclude Semi-Annual (半年配)
+            if (freq.includes('半年') || cat.includes('半年')) return false;
+
+            // 3. Exclude "International" (國際) - Strict keyword filtering
+            if (cat.includes('國際') || type.includes('國際') || name.includes('國際')) return false;
+
+            // 4. Handle "Foreign" (國外)
+            // Rule: Filter "Foreign" generally, BUT keep "Quarterly" (季配) Foreign products.
+            // We also keep Monthly and Bonds as they are often foreign components but desired.
+            const isForeign = cat.includes('國外') || type.includes('國外') || market.includes('國外');
+            
+            if (isForeign) {
+                if (freq.includes('季')) return true; // Keep Quarterly Foreign
+                if (freq.includes('月')) return true; // Keep Monthly Foreign
+                if (cat.includes('債')) return true;   // Keep Bond Foreign
+                return false; // Filter other Foreign (e.g. Annual Foreign Equity)
+            }
 
             return true;
         });
@@ -138,8 +191,13 @@ const TabAdvancedSearch: React.FC = () => {
             return hasData ? row : null;
         }).filter(r => r !== null);
 
-        // Sort by Code
-        pivotRows.sort((a: any, b: any) => a['ETF代碼'].localeCompare(b['ETF代碼']));
+        // Sort by Custom Weight then Code
+        pivotRows.sort((a: any, b: any) => {
+            const wA = getEtfSortWeight(a);
+            const wB = getEtfSortWeight(b);
+            if (wA !== wB) return wA - wB;
+            return a['ETF代碼'].localeCompare(b['ETF代碼']);
+        });
 
         return { headers: uniqueDates, rows: pivotRows };
     }, [basicInfo, priceData, mainTab, reportType, dateRange]);
@@ -332,7 +390,7 @@ const TabAdvancedSearch: React.FC = () => {
                                             <th className="p-3 whitespace-nowrap">配息週期</th>
                                             <th className="p-3 whitespace-nowrap">ETF類型</th>
                                             {reportPrice.headers.map(d => (
-                                                <th key={d} className="p-3 whitespace-nowrap text-right font-mono bg-indigo-100/50">{d.substring(5)}</th>
+                                                <th key={d} className="p-3 whitespace-nowrap text-right font-mono bg-indigo-100/50">{d}</th>
                                             ))}
                                         </tr>
                                     </thead>
