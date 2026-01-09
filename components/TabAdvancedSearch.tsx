@@ -6,7 +6,7 @@ import {
     MarketData, BasicInfo, PriceData, DividendData, FillAnalysisData 
 } from '../types';
 import { 
-    Calendar, Search, FileText, Download, TrendingUp, Filter, AlertCircle, Code, Copy 
+    Calendar, Search, FileText, Download, TrendingUp, Filter, Code, AlertCircle 
 } from 'lucide-react';
 
 const TabAdvancedSearch: React.FC = () => {
@@ -105,10 +105,7 @@ const TabAdvancedSearch: React.FC = () => {
         return 6;
     };
 
-    // --- REPORT DATA PROCESSING ---
-
-    // 1. GLOBAL MARKET: Last Fri -> This Fri
-    // Sort: Index Priority -> Date Ascending (Far to Near)
+    // --- REPORT DATA PROCESSING (Visual Preview Only) ---
     const reportMarket = useMemo(() => {
         if (mainTab !== 'WEEKLY' || reportType !== 'MARKET') return [];
         const start = dateRange.lastFriday;
@@ -119,20 +116,15 @@ const TabAdvancedSearch: React.FC = () => {
                 const wA = getIndexWeight(a.indexName);
                 const wB = getIndexWeight(b.indexName);
                 if (wA !== wB) return wA - wB;
-                // Date Ascending (Old -> New)
                 return a.date.localeCompare(b.date);
             });
     }, [marketData, mainTab, reportType, dateRange]);
 
-    // 2. ETF PRICE: Last Fri -> This Fri (Exclude International & Semi-Annual)
-    // Sort: Category Priority -> Code Ascending
     const reportPrice = useMemo(() => {
         if (mainTab !== 'WEEKLY' || reportType !== 'PRICE') return { headers: [], rows: [] };
-        
         const start = dateRange.lastFriday;
         const end = dateRange.thisFriday;
 
-        // Filter valid ETFs first
         const validEtfs = basicInfo.filter(b => {
             const cat = (b.category || '').trim();
             const type = (b.etfType || '').trim();
@@ -141,39 +133,23 @@ const TabAdvancedSearch: React.FC = () => {
             const name = (b.etfName || '').trim();
             const code = (b.etfCode || '').trim();
 
-            // 1. Specific Exclusions
             if (code === '00911') return false; 
-
-            // 2. Exclude Semi-Annual (半年配)
             if (freq.includes('半年') || cat.includes('半年')) return false;
-
-            // 3. Exclude "International" (國際) - Strict keyword filtering
             if (cat.includes('國際') || type.includes('國際') || name.includes('國際')) return false;
-
-            // 4. Handle "Foreign" (國外)
-            // Rule: Filter "Foreign" generally, BUT keep "Quarterly" (季配) Foreign products.
-            // We also keep Monthly and Bonds as they are often foreign components but desired.
             const isForeign = cat.includes('國外') || type.includes('國外') || market.includes('國外');
-            
             if (isForeign) {
-                if (freq.includes('季')) return true; // Keep Quarterly Foreign
-                if (freq.includes('月')) return true; // Keep Monthly Foreign
-                if (cat.includes('債')) return true;   // Keep Bond Foreign
-                return false; // Filter other Foreign (e.g. Annual Foreign Equity)
+                if (freq.includes('季')) return true; 
+                if (freq.includes('月')) return true; 
+                if (cat.includes('債')) return true;
+                return false; 
             }
-
             return true;
         });
 
         const validCodes = new Set(validEtfs.map(e => e.etfCode));
-
-        // Get Prices in range
         const pricesInRange = priceData.filter(p => validCodes.has(p.etfCode) && p.date >= start && p.date <= end);
-        
-        // Find all unique dates in range for columns, sorted ASC (Old -> New)
         const uniqueDates = Array.from(new Set(pricesInRange.map(p => p.date))).sort();
 
-        // Pivot Data
         const pivotRows = validEtfs.map(etf => {
             const row: any = {
                 '商品分類': etf.category,
@@ -191,7 +167,6 @@ const TabAdvancedSearch: React.FC = () => {
             return hasData ? row : null;
         }).filter(r => r !== null);
 
-        // Sort by Custom Weight then Code
         pivotRows.sort((a: any, b: any) => {
             const wA = getEtfSortWeight(a);
             const wB = getEtfSortWeight(b);
@@ -202,7 +177,6 @@ const TabAdvancedSearch: React.FC = () => {
         return { headers: uniqueDates, rows: pivotRows };
     }, [basicInfo, priceData, mainTab, reportType, dateRange]);
 
-    // 3. DIVIDEND: This Mon -> This Fri
     const reportDividend = useMemo(() => {
         if (mainTab !== 'WEEKLY' || reportType !== 'DIVIDEND') return [];
         const start = dateRange.thisMonday;
@@ -213,7 +187,6 @@ const TabAdvancedSearch: React.FC = () => {
             .sort((a,b) => a.exDate.localeCompare(b.exDate));
     }, [divData, mainTab, reportType, dateRange]);
 
-    // 4. FILL: This Mon -> This Fri (Filled Only, ExDate >= 2026)
     const reportFill = useMemo(() => {
         if (mainTab !== 'WEEKLY' || reportType !== 'FILL') return [];
         const start = dateRange.thisMonday;
@@ -222,11 +195,7 @@ const TabAdvancedSearch: React.FC = () => {
         return fillData
             .filter(d => {
                 const exYear = parseInt(d.exDate.split('-')[0]);
-                // Filter: Must be filled, Fill Date within range, AND Ex-Date Year >= 2026
-                return d.isFilled && 
-                       d.fillDate >= start && 
-                       d.fillDate <= end && 
-                       exYear >= 2026;
+                return d.isFilled && d.fillDate >= start && d.fillDate <= end && exYear >= 2026;
             })
             .sort((a,b) => a.fillDate.localeCompare(b.fillDate));
     }, [fillData, mainTab, reportType, dateRange]);
@@ -261,208 +230,323 @@ const TabAdvancedSearch: React.FC = () => {
         }
     };
 
-    // --- GOOGLE APPS SCRIPT GENERATOR ---
+    // --- GOOGLE APPS SCRIPT GENERATOR (ALL-IN-ONE) ---
     const handleCopyScript = () => {
-        // This generates a GAS code string that matches the current React logic
-        // Updated to include 'step2_UpdateETFPrice' to fix the user's trigger error
         const scriptContent = `
 /**
- * ETF 戰情室 - 自動化週報生成腳本 (Generated by ETF Dashboard)
- * 
- * 使用說明:
- * 1. 在 Google Sheet 中點擊「擴充功能」->「Apps Script」。
- * 2. 將此代碼貼上並儲存。
- * 3. 重新整理試算表，上方會出現「ETF戰情室」選單。
- * 4. 點擊「生成每週股價報表」即可。
- * 
- * 假設您的試算表有名為 'BasicInfo' (基本資料) 和 'PriceData' (股價資料) 的工作表。
+ * ETF 戰情室 - 全方位自動化週報生成腳本
+ * 包含: 國際大盤、ETF股價、本週除息、本週填息
  */
+
+// 資料來源設定 (使用您的 URL)
+var CONFIG = {
+  urls: {
+    market: [
+      'https://docs.google.com/spreadsheets/d/e/2PACX-1vQ825Haq0XnIX_UDCtnyd5t94U943OJ_sCJdLj2-6XfbWT4KkLaQ-RWBL_esd4HHaQGJTW3hOV2qtax/pub?gid=779511679&single=true&output=csv',
+      'https://docs.google.com/spreadsheets/d/e/2PACX-1vRuulQ6E-VFeNU6otpWOOIZQOwcG8ybE0EdR_RooQLW1VYi6Xhtcl4KnADees6YIALU29jmBlODPeQQ/pub?gid=779511679&single=true&output=csv'
+    ],
+    price: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQaRKeSBt4XfeC9uNf56p38DwscoPK0-eFM3J4-Vz8LeVBdgsClDZy0baU-FHyFv5cz-QNCXUVMwBfr/pub?gid=462296829&single=true&output=csv',
+    basic: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTc6ZANKmAJQCXC9k7np_eIhAwC2hF_w9KSpseD0qogcPP0I2rPPhtesNEbHvG48b_tLh9qeu4tr21Q/pub?output=csv',
+    dividend: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vR5JvOGT3eB4xq9phw2dXHApJKOgQkUZcs69CsJfL0Iw3s6egADwA8HdbimrWUceQZl_73pnsSLVnQw/pub?output=csv',
+    history: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQJKO3upGfGOWStHGuktI2c0ULLQrysCe-B2qbSl3HwgZA1x8ZFekV7Vl_XeSoInKGiyoJD88iAB3q3/pub?output=csv'
+  }
+};
 
 function onOpen() {
   var ui = SpreadsheetApp.getUi();
   ui.createMenu('ETF戰情室')
-      .addItem('生成每週股價報表', 'generateWeeklyPriceReport')
+      .addItem('執行全部更新 (Step 1-4)', 'main_RunAll')
+      .addSeparator()
+      .addItem('Step 1: 國際大盤', 'step1_UpdateMarket')
+      .addItem('Step 2: ETF 股價', 'step2_UpdateETFPrice')
+      .addItem('Step 3: 本週除息', 'step3_UpdateDividend')
+      .addItem('Step 4: 本週填息', 'step4_UpdateFill')
       .addToUi();
 }
 
 /**
- * [關鍵修復] 您的觸發程序(Trigger)綁定了此名稱
- * 此函式將呼叫主報表生成功能，請勿刪除。
+ * [觸發程序入口]
+ * 綁定此函式到時間觸發器 (例如每週五下午)
  */
 function step2_UpdateETFPrice() {
-  console.log("[Trigger] step2_UpdateETFPrice started.");
-  try {
-    generateWeeklyPriceReport();
-    console.log("[Trigger] step2_UpdateETFPrice completed successfully.");
-  } catch (e) {
-    console.error("[Trigger] Error: " + e.toString());
-    throw e; // 讓 Google 系統也能紀錄錯誤
-  }
+  // 為了修復您之前的錯誤，我們保留這個函式名稱。
+  // 但實際上它會執行「全部更新」，確保四張報表都產出。
+  console.log("Trigger detected: Running Full Sequence...");
+  main_RunAll(); 
 }
 
-function generateWeeklyPriceReport() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
+function main_RunAll() {
+  var dates = getWeeklyDates();
+  console.log("Date Range: " + JSON.stringify(dates));
   
-  // 1. 設定日期範圍 (上週五 ~ 本週五)
-  // 注意: 這裡以執行腳本當下為基準推算
-  var today = new Date(); // 假設今天執行
-  var day = today.getDay(); // 0(Sun) - 6(Sat)
-  var diffToMon = today.getDate() - day + (day === 0 ? -6 : 1);
-  var thisMon = new Date(today.setDate(diffToMon));
+  step1_UpdateMarket(dates);
+  step2_ExecETFPrice(dates); // 實際邏輯改名，避免衝突
+  step3_UpdateDividend(dates);
+  step4_UpdateFill(dates);
   
-  var thisFri = new Date(thisMon); thisFri.setDate(thisMon.getDate() + 4);
-  var lastFri = new Date(thisMon); lastFri.setDate(thisMon.getDate() - 3);
+  console.log("All tasks completed.");
+}
+
+// === STEP 1: 國際大盤 ===
+function step1_UpdateMarket(dates) {
+  if (!dates) dates = getWeeklyDates();
+  var sheetName = "國際大盤";
+  var allRows = [["日期", "指數名稱", "昨日收盤", "開盤", "高價", "低價", "現價", "漲跌點數", "漲跌幅度"]];
   
-  var formatDate = function(d) {
-    return Utilities.formatDate(d, Session.getScriptTimeZone(), "yyyy-MM-dd");
-  };
-  
-  var startStr = formatDate(lastFri);
-  var endStr = formatDate(thisFri);
-  
-  // 2. 讀取基本資料 (BasicInfo)
-  var sheetBasic = ss.getSheetByName('BasicInfo');
-  if (!sheetBasic) { Browser.msgBox("找不到 'BasicInfo' 工作表"); return; }
-  var dataBasic = sheetBasic.getDataRange().getValues();
-  var headerBasic = dataBasic.shift(); // Remove header
-  
-  // 建立 Basic Info Map: Code -> {Category, Freq, Name, Type, Market}
-  // 假設欄位順序: 代碼(0), 名稱(1), 分類(2), 週期(3), 投信(4), 類型(5), 市場(6) ... 請依實際調整
-  var validCodes = {};
-  var etfList = [];
-  
-  dataBasic.forEach(function(row) {
-    var code = String(row[0]).trim();
-    var name = String(row[1]);
-    var cat = String(row[2]);
-    var freq = String(row[3]);
-    var type = String(row[5]);
-    var market = String(row[6]);
+  CONFIG.urls.market.forEach(function(url) {
+    var csv = fetchCsv(url);
+    if (csv.length < 2) return;
+    var h = csv[0];
+    var idx = {
+      name: findIdx(h, ['名稱', 'IndexName']), date: findIdx(h, ['日期', 'tradetime']),
+      prev: findIdx(h, ['昨日', 'closeyest']), open: findIdx(h, ['開盤', 'open']),
+      high: findIdx(h, ['高價', 'high']), low: findIdx(h, ['低價', 'low']),
+      price: findIdx(h, ['現價', 'price', 'Close']), chg: findIdx(h, ['漲跌點數', 'change']),
+      pct: findIdx(h, ['漲跌幅度', 'percent'])
+    };
     
-    // --- 核心過濾邏輯 (與網頁版一致) ---
-    var keep = true;
-    
-    // 1. 排除 00911
-    if (code === '00911') keep = false;
-    
-    // 2. 排除 半年配
-    if (keep && (freq.indexOf('半年') > -1 || cat.indexOf('半年') > -1)) keep = false;
-    
-    // 3. 排除 "國際" 關鍵字
-    if (keep && (cat.indexOf('國際') > -1 || type.indexOf('國際') > -1 || name.indexOf('國際') > -1)) keep = false;
-    
-    // 4. 處理 "國外" (Foreign)
-    if (keep) {
-      var isForeign = (cat.indexOf('國外') > -1 || type.indexOf('國外') > -1 || market.indexOf('國外') > -1);
-      if (isForeign) {
-        // 例外保留: 季配、月配、債券
-        if (freq.indexOf('季') > -1) { /* keep */ }
-        else if (freq.indexOf('月') > -1) { /* keep */ }
-        else if (cat.indexOf('債') > -1) { /* keep */ }
-        else { keep = false; }
+    for (var i = 1; i < csv.length; i++) {
+      var r = csv[i];
+      var d = formatDate(r[idx.date]);
+      if (d >= dates.lastFriday && d <= dates.thisFriday) {
+        allRows.push([d, r[idx.name], r[idx.prev], r[idx.open], r[idx.high], r[idx.low], r[idx.price], r[idx.chg], r[idx.pct]]);
       }
     }
-    
-    if (keep) {
-      validCodes[code] = {
-        name: name,
-        cat: cat,
-        freq: freq,
-        type: type
-      };
-      etfList.push(code);
-    }
   });
+  writeToSheet(sheetName, allRows);
+}
+
+// === STEP 2: ETF 股價 (Pivot) ===
+function step2_ExecETFPrice(dates) {
+  if (!dates) dates = getWeeklyDates();
+  var sheetName = "ETF 股價";
   
-  // 3. 讀取股價資料 (PriceData)
-  var sheetPrice = ss.getSheetByName('PriceData');
-  if (!sheetPrice) { Browser.msgBox("找不到 'PriceData' 工作表"); return; }
-  var dataPrice = sheetPrice.getDataRange().getValues();
-  var headerPrice = dataPrice.shift();
-  
-  // 假設 PriceData 格式: 代碼, 名稱, 日期, 收盤...
-  // 找出日期範圍內的數據
-  var priceMap = {}; // code -> { date -> price }
+  // 1. Basic Info
+  var basicCsv = fetchCsv(CONFIG.urls.basic);
+  var validCodes = {};
+  var etfList = [];
+  if (basicCsv.length > 1) {
+    var h = basicCsv[0];
+    var idx = {
+      code: findIdx(h, ['代碼', 'Code']), name: findIdx(h, ['名稱', 'Name']),
+      cat: findIdx(h, ['分類', 'Category']), freq: findIdx(h, ['週期', 'Freq']),
+      type: findIdx(h, ['類型', 'Type']), mkt: findIdx(h, ['市場', 'Market'])
+    };
+    
+    for (var i = 1; i < basicCsv.length; i++) {
+      var r = basicCsv[i];
+      var code = String(r[idx.code]).trim();
+      var cat = String(r[idx.cat]);
+      var freq = String(r[idx.freq]);
+      var type = String(r[idx.type]);
+      var mkt = String(r[idx.mkt]);
+
+      // Filter Logic
+      var keep = true;
+      if (code === '00911') keep = false;
+      if (keep && (freq.indexOf('半年') > -1 || cat.indexOf('半年') > -1)) keep = false;
+      if (keep && (cat.indexOf('國際') > -1 || type.indexOf('國際') > -1 || r[idx.name].indexOf('國際') > -1)) keep = false;
+      if (keep) {
+        var isForeign = (cat.indexOf('國外') > -1 || type.indexOf('國外') > -1 || mkt.indexOf('國外') > -1);
+        if (isForeign) {
+           if (freq.indexOf('季') > -1) {}
+           else if (freq.indexOf('月') > -1) {}
+           else if (cat.indexOf('債') > -1) {}
+           else { keep = false; }
+        }
+      }
+      
+      if (keep) {
+        validCodes[code] = { name: r[idx.name], cat: cat, freq: freq, type: type };
+        etfList.push(code);
+      }
+    }
+  }
+
+  // 2. Price Data
+  var priceCsv = fetchCsv(CONFIG.urls.price);
+  var priceMap = {};
   var uniqueDates = [];
   var dateSet = {};
   
-  dataPrice.forEach(function(row) {
-    var pCode = String(row[0]).trim();
-    var pDate = "";
-    if (row[2] instanceof Date) pDate = formatDate(row[2]);
-    else pDate = String(row[2]);
-    
-    var pPrice = row[7]; // 假設收盤價在第 8 欄 (Index 7)
-    
-    if (validCodes[pCode] && pDate >= startStr && pDate <= endStr) {
-       if (!priceMap[pCode]) priceMap[pCode] = {};
-       priceMap[pCode][pDate] = pPrice;
-       
-       if (!dateSet[pDate]) {
-         dateSet[pDate] = true;
-         uniqueDates.push(pDate);
-       }
+  if (priceCsv.length > 1) {
+    var h = priceCsv[0];
+    var idxP = { code: findIdx(h, ['代碼']), date: findIdx(h, ['日期']), price: findIdx(h, ['收盤', 'price']) };
+    for (var i = 1; i < priceCsv.length; i++) {
+      var r = priceCsv[i];
+      var d = formatDate(r[idxP.date]);
+      var c = String(r[idxP.code]).trim();
+      if (validCodes[c] && d >= dates.lastFriday && d <= dates.thisFriday) {
+        if (!priceMap[c]) priceMap[c] = {};
+        priceMap[c][d] = r[idxP.price];
+        if (!dateSet[d]) { dateSet[d] = true; uniqueDates.push(d); }
+      }
     }
-  });
+  }
+  uniqueDates.sort();
+
+  // 3. Output
+  var output = [];
+  var header = ['商品分類', '配息週期', 'ETF代碼', 'ETF名稱', 'ETF類型'].concat(uniqueDates);
+  output.push(header);
   
-  uniqueDates.sort(); // 日期由舊到新
-  
-  // 4. 準備輸出資料 (Pivot)
-  var outputRows = [];
-  var outputHeader = ['商品分類', '配息週期', 'ETF代碼', 'ETF名稱', 'ETF類型'].concat(uniqueDates);
-  outputRows.push(outputHeader);
-  
+  var rows = [];
   etfList.forEach(function(code) {
     var info = validCodes[code];
     var prices = priceMap[code] || {};
     var hasData = false;
-    
-    var rowData = [info.cat, info.freq, code, info.name, info.type];
-    
+    var row = [info.cat, info.freq, code, info.name, info.type];
     uniqueDates.forEach(function(d) {
-      var val = prices[d];
-      if (val) hasData = true;
-      rowData.push(val || "");
+      var v = prices[d];
+      if (v) hasData = true;
+      row.push(v || "");
     });
-    
-    if (hasData) outputRows.push(rowData);
+    if (hasData) rows.push(row);
   });
   
-  // 5. 排序邏輯 (自定義權重)
-  // 跳過 Header (index 0)
-  var dataToSort = outputRows.slice(1);
+  // Sort
+  rows.sort(function(a, b) {
+     var wA = getWeight(a[0], a[1]);
+     var wB = getWeight(b[0], b[1]);
+     if (wA !== wB) return wA - wB;
+     return String(a[2]).localeCompare(String(b[2]));
+  });
   
-  var getWeight = function(cat, freq) {
-      if (cat.indexOf('債') > -1) return 5;
-      if (freq.indexOf('月') > -1) return 4;
-      if (freq.indexOf('季一') > -1 || freq.indexOf('1,4') > -1) return 1;
-      if (freq.indexOf('季二') > -1 || freq.indexOf('2,5') > -1) return 2;
-      if (freq.indexOf('季三') > -1 || freq.indexOf('3,6') > -1) return 3;
-      return 6;
+  output = output.concat(rows);
+  writeToSheet(sheetName, output);
+}
+
+// === STEP 3: 本週除息 ===
+function step3_UpdateDividend(dates) {
+  if (!dates) dates = getWeeklyDates();
+  var sheetName = "本周除息";
+  var csv = fetchCsv(CONFIG.urls.dividend);
+  var output = [["ETF代碼", "ETF名稱", "除息日期", "除息金額", "股利發放日"]];
+  
+  if (csv.length > 1) {
+    var h = csv[0];
+    var idx = { code: findIdx(h, ['代碼']), name: findIdx(h, ['名稱']), ex: findIdx(h, ['除息', 'ExDate']), amt: findIdx(h, ['金額']), pay: findIdx(h, ['發放']) };
+    for (var i = 1; i < csv.length; i++) {
+      var r = csv[i];
+      var d = formatDate(r[idx.ex]);
+      if (d >= dates.thisMonday && d <= dates.thisFriday) {
+        output.push([r[idx.code], r[idx.name], d, r[idx.amt], r[idx.pay]]);
+      }
+    }
+  }
+  writeToSheet(sheetName, output);
+}
+
+// === STEP 4: 本週填息 ===
+function step4_UpdateFill(dates) {
+  if (!dates) dates = getWeeklyDates();
+  var sheetName = "本周填息";
+  
+  // Load Prices (History + Recent)
+  var priceMap = {}; // Code -> Array of {d, p}
+  var loadP = function(u) {
+    var c = fetchCsv(u);
+    if (c.length < 2) return;
+    var h = c[0];
+    var idx = { code: findIdx(h,['代碼']), date: findIdx(h,['日期']), price: findIdx(h,['價','Price','收盤']) };
+    for (var i=1; i<c.length; i++) {
+      var d = formatDate(c[i][idx.date]);
+      if (d > getDateOffset(-120)) { // Only last 4 months
+        var code = String(c[i][idx.code]).trim();
+        if (!priceMap[code]) priceMap[code] = [];
+        priceMap[code].push({ d: d, p: parseFloat(c[i][idx.price]) });
+      }
+    }
   };
+  loadP(CONFIG.urls.price);
+  loadP(CONFIG.urls.history);
   
-  dataToSort.sort(function(a, b) {
-      var wA = getWeight(String(a[0]), String(a[1]));
-      var wB = getWeight(String(b[0]), String(b[1]));
-      if (wA !== wB) return wA - wB;
-      return String(a[2]).localeCompare(String(b[2])); // Compare Code
-  });
+  for(var k in priceMap) { priceMap[k].sort(function(a,b){ return a.d.localeCompare(b.d); }); }
+
+  var divCsv = fetchCsv(CONFIG.urls.dividend);
+  var output = [["ETF代碼", "ETF名稱", "除息日期", "除息金額", "除息前一天股價", "分析比對日期", "分析比對價格", "分析是否填息成功", "幾天填息"]];
   
-  var finalOutput = [outputHeader].concat(dataToSort);
-  
-  // 6. 寫入新工作表
-  var reportSheetName = '週報_ETF股價_' + startStr + '_' + endStr;
-  var targetSheet = ss.getSheetByName(reportSheetName);
-  if (targetSheet) ss.deleteSheet(targetSheet);
-  targetSheet = ss.insertSheet(reportSheetName);
-  
-  targetSheet.getRange(1, 1, finalOutput.length, finalOutput[0].length).setValues(finalOutput);
-  // Browser.msgBox("報表已生成: " + reportSheetName); // Commented out to avoid blocking triggers
+  if (divCsv.length > 1) {
+    var h = divCsv[0];
+    var idx = { code: findIdx(h,['代碼']), name: findIdx(h,['名稱']), ex: findIdx(h,['除息']), amt: findIdx(h,['金額']) };
+    for (var i=1; i<divCsv.length; i++) {
+      var r = divCsv[i];
+      var exDate = formatDate(r[idx.ex]);
+      // ExDate within last 120 days, AND ExDate Year >= 2026 (User Request) -- Actually user requirement says "Filled Only", but text says "ExDate >= 2026" in React logic.
+      // Based on user prompt image text: "只有填息成功名單". Let's stick to that.
+      if (exDate < getDateOffset(-120)) continue;
+      
+      var code = String(r[idx.code]).trim();
+      var prices = priceMap[code];
+      if (!prices) continue;
+      
+      var preExPrice = 0;
+      var exIdx = -1;
+      for (var k=0; k<prices.length; k++) {
+        if (prices[k].d >= exDate) {
+          exIdx = k;
+          if (k > 0) preExPrice = prices[k-1].p;
+          break;
+        }
+      }
+      if (exIdx === -1 || preExPrice === 0) continue;
+      
+      // Check Fill
+      for (var k=exIdx; k<prices.length; k++) {
+        if (prices[k].p >= preExPrice) {
+          // Filled! Check if fill date is in This Week
+          if (prices[k].d >= dates.thisMonday && prices[k].d <= dates.thisFriday) {
+            var days = Math.floor((new Date(prices[k].d) - new Date(exDate)) / (86400000));
+            output.push([code, r[idx.name], exDate, r[idx.amt], preExPrice, prices[k].d, prices[k].p, "是", days]);
+          }
+          break; 
+        }
+      }
+    }
+  }
+  writeToSheet(sheetName, output);
+}
+
+// === UTILS ===
+function getWeeklyDates() {
+  var t = new Date(); 
+  var diff = t.getDate() - t.getDay() + (t.getDay() === 0 ? -6 : 1);
+  var mon = new Date(t.setDate(diff));
+  var fri = new Date(mon); fri.setDate(mon.getDate() + 4);
+  var lFri = new Date(mon); lFri.setDate(mon.getDate() - 3);
+  return {
+    thisMonday: Utilities.formatDate(mon, Session.getScriptTimeZone(), "yyyy-MM-dd"),
+    thisFriday: Utilities.formatDate(fri, Session.getScriptTimeZone(), "yyyy-MM-dd"),
+    lastFriday: Utilities.formatDate(lFri, Session.getScriptTimeZone(), "yyyy-MM-dd")
+  };
+}
+function formatDate(d) { return d ? d.replace(/\\//g, "-").trim() : ""; }
+function getDateOffset(days) { var d = new Date(); d.setDate(d.getDate() + days); return Utilities.formatDate(d, Session.getScriptTimeZone(), "yyyy-MM-dd"); }
+function fetchCsv(url) {
+  try { var r = UrlFetchApp.fetch(url, {muteHttpExceptions:true}); return (r.getResponseCode()===200) ? Utilities.parseCsv(r.getContentText()) : []; }
+  catch(e){ return []; }
+}
+function findIdx(h, keys) { return h ? h.findIndex(function(c){ return keys.some(function(k){ return c.indexOf(k)>-1; }); }) : -1; }
+function writeToSheet(name, data) {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var s = ss.getSheetByName(name);
+  if (s) ss.deleteSheet(s);
+  s = ss.insertSheet(name);
+  if(data.length>0) s.getRange(1,1,data.length,data[0].length).setValues(data);
+  else s.getRange(1,1).setValue("無資料");
+}
+function getWeight(cat, freq) {
+  if (cat.indexOf('債') > -1) return 5;
+  if (freq.indexOf('月') > -1) return 4;
+  if (freq.indexOf('季一') > -1) return 1;
+  if (freq.indexOf('季二') > -1) return 2;
+  if (freq.indexOf('季三') > -1) return 3;
+  return 6;
 }
         `;
 
         navigator.clipboard.writeText(scriptContent).then(() => {
-            alert("✅ Google Apps Script 已複製到剪貼簿！\n\n使用步驟：\n1. 開啟您的 Google 試算表\n2. 點選「擴充功能」->「Apps Script」\n3. 貼上程式碼並儲存\n4. 注意: 'step2_UpdateETFPrice' 函式已加回以確保排程運作。");
+            alert("✅ 全功能自動化腳本已複製！\n包含：國際大盤、ETF股價、本週除息、本週填息。\n\n已修復 step2 觸發錯誤，請至 Apps Script 貼上。");
         }).catch(err => {
             console.error('Failed to copy: ', err);
             alert("複製失敗，請手動選取程式碼。");
@@ -522,7 +606,7 @@ function generateWeeklyPriceReport() {
 
                             <div className="flex items-center gap-2">
                                 <button onClick={handleCopyScript} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 transition-colors shadow-sm">
-                                    <Code className="w-4 h-4" /> 複製程式
+                                    <Code className="w-4 h-4" /> 複製自動化腳本
                                 </button>
                                 <button onClick={handleExport} className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg font-bold hover:bg-emerald-700 transition-colors shadow-sm">
                                     <Download className="w-4 h-4" /> 匯出 CSV
@@ -530,7 +614,7 @@ function generateWeeklyPriceReport() {
                             </div>
                         </div>
 
-                        {/* Report Type Tabs - SHORTENED LABELS */}
+                        {/* Report Type Tabs */}
                         <div className="p-2 border-b border-gray-200 bg-white flex gap-2 flex-none overflow-x-auto">
                             {[
                                 { id: 'MARKET', label: '國際大盤', icon: TrendingUp, color: 'text-blue-600' },
