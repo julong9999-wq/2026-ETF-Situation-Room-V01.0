@@ -1,8 +1,8 @@
-import React, { ReactNode, Component } from 'react';
+import React, { ReactNode } from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 
-console.log("V1.19 Loaded - Extreme Cache Busting");
+console.log("V1.20 Loaded - Fixed Build Error");
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {
@@ -19,7 +19,7 @@ interface ErrorBoundaryState {
   errorInfo: any;
 }
 
-class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
   constructor(props: ErrorBoundaryProps) {
     super(props);
     this.state = {

@@ -4,12 +4,12 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     
-    <!-- V1.19: EXTREME NO-CACHE HEADERS -->
+    <!-- V1.20: Cache Control Headers -->
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
     <meta http-equiv="Pragma" content="no-cache" />
     <meta http-equiv="Expires" content="0" />
     
-    <title>ETF Master Dashboard V1.19</title>
+    <title>ETF Master Dashboard V1.20</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
       window.process = {
@@ -20,13 +20,11 @@
       };
       window.global = window;
 
-      // --- KILL SWITCH FOR SERVICE WORKERS (V1.19) ---
-      // Execute immediately to remove any old PWA caches that might be intercepting requests
+      // --- KILL SWITCH FOR SERVICE WORKERS (V1.20) ---
       if ('serviceWorker' in navigator) {
         navigator.serviceWorker.getRegistrations().then(function(registrations) {
           for(let registration of registrations) {
             registration.unregister();
-            console.log("Old Service Worker Unregistered");
           }
         });
       }
@@ -79,7 +77,6 @@
 </head>
   <body class="bg-blue-50 text-slate-900 h-screen overflow-hidden">
     <div id="root"></div>
-    <!-- V1.19 CRITICAL FIX: Added ?v=1.19 to the src. This forces the browser to download the new TSX file ignoring old cache. -->
-    <script type="module" src="./index.tsx?v=1.19"></script>
+    <script type="module" src="./index.tsx"></script>
   </body>
 </html>
