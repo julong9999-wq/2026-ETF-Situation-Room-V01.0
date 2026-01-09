@@ -235,11 +235,11 @@ const TabAdvancedSearch: React.FC = () => {
         const scriptContent = `
 /**
  * ETF 戰情室 - 自動化週報生成腳本
- * 修正版: V3.0 (回應使用者回饋)
- * 1. 國際大盤資料抓取修正 (增強欄位偵測)
- * 2. ETF代碼強制文字格式 (解決 0050 變 50 問題)
- * 3. 過濾邏輯修正 (國際但季配者保留，其餘國際/半年配排除)
- * 4. 填息資料抓取增強 (修正欄位別名)
+ * 修正版: V3.1
+ * 1. 修復國際大盤排序問題 (解決標題跑到底部)
+ * 2. 擴充資料欄位偵測 (修復國際大盤/填息資料空白)
+ * 3. ETF代碼強制文字格式 (解決 0050 變 50 問題)
+ * 4. 過濾邏輯修正 (國際但季配者保留，其餘國際/半年配排除)
  */
 
 var CONFIG = {
@@ -284,7 +284,6 @@ function step1_UpdateMarket(dates) {
     var csv = fetchCsv(url);
     if (csv.length < 2) return;
     var h = csv[0];
-    // 增加更多欄位別名
     var idx = {
       name: findIdx(h, ['指數名稱', 'IndexName', '名稱']), 
       date: findIdx(h, ['日期', 'tradetime', 'Date']),
@@ -297,15 +296,13 @@ function step1_UpdateMarket(dates) {
       pct: findIdx(h, ['漲跌幅度', 'percent', 'changepercent', '幅度'])
     };
     
-    // 如果找不到關鍵欄位，跳過此 CSV
     if (idx.name === -1 || idx.price === -1) return;
 
     for (var i = 1; i < csv.length; i++) {
       var r = csv[i];
       var d = formatDate(r[idx.date]);
-      if (!d) continue; // Skip invalid dates
+      if (!d) continue;
       
-      // 區間判斷 (字串比較 yyyy-MM-dd)
       if (d >= dates.lastFriday && d <= dates.thisFriday) {
         allRows.push([
           d, 
@@ -322,12 +319,15 @@ function step1_UpdateMarket(dates) {
     }
   });
   
+  // *** V3.1 修正: 先取出標題列，排序後再放回，避免標題跑到底部 ***
+  var header = allRows.shift();
   allRows.sort(function(a,b) {
-     if(a[0]==='日期') return -1;
      var wA = getIndexWeight(a[1]); var wB = getIndexWeight(b[1]);
      if(wA !== wB) return wA - wB;
-     return a[0].localeCompare(b[0]);
+     return String(a[0]).localeCompare(String(b[0]));
   });
+  allRows.unshift(header);
+  
   writeToSheet(sheetName, allRows);
 }
 
@@ -360,19 +360,12 @@ function step2_ExecETFPrice(dates) {
 
       // === 過濾邏輯 ===
       var keep = true;
-      
-      // 1. 排除 00911 (User specific)
       if (code === '00911') keep = false;
-      
-      // 2. 排除 "半年配"
       if (keep && (freq.indexOf('半年') > -1 || cat.indexOf('半年') > -1)) keep = false;
       
-      // 3. 處理 "國際"
       var isForeign = (cat.indexOf('國外') > -1 || type.indexOf('國外') > -1 || mkt.indexOf('國外') > -1 || cat.indexOf('國際') > -1 || type.indexOf('國際') > -1 || name.indexOf('國際') > -1);
       
       if (keep && isForeign) {
-         // 規則: 國際商品若為「季配」則保留，否則排除
-         // (User request: Filter International BUT keep if Quarterly)
          if (freq.indexOf('季') > -1) {
              keep = true;
          } else {
@@ -387,7 +380,6 @@ function step2_ExecETFPrice(dates) {
     }
   }
 
-  // 抓取股價
   var priceCsv = fetchCsv(CONFIG.urls.price);
   var priceMap = {};
   var uniqueDates = [];
@@ -410,7 +402,6 @@ function step2_ExecETFPrice(dates) {
   }
   uniqueDates.sort();
 
-  // 輸出
   var output = [];
   var header = ['商品分類', '配息週期', 'ETF代碼', 'ETF名稱', 'ETF類型'].concat(uniqueDates);
   output.push(header);
@@ -420,13 +411,11 @@ function step2_ExecETFPrice(dates) {
     var info = validCodes[code];
     var prices = priceMap[code] || {};
     var hasData = false;
-    // 檢查是否有任一天的資料
     uniqueDates.forEach(function(d) {
       if (prices[d]) hasData = true;
     });
     
     if (hasData) {
-        // *** 修正: 代碼前加 ' 以強制文字格式 ***
         var row = [info.cat, info.freq, "'" + code, info.name, info.type];
         uniqueDates.forEach(function(d) {
           row.push(prices[d] || "");
@@ -435,7 +424,6 @@ function step2_ExecETFPrice(dates) {
     }
   });
   
-  // 排序 (類別權重 -> 代碼)
   rows.sort(function(a, b) {
      var wA = getWeight(a[0], a[1]);
      var wB = getWeight(b[0], b[1]);
@@ -455,7 +443,6 @@ function step3_UpdateDividend(dates) {
   
   if (csv.length > 1) {
     var h = csv[0];
-    // 擴充欄位別名
     var idx = { 
         code: findIdx(h, ['ETF代碼', '代碼', 'Code']), 
         name: findIdx(h, ['ETF名稱', '名稱', 'Name']), 
@@ -553,8 +540,6 @@ function step4_UpdateFill(dates) {
 function getWeeklyDates() {
   var t = new Date(); 
   var day = t.getDay(); 
-  // Mon: 1, Sun: 0. 
-  // Diff to Mon: t - day + (day==0?-6:1)
   var diff = t.getDate() - day + (day === 0 ? -6 : 1);
   
   var mon = new Date(t); mon.setDate(diff); // This Monday
@@ -570,11 +555,8 @@ function getWeeklyDates() {
 
 function formatDate(d) { 
   if(!d) return "";
-  // 處理 yyyy/MM/dd 格式
   var s = String(d).replace(/\\//g, "-").trim();
-  // 簡單檢查格式
   if (s.match(/^\\d{4}-\\d{1,2}-\\d{1,2}/)) {
-     // 補零 (e.g. 2023-1-1 -> 2023-01-01)
      var p = s.split('-');
      return p[0] + '-' + (p[1].length<2?'0'+p[1]:p[1]) + '-' + (p[2].length<2?'0'+p[2]:p[2]);
   }
@@ -590,7 +572,6 @@ function fetchCsv(url) {
     var r = UrlFetchApp.fetch(url, {muteHttpExceptions:true}); 
     if (r.getResponseCode() !== 200) return [];
     var txt = r.getContentText();
-    // 簡單過濾 HTML 錯誤頁面
     if (txt.indexOf("<!DOCTYPE") > -1) return [];
     return Utilities.parseCsv(txt); 
   } catch(e){ return []; }
@@ -613,7 +594,6 @@ function writeToSheet(name, data) {
   if (s) ss.deleteSheet(s);
   s = ss.insertSheet(name);
   if(data.length>0) {
-    // 設為文字格式避免 0050 變成 50
     s.getRange(1,1,data.length,data[0].length).setNumberFormat("@");
     s.getRange(1,1,data.length,data[0].length).setValues(data);
   } else {
@@ -641,7 +621,7 @@ function getWeight(cat, freq) {
         `;
 
         navigator.clipboard.writeText(scriptContent).then(() => {
-            alert("✅ 自動化腳本已更新！(V3.0 同步版)\n\n修正重點：\n1. 擴充資料欄位偵測 (修復國際大盤/填息資料空白)\n2. ETF代碼前補單引號，確保顯示為 0050 而非 50\n3. 過濾邏輯修正：排除半年配，排除國際 (除非是季配)\n\n請前往 Google Apps Script 貼上並執行。");
+            alert("✅ 自動化腳本 V3.1 已複製！\n\n更新：\n1. 修復國際大盤標題列排序錯誤 (標語不會再跑到底部)\n\n請至 Apps Script 貼上並執行。");
         }).catch(err => {
             console.error('Failed to copy: ', err);
             alert("複製失敗，請手動選取程式碼。");
