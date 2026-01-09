@@ -135,12 +135,11 @@ const TabAdvancedSearch: React.FC = () => {
 
             if (code === '00911') return false; 
             if (freq.includes('半年') || cat.includes('半年')) return false;
-            if (cat.includes('國際') || type.includes('國際') || name.includes('國際')) return false;
-            const isForeign = cat.includes('國外') || type.includes('國外') || market.includes('國外');
+            
+            // Logic: Filter International generally, UNLESS it is Quarterly
+            const isForeign = cat.includes('國外') || type.includes('國外') || market.includes('國外') || cat.includes('國際') || type.includes('國際') || name.includes('國際');
             if (isForeign) {
                 if (freq.includes('季')) return true; 
-                if (freq.includes('月')) return true; 
-                if (cat.includes('債')) return true;
                 return false; 
             }
             return true;
@@ -233,17 +232,14 @@ const TabAdvancedSearch: React.FC = () => {
 
     // --- GOOGLE APPS SCRIPT GENERATOR (ALL-IN-ONE) ---
     const handleCopyScript = () => {
-        // NOTE: This string mirrors the React Logic in `reportPrice` and `reportFill` above.
         const scriptContent = `
 /**
  * ETF 戰情室 - 自動化週報生成腳本
- * 邏輯版本: V2.0 (完全同步網頁版)
- * 
- * 功能：
- * 1. 國際大盤 (上週五~本週五)
- * 2. ETF 股價 (上週五~本週五，排除半年配/國際等，同步 React 邏輯)
- * 3. 本週除息 (本週一~本週五)
- * 4. 本週填息 (本週一~本週五完成填息，且除息年在 2026 含以後)
+ * 修正版: V3.0 (回應使用者回饋)
+ * 1. 國際大盤資料抓取修正 (增強欄位偵測)
+ * 2. ETF代碼強制文字格式 (解決 0050 變 50 問題)
+ * 3. 過濾邏輯修正 (國際但季配者保留，其餘國際/半年配排除)
+ * 4. 填息資料抓取增強 (修正欄位別名)
  */
 
 var CONFIG = {
@@ -265,7 +261,6 @@ function onOpen() {
       .addToUi();
 }
 
-// 觸發器名稱保留，避免重新設定
 function step2_UpdateETFPrice() {
   main_RunAll(); 
 }
@@ -274,7 +269,6 @@ function main_RunAll() {
   var dates = getWeeklyDates();
   console.log("Date Range: " + JSON.stringify(dates));
   
-  // 執行順序
   step1_UpdateMarket(dates);
   step2_ExecETFPrice(dates);
   step3_UpdateDividend(dates);
@@ -290,24 +284,44 @@ function step1_UpdateMarket(dates) {
     var csv = fetchCsv(url);
     if (csv.length < 2) return;
     var h = csv[0];
+    // 增加更多欄位別名
     var idx = {
-      name: findIdx(h, ['名稱', 'IndexName']), date: findIdx(h, ['日期', 'tradetime']),
-      prev: findIdx(h, ['昨日', 'closeyest']), open: findIdx(h, ['開盤', 'open']),
-      high: findIdx(h, ['高價', 'high']), low: findIdx(h, ['低價', 'low']),
-      price: findIdx(h, ['現價', 'price', 'Close']), chg: findIdx(h, ['漲跌點數', 'change']),
-      pct: findIdx(h, ['漲跌幅度', 'percent'])
+      name: findIdx(h, ['指數名稱', 'IndexName', '名稱']), 
+      date: findIdx(h, ['日期', 'tradetime', 'Date']),
+      prev: findIdx(h, ['昨日收盤', 'closeyest', 'Prev']), 
+      open: findIdx(h, ['開盤', 'priceopen', 'open', 'Open']),
+      high: findIdx(h, ['高價', 'high', 'High']), 
+      low: findIdx(h, ['低價', 'low', 'Low']),
+      price: findIdx(h, ['現價', 'price', 'Close', '收盤價', '收盤']), 
+      chg: findIdx(h, ['漲跌點數', 'change', '漲跌']),
+      pct: findIdx(h, ['漲跌幅度', 'percent', 'changepercent', '幅度'])
     };
     
+    // 如果找不到關鍵欄位，跳過此 CSV
+    if (idx.name === -1 || idx.price === -1) return;
+
     for (var i = 1; i < csv.length; i++) {
       var r = csv[i];
       var d = formatDate(r[idx.date]);
-      // 區間: 上週五 ~ 本週五
+      if (!d) continue; // Skip invalid dates
+      
+      // 區間判斷 (字串比較 yyyy-MM-dd)
       if (d >= dates.lastFriday && d <= dates.thisFriday) {
-        allRows.push([d, r[idx.name], r[idx.prev], r[idx.open], r[idx.high], r[idx.low], r[idx.price], r[idx.chg], r[idx.pct]]);
+        allRows.push([
+          d, 
+          r[idx.name], 
+          safeVal(r[idx.prev]), 
+          safeVal(r[idx.open]), 
+          safeVal(r[idx.high]), 
+          safeVal(r[idx.low]), 
+          safeVal(r[idx.price]), 
+          safeVal(r[idx.chg]), 
+          safeVal(r[idx.pct])
+        ]);
       }
     }
   });
-  // 排序: 權重 + 日期
+  
   allRows.sort(function(a,b) {
      if(a[0]==='日期') return -1;
      var wA = getIndexWeight(a[1]); var wB = getIndexWeight(b[1]);
@@ -327,9 +341,12 @@ function step2_ExecETFPrice(dates) {
   if (basicCsv.length > 1) {
     var h = basicCsv[0];
     var idx = {
-      code: findIdx(h, ['代碼', 'Code']), name: findIdx(h, ['名稱', 'Name']),
-      cat: findIdx(h, ['分類', 'Category']), freq: findIdx(h, ['週期', 'Freq']),
-      type: findIdx(h, ['類型', 'Type']), mkt: findIdx(h, ['市場', 'Market'])
+      code: findIdx(h, ['代碼', 'Code']), 
+      name: findIdx(h, ['名稱', 'Name']),
+      cat: findIdx(h, ['分類', 'Category']), 
+      freq: findIdx(h, ['週期', 'Freq']),
+      type: findIdx(h, ['類型', 'Type']), 
+      mkt: findIdx(h, ['市場', 'Market'])
     };
     
     for (var i = 1; i < basicCsv.length; i++) {
@@ -341,21 +358,26 @@ function step2_ExecETFPrice(dates) {
       var type = String(r[idx.type]);
       var mkt = String(r[idx.mkt]);
 
-      // === 過濾邏輯 (同步 React validEtfs) ===
+      // === 過濾邏輯 ===
       var keep = true;
-      if (code === '00911') keep = false;
-      if (keep && (freq.indexOf('半年') > -1 || cat.indexOf('半年') > -1)) keep = false;
-      if (keep && (cat.indexOf('國際') > -1 || type.indexOf('國際') > -1 || name.indexOf('國際') > -1)) keep = false;
       
-      if (keep) {
-        var isForeign = (cat.indexOf('國外') > -1 || type.indexOf('國外') > -1 || mkt.indexOf('國外') > -1);
-        if (isForeign) {
-           // 例外保留: 季配、月配、債券
-           if (freq.indexOf('季') > -1) {}
-           else if (freq.indexOf('月') > -1) {}
-           else if (cat.indexOf('債') > -1) {}
-           else { keep = false; }
-        }
+      // 1. 排除 00911 (User specific)
+      if (code === '00911') keep = false;
+      
+      // 2. 排除 "半年配"
+      if (keep && (freq.indexOf('半年') > -1 || cat.indexOf('半年') > -1)) keep = false;
+      
+      // 3. 處理 "國際"
+      var isForeign = (cat.indexOf('國外') > -1 || type.indexOf('國外') > -1 || mkt.indexOf('國外') > -1 || cat.indexOf('國際') > -1 || type.indexOf('國際') > -1 || name.indexOf('國際') > -1);
+      
+      if (keep && isForeign) {
+         // 規則: 國際商品若為「季配」則保留，否則排除
+         // (User request: Filter International BUT keep if Quarterly)
+         if (freq.indexOf('季') > -1) {
+             keep = true;
+         } else {
+             keep = false;
+         }
       }
       
       if (keep) {
@@ -379,7 +401,6 @@ function step2_ExecETFPrice(dates) {
       var d = formatDate(r[idxP.date]);
       var c = String(r[idxP.code]).trim();
       
-      // 過濾條件: 代碼在名單內 且 日期在範圍內
       if (validCodes[c] && d >= dates.lastFriday && d <= dates.thisFriday) {
         if (!priceMap[c]) priceMap[c] = {};
         priceMap[c][d] = r[idxP.price];
@@ -399,17 +420,22 @@ function step2_ExecETFPrice(dates) {
     var info = validCodes[code];
     var prices = priceMap[code] || {};
     var hasData = false;
-    var row = [info.cat, info.freq, code, info.name, info.type];
+    // 檢查是否有任一天的資料
     uniqueDates.forEach(function(d) {
-      var v = prices[d];
-      if (v) hasData = true;
-      row.push(v || "");
+      if (prices[d]) hasData = true;
     });
-    // 只顯示有資料的列
-    if (hasData) rows.push(row);
+    
+    if (hasData) {
+        // *** 修正: 代碼前加 ' 以強制文字格式 ***
+        var row = [info.cat, info.freq, "'" + code, info.name, info.type];
+        uniqueDates.forEach(function(d) {
+          row.push(prices[d] || "");
+        });
+        rows.push(row);
+    }
   });
   
-  // 排序
+  // 排序 (類別權重 -> 代碼)
   rows.sort(function(a, b) {
      var wA = getWeight(a[0], a[1]);
      var wB = getWeight(b[0], b[1]);
@@ -429,24 +455,30 @@ function step3_UpdateDividend(dates) {
   
   if (csv.length > 1) {
     var h = csv[0];
-    var idx = { code: findIdx(h, ['代碼']), name: findIdx(h, ['名稱']), ex: findIdx(h, ['除息', 'ExDate']), amt: findIdx(h, ['金額']), pay: findIdx(h, ['發放']) };
+    // 擴充欄位別名
+    var idx = { 
+        code: findIdx(h, ['ETF代碼', '代碼', 'Code']), 
+        name: findIdx(h, ['ETF名稱', '名稱', 'Name']), 
+        ex: findIdx(h, ['除息日期', '除息日', 'ExDate', '除息']), 
+        amt: findIdx(h, ['除息金額', '金額', 'Amount']), 
+        pay: findIdx(h, ['股利發放', '發放日', 'PayDate']) 
+    };
+    
     for (var i = 1; i < csv.length; i++) {
       var r = csv[i];
       var d = formatDate(r[idx.ex]);
-      // 日期區間: 本週一 ~ 本週五
       if (d >= dates.thisMonday && d <= dates.thisFriday) {
-        output.push([r[idx.code], r[idx.name], d, r[idx.amt], r[idx.pay]]);
+        output.push(["'" + r[idx.code], r[idx.name], d, r[idx.amt], r[idx.pay]]);
       }
     }
   }
   writeToSheet(sheetName, output);
 }
 
-// === 4. 本週填息 (嚴格同步 React 邏輯) ===
+// === 4. 本週填息 ===
 function step4_UpdateFill(dates) {
   var sheetName = "本周填息";
   
-  // 載入歷史股價 (供查找除息前一日與填息日用)
   var priceMap = {}; 
   var loadP = function(u) {
     var c = fetchCsv(u);
@@ -455,7 +487,6 @@ function step4_UpdateFill(dates) {
     var idx = { code: findIdx(h,['代碼']), date: findIdx(h,['日期']), price: findIdx(h,['價','Price','收盤']) };
     for (var i=1; i<c.length; i++) {
       var d = formatDate(c[i][idx.date]);
-      // 只抓近半年的資料優化效能，但要足以涵蓋 2026 年初
       if (d > '2025-12-01') { 
         var code = String(c[i][idx.code]).trim();
         if (!priceMap[code]) priceMap[code] = [];
@@ -464,9 +495,8 @@ function step4_UpdateFill(dates) {
     }
   };
   loadP(CONFIG.urls.price);
-  loadP(CONFIG.urls.history); // 以防萬一，補歷史資料
+  loadP(CONFIG.urls.history);
   
-  // 對股價排序
   for(var k in priceMap) { priceMap[k].sort(function(a,b){ return a.d.localeCompare(b.d); }); }
 
   var divCsv = fetchCsv(CONFIG.urls.dividend);
@@ -474,13 +504,18 @@ function step4_UpdateFill(dates) {
   
   if (divCsv.length > 1) {
     var h = divCsv[0];
-    var idx = { code: findIdx(h,['代碼']), name: findIdx(h,['名稱']), ex: findIdx(h,['除息']), amt: findIdx(h,['金額']) };
+    var idx = { 
+        code: findIdx(h,['ETF代碼', '代碼']), 
+        name: findIdx(h,['ETF名稱', '名稱']), 
+        ex: findIdx(h,['除息日期', '除息日', 'ExDate', '除息']), 
+        amt: findIdx(h,['除息金額', '金額']) 
+    };
     
     for (var i=1; i<divCsv.length; i++) {
       var r = divCsv[i];
       var exDate = formatDate(r[idx.ex]);
-      
-      // === 過濾條件 1: 除息年份 >= 2026 ===
+      if (!exDate) continue;
+
       var exYear = parseInt(exDate.split('-')[0]);
       if (isNaN(exYear) || exYear < 2026) continue;
 
@@ -490,7 +525,6 @@ function step4_UpdateFill(dates) {
       
       var preExPrice = 0;
       var exIdx = -1;
-      // 尋找除息日 index
       for (var k=0; k<prices.length; k++) {
         if (prices[k].d >= exDate) {
           exIdx = k;
@@ -501,16 +535,13 @@ function step4_UpdateFill(dates) {
       
       if (exIdx === -1 || preExPrice === 0) continue;
       
-      // 檢查是否填息
       for (var k=exIdx; k<prices.length; k++) {
-        // === 過濾條件 2: 價格 >= 除息前一日 ===
         if (prices[k].p >= preExPrice) {
-          // === 過濾條件 3: 填息完成日 (Fill Date) 必須落在本週 ===
           if (prices[k].d >= dates.thisMonday && prices[k].d <= dates.thisFriday) {
             var days = Math.floor((new Date(prices[k].d) - new Date(exDate)) / (86400000));
-            output.push([code, r[idx.name], exDate, r[idx.amt], preExPrice, prices[k].d, prices[k].p, "是", days]);
+            output.push(["'" + code, r[idx.name], exDate, r[idx.amt], preExPrice, prices[k].d, prices[k].p, "是", days]);
           }
-          break; // 只要找到填息就跳出，不再往後找
+          break; 
         }
       }
     }
@@ -522,12 +553,13 @@ function step4_UpdateFill(dates) {
 function getWeeklyDates() {
   var t = new Date(); 
   var day = t.getDay(); 
-  // 計算本週一 (若週日為0，diff為-6，若週一為1，diff為0)
+  // Mon: 1, Sun: 0. 
+  // Diff to Mon: t - day + (day==0?-6:1)
   var diff = t.getDate() - day + (day === 0 ? -6 : 1);
   
-  var mon = new Date(t); mon.setDate(diff); // 本週一
-  var fri = new Date(mon); fri.setDate(mon.getDate() + 4); // 本週五
-  var lFri = new Date(mon); lFri.setDate(mon.getDate() - 3); // 上週五
+  var mon = new Date(t); mon.setDate(diff); // This Monday
+  var fri = new Date(mon); fri.setDate(mon.getDate() + 4); // This Friday
+  var lFri = new Date(mon); lFri.setDate(mon.getDate() - 3); // Last Friday
   
   return {
     thisMonday: Utilities.formatDate(mon, Session.getScriptTimeZone(), "yyyy-MM-dd"),
@@ -536,21 +568,43 @@ function getWeeklyDates() {
   };
 }
 
-function formatDate(d) { return d ? d.replace(/\\//g, "-").trim() : ""; }
-function getDateOffset(days) { var d = new Date(); d.setDate(d.getDate() + days); return Utilities.formatDate(d, Session.getScriptTimeZone(), "yyyy-MM-dd"); }
+function formatDate(d) { 
+  if(!d) return "";
+  // 處理 yyyy/MM/dd 格式
+  var s = String(d).replace(/\\//g, "-").trim();
+  // 簡單檢查格式
+  if (s.match(/^\\d{4}-\\d{1,2}-\\d{1,2}/)) {
+     // 補零 (e.g. 2023-1-1 -> 2023-01-01)
+     var p = s.split('-');
+     return p[0] + '-' + (p[1].length<2?'0'+p[1]:p[1]) + '-' + (p[2].length<2?'0'+p[2]:p[2]);
+  }
+  return s;
+}
+
+function safeVal(v) {
+  return (v === undefined || v === null) ? "" : v;
+}
 
 function fetchCsv(url) {
   try { 
     var r = UrlFetchApp.fetch(url, {muteHttpExceptions:true}); 
-    return (r.getResponseCode()===200) ? Utilities.parseCsv(r.getContentText()) : []; 
+    if (r.getResponseCode() !== 200) return [];
+    var txt = r.getContentText();
+    // 簡單過濾 HTML 錯誤頁面
+    if (txt.indexOf("<!DOCTYPE") > -1) return [];
+    return Utilities.parseCsv(txt); 
   } catch(e){ return []; }
 }
 
 function findIdx(h, keys) { 
   if (!h) return -1;
-  return h.findIndex(function(c){ 
-    return keys.some(function(k){ return c.indexOf(k)>-1; }); 
-  }); 
+  for(var i=0; i<h.length; i++) {
+    var cell = String(h[i]).trim();
+    for(var k=0; k<keys.length; k++) {
+       if (cell.indexOf(keys[k]) > -1) return i;
+    }
+  }
+  return -1;
 }
 
 function writeToSheet(name, data) {
@@ -558,8 +612,13 @@ function writeToSheet(name, data) {
   var s = ss.getSheetByName(name);
   if (s) ss.deleteSheet(s);
   s = ss.insertSheet(name);
-  if(data.length>0) s.getRange(1,1,data.length,data[0].length).setValues(data);
-  else s.getRange(1,1).setValue("無符合條件資料");
+  if(data.length>0) {
+    // 設為文字格式避免 0050 變成 50
+    s.getRange(1,1,data.length,data[0].length).setNumberFormat("@");
+    s.getRange(1,1,data.length,data[0].length).setValues(data);
+  } else {
+    s.getRange(1,1).setValue("無符合條件資料");
+  }
 }
 
 function getIndexWeight(name) {
@@ -582,7 +641,7 @@ function getWeight(cat, freq) {
         `;
 
         navigator.clipboard.writeText(scriptContent).then(() => {
-            alert("✅ 自動化腳本已更新！(V2.0 同步版)\n\n此腳本已包含網頁版的所有過濾邏輯：\n1. ETF 股價：排除 00911、半年配、國際/國外 (除非季/月配/債券)\n2. 填息分析：限定「除息年 >= 2026」且「本週填息成功」\n\n請前往 Google Apps Script 貼上並執行。");
+            alert("✅ 自動化腳本已更新！(V3.0 同步版)\n\n修正重點：\n1. 擴充資料欄位偵測 (修復國際大盤/填息資料空白)\n2. ETF代碼前補單引號，確保顯示為 0050 而非 50\n3. 過濾邏輯修正：排除半年配，排除國際 (除非是季配)\n\n請前往 Google Apps Script 貼上並執行。");
         }).catch(err => {
             console.error('Failed to copy: ', err);
             alert("複製失敗，請手動選取程式碼。");
