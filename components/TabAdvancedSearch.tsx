@@ -286,11 +286,18 @@ function onOpen() {
 }
 
 /**
- * 您的觸發程序(Trigger)可能綁定了此名稱
- * 此函式將呼叫主報表生成功能
+ * [關鍵修復] 您的觸發程序(Trigger)綁定了此名稱
+ * 此函式將呼叫主報表生成功能，請勿刪除。
  */
 function step2_UpdateETFPrice() {
-  generateWeeklyPriceReport();
+  console.log("[Trigger] step2_UpdateETFPrice started.");
+  try {
+    generateWeeklyPriceReport();
+    console.log("[Trigger] step2_UpdateETFPrice completed successfully.");
+  } catch (e) {
+    console.error("[Trigger] Error: " + e.toString());
+    throw e; // 讓 Google 系統也能紀錄錯誤
+  }
 }
 
 function generateWeeklyPriceReport() {
