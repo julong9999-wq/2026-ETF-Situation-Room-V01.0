@@ -2,7 +2,7 @@ import React, { Component, ReactNode } from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 
-console.log("V1.30 Loaded - Slate Theme Edition");
+console.log("V1.31 Loaded - Emerald Theme Edition");
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {
