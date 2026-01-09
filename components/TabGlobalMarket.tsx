@@ -124,23 +124,23 @@ const TabGlobalMarket: React.FC = () => {
   const usSubOptions = ['道瓊', '那斯', '費半', '標普'];
 
   return (
-    <div className="h-full flex flex-col p-3 gap-3 relative overflow-hidden">
+    <div className="h-full flex flex-col p-4 gap-4 relative overflow-hidden">
       
       {/* Header Row */}
-      <div className="bg-white p-3 rounded-lg shadow-sm border border-primary-200 flex items-center justify-between gap-4 overflow-x-auto no-scrollbar flex-none">
+      <div className="bg-white p-4 rounded-xl shadow-sm border border-blue-200 flex items-center justify-between gap-4 overflow-x-auto no-scrollbar flex-none">
           
           {/* Left: Filters */}
           <div className="flex items-center gap-3 flex-1">
-              <div className="flex gap-2 shrink-0 bg-primary-50 p-1.5 rounded-lg">
+              <div className="flex gap-2 shrink-0 bg-blue-50 p-1.5 rounded-lg border border-blue-100">
                   {['TW', 'US'].map(cat => (
                       <button
                         key={cat}
                         onClick={() => handleMainFilterChange(cat as 'TW'|'US')}
                         className={`
-                            px-5 py-2 rounded-md text-[15px] font-bold whitespace-nowrap transition-all 
+                            px-6 py-2.5 rounded-md text-base font-bold whitespace-nowrap transition-all 
                             ${mainFilter === cat 
-                                ? 'bg-white text-primary-700 shadow border border-primary-200' 
-                                : 'text-primary-500 hover:bg-primary-100 hover:text-primary-700'}
+                                ? 'bg-white text-blue-700 shadow border border-blue-200' 
+                                : 'text-blue-500 hover:bg-blue-100 hover:text-blue-700'}
                         `}
                       >
                           {cat === 'TW' ? '台股' : '美股'}
@@ -150,17 +150,17 @@ const TabGlobalMarket: React.FC = () => {
               
               {mainFilter === 'US' && (
                   <div className="flex items-center animate-in fade-in slide-in-from-left-2 duration-300">
-                      <div className="h-8 w-px bg-primary-200 mx-3"></div>
+                      <div className="h-8 w-px bg-blue-200 mx-4"></div>
                       <div className="flex gap-2 shrink-0">
                            {usSubOptions.map(sub => (
                                <button 
                                     key={sub} 
                                     onClick={() => setSubFilter(sub)}
                                     className={`
-                                        px-4 py-2 rounded text-[14px] whitespace-nowrap transition-colors font-bold
+                                        px-5 py-2.5 rounded text-base whitespace-nowrap transition-colors font-bold border
                                         ${subFilter === sub
-                                            ? 'bg-primary-600 text-white shadow-sm' 
-                                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}
+                                            ? 'bg-blue-600 text-white border-blue-600 shadow-sm' 
+                                            : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50 hover:text-blue-600 hover:border-blue-300'}
                                     `}
                                >
                                    {sub}
@@ -172,23 +172,21 @@ const TabGlobalMarket: React.FC = () => {
           </div>
 
           {/* Right: Dates & Actions */}
-          <div className="flex items-center gap-3 shrink-0 ml-4 border-l pl-4 border-gray-100">
+          <div className="flex items-center gap-3 shrink-0 ml-4 border-l pl-4 border-gray-200">
              <div className="flex items-center gap-2 bg-gray-50 px-3 py-2 rounded-md border border-gray-200 shadow-inner">
-                 <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="bg-transparent text-sm w-36 font-mono outline-none text-gray-700 font-bold" />
-                 <span className="text-gray-400 text-sm">~</span>
-                 <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="bg-transparent text-sm w-36 font-mono outline-none text-gray-700 font-bold" />
+                 <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="bg-transparent text-base w-40 font-mono outline-none text-gray-700 font-bold" />
+                 <span className="text-gray-400 text-base">~</span>
+                 <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="bg-transparent text-base w-40 font-mono outline-none text-gray-700 font-bold" />
              </div>
              
-             <div className="h-8 w-px bg-gray-200"></div>
-
              <div className="flex gap-2">
-                <button onClick={() => setShowChartModal(true)} className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-50 text-blue-700 border border-blue-200 rounded-md hover:bg-blue-100 font-bold text-[15px] whitespace-nowrap shadow-sm">
+                <button onClick={() => setShowChartModal(true)} className="flex items-center justify-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-bold text-base whitespace-nowrap shadow-md transition-colors">
                     <LineChartIcon className="w-5 h-5" /> <span className="hidden sm:inline">技術線圖</span>
                 </button>
-                <button onClick={() => setShowRecentModal(true)} className="flex items-center justify-center gap-2 px-4 py-2 bg-amber-50 text-amber-700 border border-amber-200 rounded-md hover:bg-amber-100 font-bold text-[15px] whitespace-nowrap shadow-sm">
+                <button onClick={() => setShowRecentModal(true)} className="flex items-center justify-center gap-2 px-5 py-2.5 bg-amber-50 text-amber-700 border border-amber-200 rounded-lg hover:bg-amber-100 font-bold text-base whitespace-nowrap shadow-sm">
                     <Info className="w-5 h-5" /> <span className="hidden sm:inline">近期資訊</span>
                 </button>
-                <button onClick={handleExport} className="flex items-center justify-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-md hover:bg-emerald-100 font-bold text-[15px] whitespace-nowrap shadow-sm">
+                <button onClick={handleExport} className="flex items-center justify-center gap-2 px-5 py-2.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg hover:bg-emerald-100 font-bold text-base whitespace-nowrap shadow-sm">
                     <Download className="w-5 h-5" /> <span className="hidden sm:inline">匯出表單</span>
                 </button>
              </div>
@@ -196,39 +194,39 @@ const TabGlobalMarket: React.FC = () => {
       </div>
 
       {/* Data Table */}
-      <div className="flex-1 overflow-auto bg-white rounded-xl shadow-sm border border-primary-200 min-h-0">
+      <div className="flex-1 overflow-auto bg-white rounded-xl shadow-sm border border-blue-200 min-h-0">
         <table className="w-full text-left border-collapse">
-            <thead className="bg-primary-100 sticky top-0 z-10 shadow-sm">
+            <thead className="bg-blue-50 sticky top-0 z-10 shadow-sm border-b border-blue-100">
                 <tr>
-                    <th className="p-4 font-bold text-primary-900 text-[14px] whitespace-nowrap">指數名稱</th>
-                    <th className="p-4 font-bold text-primary-900 text-[14px] whitespace-nowrap">日期</th>
-                    <th className="p-4 font-bold text-primary-900 text-[14px] whitespace-nowrap text-right">昨日收盤</th>
-                    <th className="p-4 font-bold text-primary-900 text-[14px] whitespace-nowrap text-right">開盤</th>
-                    <th className="p-4 font-bold text-primary-900 text-[14px] whitespace-nowrap text-right">高價</th>
-                    <th className="p-4 font-bold text-primary-900 text-[14px] whitespace-nowrap text-right">低價</th>
-                    <th className="p-4 font-bold text-primary-900 text-[14px] whitespace-nowrap text-right">現價</th>
-                    <th className="p-4 font-bold text-primary-900 text-[14px] whitespace-nowrap text-right">成交量</th>
-                    <th className="p-4 font-bold text-primary-900 text-[14px] whitespace-nowrap text-right">漲跌</th>
-                    <th className="p-4 font-bold text-primary-900 text-[14px] whitespace-nowrap text-right">幅度</th>
+                    <th className="p-4 font-bold text-blue-900 text-base whitespace-nowrap">指數名稱</th>
+                    <th className="p-4 font-bold text-blue-900 text-base whitespace-nowrap">日期</th>
+                    <th className="p-4 font-bold text-blue-900 text-base whitespace-nowrap text-right">昨日收盤</th>
+                    <th className="p-4 font-bold text-blue-900 text-base whitespace-nowrap text-right">開盤</th>
+                    <th className="p-4 font-bold text-blue-900 text-base whitespace-nowrap text-right">高價</th>
+                    <th className="p-4 font-bold text-blue-900 text-base whitespace-nowrap text-right">低價</th>
+                    <th className="p-4 font-bold text-blue-900 text-base whitespace-nowrap text-right">現價</th>
+                    <th className="p-4 font-bold text-blue-900 text-base whitespace-nowrap text-right">成交量</th>
+                    <th className="p-4 font-bold text-blue-900 text-base whitespace-nowrap text-right">漲跌</th>
+                    <th className="p-4 font-bold text-blue-900 text-base whitespace-nowrap text-right">幅度</th>
                 </tr>
             </thead>
-            <tbody className="divide-y divide-primary-100 text-[14px]">
+            <tbody className="divide-y divide-blue-100 text-[15px]">
                 {filteredData.length === 0 ? (
                     <tr>
-                        <td colSpan={10} className="p-10 text-center text-gray-500 text-base">
+                        <td colSpan={10} className="p-12 text-center text-gray-500 text-lg font-medium">
                             無符合條件的資料。請檢查日期區間或重新匯入。
                         </td>
                     </tr>
                 ) : filteredData.map((row, idx) => (
-                    <tr key={idx} className="hover:bg-primary-50">
-                        <td className="p-4 font-bold text-primary-900">{row.indexName}</td>
-                        <td className="p-4 text-primary-700 font-mono font-medium">{row.date}</td>
+                    <tr key={idx} className="hover:bg-blue-50 transition-colors">
+                        <td className="p-4 font-bold text-gray-900">{row.indexName}</td>
+                        <td className="p-4 text-blue-800 font-mono font-medium">{row.date}</td>
                         <td className="p-4 text-right font-mono text-gray-600">{fmt(row.prevClose)}</td>
                         <td className="p-4 text-right font-mono text-gray-800">{fmt(row.open)}</td>
-                        <td className="p-4 text-right font-mono text-red-500">{fmt(row.high)}</td>
-                        <td className="p-4 text-right font-mono text-green-500">{fmt(row.low)}</td>
-                        <td className="p-4 text-right font-mono font-bold text-primary-900 text-[15px]">{fmt(row.price)}</td>
-                        <td className="p-4 text-right font-mono text-primary-500 text-xs">
+                        <td className="p-4 text-right font-mono text-red-600 font-medium">{fmt(row.high)}</td>
+                        <td className="p-4 text-right font-mono text-green-600 font-medium">{fmt(row.low)}</td>
+                        <td className="p-4 text-right font-mono font-bold text-blue-900 text-lg">{fmt(row.price)}</td>
+                        <td className="p-4 text-right font-mono text-gray-500 text-sm font-medium">
                              {row.indexName.includes('加權') 
                                 ? `${(row.volume).toFixed(2)}億` 
                                 : `${(row.volume / 1000000).toFixed(2)}M`
@@ -238,7 +236,7 @@ const TabGlobalMarket: React.FC = () => {
                             {row.change > 0 ? '+' : ''}{fmt(row.change)}
                         </td>
                         <td className={`p-4 text-right font-mono font-bold flex justify-end items-center gap-1 ${row.changePercent >= 0 ? 'text-red-600' : 'text-green-600'}`}>
-                            {row.changePercent >= 0 ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
+                            {row.changePercent >= 0 ? <TrendingUp className="w-5 h-5" /> : <TrendingDown className="w-5 h-5" />}
                             {fmt(row.changePercent)}%
                         </td>
                     </tr>
@@ -247,13 +245,13 @@ const TabGlobalMarket: React.FC = () => {
         </table>
       </div>
 
-      {/* Modal - Text Sizes Updated */}
+      {/* Modal */}
       {showRecentModal && (
           <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
               <div className="bg-white rounded-xl w-full max-w-4xl min-h-[400px] shadow-2xl flex flex-col animate-in zoom-in-95 duration-200">
-                  <div className="p-5 border-b border-primary-100 flex justify-between items-center bg-primary-50 rounded-t-xl">
-                      <h3 className="text-xl font-bold text-primary-900">近期市場資訊 (最新收盤)</h3>
-                      <button onClick={() => setShowRecentModal(false)} className="p-2 hover:bg-white rounded-full transition-colors"><X className="w-6 h-6 text-primary-400" /></button>
+                  <div className="p-5 border-b border-blue-100 flex justify-between items-center bg-blue-50 rounded-t-xl">
+                      <h3 className="text-xl font-bold text-blue-900">近期市場資訊 (最新收盤)</h3>
+                      <button onClick={() => setShowRecentModal(false)} className="p-2 hover:bg-white rounded-full transition-colors"><X className="w-6 h-6 text-blue-400" /></button>
                   </div>
                   <div className="flex-1 overflow-auto p-0">
                       <table className="w-full text-base">
@@ -268,10 +266,10 @@ const TabGlobalMarket: React.FC = () => {
                           </thead>
                           <tbody className="divide-y divide-gray-100">
                               {getRecentData().map((d, i) => (
-                                  <tr key={i} className="hover:bg-primary-50/50 transition-colors">
-                                      <td className="p-5 font-bold text-gray-800 text-lg">{d.indexName}</td>
+                                  <tr key={i} className="hover:bg-blue-50 transition-colors">
+                                      <td className="p-5 font-bold text-gray-900 text-lg">{d.indexName}</td>
                                       <td className="p-5 text-gray-600 font-mono text-base">{d.date}</td>
-                                      <td className="p-5 text-right font-mono font-bold text-xl text-primary-900">{fmt(d.price)}</td>
+                                      <td className="p-5 text-right font-mono font-bold text-xl text-blue-900">{fmt(d.price)}</td>
                                       <td className={`p-5 text-right font-mono font-bold text-xl ${d.change >= 0 ? 'text-red-600' : 'text-green-600'}`}>
                                           {d.change > 0 ? '+' : ''}{fmt(d.change)}
                                       </td>
@@ -298,10 +296,7 @@ const TabGlobalMarket: React.FC = () => {
   );
 };
 
-// ... ChartModalProps ... (Keep imports but assume code is similar, just showing updated structure)
-// Re-implementing Chart Modal Wrapper briefly to ensure file completeness if needed, 
-// but since the user provided all files, I will just ensure the styles match.
-
+// ... ChartModalProps ... (Wrapper)
 interface ChartModalProps {
     data: MarketData[];
     title: string;
@@ -330,12 +325,12 @@ const KLineChartModal: React.FC<ChartModalProps> = ({ data, title, onClose }) =>
     return (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
               <div className="bg-white rounded-xl w-full max-w-5xl h-[80vh] shadow-2xl flex flex-col animate-in zoom-in-95 duration-200">
-                  <div className="p-4 border-b border-primary-100 flex justify-between items-center bg-blue-50 rounded-t-xl shrink-0">
+                  <div className="p-4 border-b border-blue-100 flex justify-between items-center bg-blue-50 rounded-t-xl shrink-0">
                       <div className="flex items-center gap-3">
                           <div className="bg-blue-100 p-2 rounded-lg"><LineChartIcon className="w-6 h-6 text-blue-600" /></div>
-                          <div><h3 className="text-xl font-bold text-primary-900">{title} - 技術線圖 (K線)</h3><p className="text-sm text-primary-500">顯示區間: {data.length > 0 ? `${data[data.length-1].date} ~ ${data[0].date}` : '無資料'}</p></div>
+                          <div><h3 className="text-xl font-bold text-blue-900">{title} - 技術線圖 (K線)</h3><p className="text-sm text-blue-500">顯示區間: {data.length > 0 ? `${data[data.length-1].date} ~ ${data[0].date}` : '無資料'}</p></div>
                       </div>
-                      <button onClick={onClose} className="p-2 hover:bg-white rounded-full transition-colors"><X className="w-6 h-6 text-primary-400" /></button>
+                      <button onClick={onClose} className="p-2 hover:bg-white rounded-full transition-colors"><X className="w-6 h-6 text-blue-400" /></button>
                   </div>
                   <div className="flex-1 p-4 flex flex-col min-h-0">
                       {data.length === 0 ? <div className="flex-1 flex items-center justify-center text-gray-400 text-lg">無資料可顯示</div> : <div ref={chartContainerRef} className="w-full h-full border border-gray-100 rounded-lg shadow-inner"></div>}

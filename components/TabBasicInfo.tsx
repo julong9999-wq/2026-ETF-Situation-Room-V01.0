@@ -176,8 +176,8 @@ const TabBasicInfo: React.FC<TabBasicInfoProps> = ({
   }
 
   return (
-    <div className="h-full flex flex-col p-3 gap-3 relative overflow-hidden">
-      <div className="bg-white p-3 rounded-lg shadow-sm border border-primary-200 flex flex-col gap-3 flex-none">
+    <div className="h-full flex flex-col p-4 gap-4 relative overflow-hidden">
+      <div className="bg-white p-4 rounded-xl shadow-sm border border-blue-200 flex flex-col gap-4 flex-none">
         <div className="flex items-center justify-between">
             <div className="flex gap-2 overflow-x-auto no-scrollbar">
                 {['全部', '季配', '月配', '債券', '主動', '國際', '半年'].map(cat => (
@@ -185,10 +185,10 @@ const TabBasicInfo: React.FC<TabBasicInfoProps> = ({
                         key={cat}
                         onClick={() => { setMainFilter(cat); setSubFilter('ALL'); }}
                         className={`
-                            px-4 py-2 rounded-md text-[15px] font-bold whitespace-nowrap transition-all border
+                            px-5 py-2.5 rounded-lg text-base font-bold whitespace-nowrap transition-all border
                             ${mainFilter === cat 
-                                ? 'bg-primary-600 text-white border-primary-600 shadow-sm' 
-                                : 'bg-white text-primary-500 border-primary-100 hover:bg-primary-50 hover:text-primary-700'}
+                                ? 'bg-blue-600 text-white border-blue-600 shadow-md' 
+                                : 'bg-white text-blue-500 border-blue-100 hover:bg-blue-50 hover:text-blue-700'}
                         `}
                     >
                         {cat}
@@ -197,11 +197,11 @@ const TabBasicInfo: React.FC<TabBasicInfoProps> = ({
             </div>
 
             <div className="flex items-center gap-3 shrink-0 pl-3 border-l border-gray-100">
-                <div className="flex items-center gap-1 text-primary-500 text-sm font-bold bg-primary-50 px-3 py-2 rounded border border-primary-100">
+                <div className="flex items-center gap-2 text-blue-600 text-base font-bold bg-blue-50 px-4 py-2 rounded-lg border border-blue-100">
                     <span>Count:</span>
                     {filteredData.length}
                 </div>
-                <button onClick={handleExport} className="flex items-center gap-1 px-4 py-2 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-md text-[15px] font-bold hover:bg-emerald-100 whitespace-nowrap">
+                <button onClick={handleExport} className="flex items-center justify-center gap-2 px-5 py-2.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg hover:bg-emerald-100 font-bold text-base whitespace-nowrap shadow-sm">
                     <span>匯出表單</span>
                 </button>
             </div>
@@ -214,10 +214,10 @@ const TabBasicInfo: React.FC<TabBasicInfoProps> = ({
                         key={sub}
                         onClick={() => setSubFilter(sub === '全部' ? 'ALL' : sub)} 
                         className={`
-                            px-3 py-1.5 rounded-md text-[14px] whitespace-nowrap transition-colors font-bold border
+                            px-4 py-2 rounded-lg text-base whitespace-nowrap transition-colors font-bold border
                             ${(subFilter === sub || (subFilter === 'ALL' && sub === '全部'))
-                                ? 'bg-gray-700 text-white border-gray-700' 
-                                : 'bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100'}
+                                ? 'bg-blue-800 text-white border-blue-800 shadow-sm' 
+                                : 'bg-gray-50 text-gray-500 border-gray-200 hover:bg-white hover:text-blue-600 hover:border-blue-200'}
                         `}
                     >
                         {sub}
@@ -227,48 +227,48 @@ const TabBasicInfo: React.FC<TabBasicInfoProps> = ({
         )}
       </div>
 
-      <div className="flex-1 overflow-auto bg-white rounded-xl shadow-sm border border-primary-200 min-h-0">
+      <div className="flex-1 overflow-auto bg-white rounded-xl shadow-sm border border-blue-200 min-h-0">
         <table className="w-full text-left border-collapse">
-            <thead className="bg-primary-100 sticky top-0 z-10 shadow-sm">
+            <thead className="bg-blue-50 sticky top-0 z-10 shadow-sm border-b border-blue-100">
                 <tr>
-                    <th className="p-4 font-bold text-primary-900 border-b border-primary-200 text-[14px] whitespace-nowrap">ETF 代碼</th>
-                    <th className="p-4 font-bold text-primary-900 border-b border-primary-200 text-[14px] whitespace-nowrap">ETF 名稱</th>
-                    <th className="p-4 font-bold text-primary-900 border-b border-primary-200 text-[14px] whitespace-nowrap">商品分類</th>
-                    <th className="p-4 font-bold text-primary-900 border-b border-primary-200 text-[14px] whitespace-nowrap">配息週期</th>
-                    <th className="p-4 font-bold text-primary-900 border-b border-primary-200 text-[14px] whitespace-nowrap">發行投信</th>
-                    <th className="p-4 font-bold text-primary-900 border-b border-primary-200 text-[14px] whitespace-nowrap">ETF類型</th>
-                    <th className="p-4 font-bold text-primary-900 text-right border-b border-primary-200 text-[14px] whitespace-nowrap">規模(億)</th>
-                    <th className="p-4 font-bold text-primary-900 border-b border-primary-200 text-[14px] whitespace-nowrap">規模趨勢</th>
+                    <th className="p-4 font-bold text-blue-900 text-base whitespace-nowrap">ETF 代碼</th>
+                    <th className="p-4 font-bold text-blue-900 text-base whitespace-nowrap">ETF 名稱</th>
+                    <th className="p-4 font-bold text-blue-900 text-base whitespace-nowrap">商品分類</th>
+                    <th className="p-4 font-bold text-blue-900 text-base whitespace-nowrap">配息週期</th>
+                    <th className="p-4 font-bold text-blue-900 text-base whitespace-nowrap">發行投信</th>
+                    <th className="p-4 font-bold text-blue-900 text-base whitespace-nowrap">ETF類型</th>
+                    <th className="p-4 font-bold text-blue-900 text-right text-base whitespace-nowrap">規模(億)</th>
+                    <th className="p-4 font-bold text-blue-900 text-base whitespace-nowrap">規模趨勢</th>
                 </tr>
             </thead>
-            <tbody className="divide-y divide-primary-100 text-[14px]">
+            <tbody className="divide-y divide-blue-100 text-[15px]">
                 {filteredData.length === 0 ? (
                     <tr>
-                        <td colSpan={8} className="p-10 text-center text-gray-400 text-base">
+                        <td colSpan={8} className="p-12 text-center text-gray-400 text-lg font-medium">
                             無符合條件的資料。
                         </td>
                     </tr>
                 ) : filteredData.map((row, index) => (
-                    <tr key={String(row?.etfCode) || `row-${index}`} className="hover:bg-primary-50">
-                        <td className="p-4 font-mono font-bold text-primary-700">{row?.etfCode || '-'}</td>
-                        <td className="p-4 font-bold text-primary-800">{row?.etfName || '-'}</td>
+                    <tr key={String(row?.etfCode) || `row-${index}`} className="hover:bg-blue-50 transition-colors">
+                        <td className="p-4 font-mono font-bold text-blue-700">{row?.etfCode || '-'}</td>
+                        <td className="p-4 font-bold text-gray-800">{row?.etfName || '-'}</td>
                         <td className="p-4">
-                            <span className={`px-2 py-1 rounded text-xs font-bold whitespace-nowrap border ${getSmartCategoryClass(row)}`}>
+                            <span className={`px-2.5 py-1 rounded text-sm font-bold whitespace-nowrap border ${getSmartCategoryClass(row)}`}>
                                 {row?.category || '-'}
                             </span>
                         </td>
                         <td className="p-4">
-                             <span className="px-2 py-1 rounded text-xs font-bold whitespace-nowrap bg-gray-50 text-gray-600 border border-gray-200">
+                             <span className="px-2.5 py-1 rounded text-sm font-bold whitespace-nowrap bg-gray-50 text-gray-600 border border-gray-200">
                                 {row?.dividendFreq || '-'}
                             </span>
                         </td>
-                        <td className="p-4 text-primary-700 whitespace-nowrap font-medium">{row?.issuer || '-'}</td>
-                        <td className="p-4 text-primary-700 whitespace-nowrap font-medium">{row?.etfType || '-'}</td>
-                        <td className="p-4 text-right font-mono font-bold text-primary-900">
+                        <td className="p-4 text-gray-700 whitespace-nowrap font-medium">{row?.issuer || '-'}</td>
+                        <td className="p-4 text-gray-700 whitespace-nowrap font-medium">{row?.etfType || '-'}</td>
+                        <td className="p-4 text-right font-mono font-bold text-blue-900">
                             {row.size > 0 ? row.size.toLocaleString() : <span className="text-gray-300">-</span>}
                         </td>
                         <td className="p-4">
-                            <span className={`px-2 py-1 rounded text-xs font-bold whitespace-nowrap ${
+                            <span className={`px-2.5 py-1 rounded text-sm font-bold whitespace-nowrap ${
                                 row?.trend === '成長' ? 'bg-red-100 text-red-700' : 
                                 row?.trend === '衰退' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'
                             }`}>

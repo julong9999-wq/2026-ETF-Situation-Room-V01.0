@@ -83,13 +83,13 @@ const TabExport: React.FC = () => {
     ];
 
     return (
-        <div className="h-full flex flex-col p-6 bg-primary-50 overflow-y-auto">
+        <div className="h-full flex flex-col p-6 bg-blue-50 overflow-y-auto">
             <div className="mb-6">
-                <h2 className="text-2xl font-bold text-primary-900 flex items-center gap-2">
-                    <DownloadCloud className="w-8 h-8 text-primary-600" />
+                <h2 className="text-2xl font-bold text-blue-900 flex items-center gap-2">
+                    <DownloadCloud className="w-8 h-8 text-blue-600" />
                     全域資料匯出中心
                 </h2>
-                <p className="text-primary-500 mt-2 text-base">
+                <p className="text-blue-500 mt-2 text-base">
                     此處可匯出系統資料庫中的完整原始數據，不包含任何過濾條件。
                 </p>
             </div>
@@ -107,14 +107,14 @@ const TabExport: React.FC = () => {
                                 <div className={`p-2.5 rounded-lg ${card.bg} shrink-0`}>
                                     <Icon className={`w-6 h-6 ${card.color}`} />
                                 </div>
-                                <h3 className="text-lg font-bold text-gray-900 truncate flex-1">{card.title}</h3>
+                                <h3 className="text-xl font-bold text-gray-900 truncate flex-1">{card.title}</h3>
                                 <span className="bg-gray-100 text-gray-700 text-sm font-bold px-2 py-1 rounded-md font-mono shrink-0">
                                     {count.toLocaleString()} 筆
                                 </span>
                             </div>
                             
                             {/* Line 2: Description */}
-                            <div className="text-[15px] text-gray-500 leading-snug line-clamp-2 min-h-[2.5rem]">
+                            <div className="text-base text-gray-500 leading-snug line-clamp-2 min-h-[3rem]">
                                 {card.desc}
                             </div>
 
@@ -123,10 +123,10 @@ const TabExport: React.FC = () => {
                                 onClick={() => handleExport(card.id, card.title)}
                                 disabled={isProcessing || count === 0}
                                 className={`
-                                    w-full py-3 rounded-lg font-bold text-[15px] flex items-center justify-center gap-2 transition-all active:scale-95
+                                    w-full py-3.5 rounded-lg font-bold text-base flex items-center justify-center gap-2 transition-all active:scale-95
                                     ${count === 0 
                                         ? 'bg-gray-50 text-gray-300 cursor-not-allowed border border-gray-100' 
-                                        : 'bg-white border border-gray-200 text-gray-700 hover:border-primary-500 hover:text-primary-600 hover:bg-primary-50'
+                                        : 'bg-white border border-gray-200 text-gray-700 hover:border-blue-500 hover:text-blue-600 hover:bg-blue-50'
                                     }
                                 `}
                             >

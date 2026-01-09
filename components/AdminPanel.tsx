@@ -121,9 +121,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ userRole, onLoginSuccess }) => 
   ];
 
   return (
-    <div className="h-full w-full flex flex-col p-4 bg-primary-50">
-        <div className="flex-1 bg-white rounded-xl shadow-sm border border-primary-200 overflow-hidden flex flex-col relative">
-            <div className="bg-gradient-to-r from-primary-600 to-primary-700 p-5 flex justify-between items-center text-white shadow-md flex-none">
+    <div className="h-full w-full flex flex-col p-4 bg-blue-50">
+        <div className="flex-1 bg-white rounded-xl shadow-sm border border-blue-200 overflow-hidden flex flex-col relative">
+            <div className="bg-gradient-to-r from-blue-700 to-blue-800 p-5 flex justify-between items-center text-white shadow-md flex-none">
                 <div className="flex items-center gap-3">
                     <div className="bg-white/20 p-2 rounded-lg backdrop-blur-sm">
                         <Database className="w-6 h-6 text-white" />
@@ -133,18 +133,18 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ userRole, onLoginSuccess }) => 
                 <div className="flex items-center gap-3">
                     <button 
                         onClick={handleResetToDefault}
-                        className="flex items-center gap-2 bg-white/20 hover:bg-white/30 px-4 py-1.5 rounded-full text-sm font-bold transition-colors"
+                        className="flex items-center gap-2 bg-white/20 hover:bg-white/30 px-4 py-2 rounded-full text-base font-bold transition-colors"
                     >
                         <RefreshCw className="w-4 h-4" />
                         還原預設連結
                     </button>
-                    <div className="text-sm font-bold bg-white/20 px-4 py-1.5 rounded-full border border-white/20">
+                    <div className="text-base font-bold bg-white/20 px-4 py-2 rounded-full border border-white/20">
                         總筆數: {Object.values(counts).reduce((a: number, b: number) => a + b, 0).toLocaleString()}
                     </div>
                 </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-5 bg-primary-50/30">
+            <div className="flex-1 overflow-y-auto p-5 bg-blue-50/30">
                 <div className="grid gap-5">
                     {items.map((item) => {
                         const count = counts[item.id] || 0;
@@ -153,18 +153,18 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ userRole, onLoginSuccess }) => 
                         const status = statusMsg?.id === item.id ? statusMsg : null;
 
                         return (
-                            <div key={item.id} className="group bg-white rounded-lg border border-primary-100 p-5 shadow-sm hover:shadow-md hover:border-primary-300 transition-all duration-200 flex flex-col lg:flex-row lg:items-center gap-5">
+                            <div key={item.id} className="group bg-white rounded-lg border border-blue-100 p-6 shadow-sm hover:shadow-md hover:border-blue-300 transition-all duration-200 flex flex-col lg:flex-row lg:items-center gap-5">
                                 <div className="flex items-center gap-4 w-full lg:w-1/3">
-                                    <div className={`w-2 h-12 rounded-full ${hasData ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.4)]' : 'bg-gray-300'}`}></div>
+                                    <div className={`w-2 h-14 rounded-full ${hasData ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.4)]' : 'bg-gray-300'}`}></div>
                                     <div>
-                                        <h3 className="text-lg font-bold text-primary-900">{item.label}</h3>
+                                        <h3 className="text-lg font-bold text-blue-900">{item.label}</h3>
                                         <div className="flex items-center gap-2 mt-1">
-                                            <span className={`text-[15px] font-mono font-bold ${hasData ? 'text-green-600' : 'text-gray-400'}`}>
+                                            <span className={`text-base font-mono font-bold ${hasData ? 'text-green-600' : 'text-gray-400'}`}>
                                                 {count > 0 ? `${count.toLocaleString()} 筆` : '無資料'}
                                             </span>
                                             {status && (
-                                                <span className={`text-sm animate-in fade-in flex items-center gap-1 font-bold ml-2
-                                                    ${status.type === 'success' ? 'text-primary-600' : 
+                                                <span className={`text-base animate-in fade-in flex items-center gap-1 font-bold ml-2
+                                                    ${status.type === 'success' ? 'text-blue-600' : 
                                                       status.type === 'warning' ? 'text-amber-600' : 'text-red-500'}`}>
                                                     {status.type === 'warning' && <AlertCircle className="w-4 h-4" />}
                                                     {status.type === 'success' && <CheckCircle className="w-4 h-4" />}
@@ -176,14 +176,14 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ userRole, onLoginSuccess }) => 
                                 </div>
 
                                 <div className="flex-1 w-full relative">
-                                    <div className="absolute left-3 top-1/2 -translate-y-1/2 text-primary-300 group-hover:text-primary-500 transition-colors">
+                                    <div className="absolute left-3 top-1/2 -translate-y-1/2 text-blue-300 group-hover:text-blue-500 transition-colors">
                                         <LinkIcon className="w-5 h-5" />
                                     </div>
                                     <input 
                                         type="text" 
                                         value={(urls as any)[item.id]}
                                         onChange={(e) => handleInputChange(item.id, e.target.value)}
-                                        className="w-full pl-10 pr-3 py-3 bg-primary-50/50 border border-primary-100 rounded-lg text-base text-primary-700 font-mono focus:bg-white focus:border-primary-400 focus:ring-4 focus:ring-primary-100 outline-none transition-all"
+                                        className="w-full pl-10 pr-3 py-3.5 bg-blue-50/50 border border-blue-100 rounded-lg text-base text-blue-800 font-mono focus:bg-white focus:border-blue-400 focus:ring-4 focus:ring-blue-100 outline-none transition-all"
                                         placeholder="系統預設連結 (唯讀模式建議)"
                                     />
                                 </div>
@@ -193,10 +193,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ userRole, onLoginSuccess }) => 
                                         onClick={() => handleImport(item.id as any, item.label)}
                                         disabled={isProcessing}
                                         className={`
-                                            h-11 px-6 rounded-lg text-[15px] font-bold flex items-center gap-2 shadow-sm transition-all active:scale-95 border
+                                            h-12 px-8 rounded-lg text-base font-bold flex items-center gap-2 shadow-sm transition-all active:scale-95 border
                                             ${isProcessing 
-                                                ? 'bg-primary-50 text-primary-400 border-primary-100 cursor-wait' 
-                                                : 'bg-primary-600 hover:bg-primary-700 text-white border-transparent shadow-primary-200'
+                                                ? 'bg-blue-50 text-blue-400 border-blue-100 cursor-wait' 
+                                                : 'bg-blue-600 hover:bg-blue-700 text-white border-transparent shadow-blue-200'
                                             }
                                         `}
                                     >

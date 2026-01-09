@@ -8,29 +8,24 @@ import { LayoutDashboard, Receipt, LineChart, PieChart, TrendingUp, Users } from
 import AdSenseBlock from './AdSenseBlock';
 
 const TabAnalysisHub: React.FC = () => {
-  // Default to the first tab ('market') so the screen isn't empty
   const [activeTab, setActiveTab] = useState<string>('market');
   const [visitorCount, setVisitorCount] = useState<number>(12045);
 
-  // --- SHARED FILTER STATE (For Linkage) ---
   const [sharedMainFilter, setSharedMainFilter] = useState('季配');
   const [sharedSubFilter, setSharedSubFilter] = useState('季一');
 
   useEffect(() => {
-      // Simulate a visitor counter
       const stored = localStorage.getItem('app_visitor_count');
       let count = stored ? parseInt(stored) : 12045;
       
-      // Increment once per session load
       if (!sessionStorage.getItem('visited')) {
-        count += Math.floor(Math.random() * 3) + 1; // Increment by 1-3 randomly
+        count += Math.floor(Math.random() * 3) + 1; 
         localStorage.setItem('app_visitor_count', count.toString());
         sessionStorage.setItem('visited', 'true');
       }
       setVisitorCount(count);
   }, []);
 
-  // Define shared props
   const sharedProps = {
       mainFilter: sharedMainFilter,
       subFilter: sharedSubFilter,
@@ -49,12 +44,11 @@ const TabAnalysisHub: React.FC = () => {
   const activeFeature = features.find(f => f.id === activeTab);
 
   return (
-    <div className="flex flex-col h-full bg-primary-50">
-      {/* Top Section: Toolbar (Buttons Left, Counter Right) */}
-      <div className="bg-white border-b border-primary-200 shadow-sm z-20 flex-none p-3 flex items-center gap-3">
+    <div className="flex flex-col h-full bg-blue-50">
+      {/* Top Section */}
+      <div className="bg-white border-b border-blue-200 shadow-sm z-20 flex-none p-4 flex items-center gap-4">
          
-         {/* Buttons Area - INCREASED SIZE */}
-         <div className="flex items-center gap-2 overflow-x-auto no-scrollbar flex-1 pb-1">
+         <div className="flex items-center gap-3 overflow-x-auto no-scrollbar flex-1 pb-1">
             {features.map((feature) => {
                 const isActive = activeTab === feature.id;
                 const Icon = feature.icon;
@@ -63,41 +57,37 @@ const TabAnalysisHub: React.FC = () => {
                         key={feature.id}
                         onClick={() => setActiveTab(feature.id)}
                         className={`
-                            flex items-center gap-2 px-4 py-2 rounded-lg text-base font-bold whitespace-nowrap transition-all duration-200 border
+                            flex items-center gap-2 px-5 py-3 rounded-lg text-base font-bold whitespace-nowrap transition-all duration-200 border
                             ${isActive 
-                                ? 'bg-primary-700 text-white border-primary-700 shadow-md transform scale-105' 
-                                : 'bg-primary-50 text-primary-600 border-primary-100 hover:bg-primary-100 hover:border-primary-200'
+                                ? 'bg-blue-600 text-white border-blue-600 shadow-md transform scale-105' 
+                                : 'bg-white text-blue-600 border-blue-100 hover:bg-blue-50 hover:border-blue-200'
                             }
                         `}
                     >
-                        <Icon className={`w-5 h-5 ${isActive ? 'text-white' : 'text-primary-500'}`} />
+                        <Icon className={`w-5 h-5 ${isActive ? 'text-white' : 'text-blue-500'}`} />
                         {feature.title}
                     </button>
                 );
             })}
         </div>
         
-        {/* Visitor Counter */}
-        <div className="flex-none flex items-center gap-2 bg-primary-50 px-3 py-2 rounded-full border border-primary-100 shadow-sm">
-            <Users className="w-4 h-4 text-primary-600" />
-            <span className="text-sm font-bold text-primary-700 font-mono">{visitorCount.toLocaleString()}</span>
+        <div className="flex-none flex items-center gap-2 bg-blue-50 px-4 py-2 rounded-full border border-blue-200 shadow-sm">
+            <Users className="w-5 h-5 text-blue-600" />
+            <span className="text-base font-bold text-blue-700 font-mono">{visitorCount.toLocaleString()}</span>
         </div>
 
       </div>
       
-      {/* Main Content Area: Split Layout (Left: Content, Right: Ad) */}
+      {/* Main Content Area */}
       <div className="flex-1 flex min-h-0 overflow-hidden relative">
-        
-        {/* Left: The Active Sub-form (Takes remaining space) */}
         <div className="flex-1 flex flex-col min-w-0 min-h-0 overflow-hidden relative">
             {activeFeature?.component}
         </div>
 
-        {/* Right: Vertical Ad Sidebar (Hidden on mobile, visible on desktop) */}
-        <div className="hidden lg:flex flex-none w-[220px] border-l border-primary-200 bg-gray-50 flex-col items-center p-3 z-10 min-h-0 overflow-hidden">
+        <div className="hidden lg:flex flex-none w-[220px] border-l border-blue-200 bg-white flex-col items-center p-4 z-10 min-h-0 overflow-hidden">
             <div className="text-xs text-gray-400 mb-2 font-mono tracking-widest flex-none">SPONSORED</div>
             <div className="w-full flex-1 flex flex-col gap-4 overflow-y-auto no-scrollbar">
-                 <div className="w-full rounded bg-white border border-gray-200 shadow-sm overflow-hidden flex-shrink-0" style={{ minHeight: '400px' }}>
+                 <div className="w-full rounded bg-gray-50 border border-gray-200 shadow-sm overflow-hidden flex-shrink-0" style={{ minHeight: '400px' }}>
                      <AdSenseBlock 
                          slot="0987654321" 
                          format="vertical" 

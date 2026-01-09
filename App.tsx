@@ -11,7 +11,7 @@ const DISPLAY_VERSION = 'V01.0'; // UI Display Version
 const STORAGE_VERSION_KEY = 'app_system_version';
 
 // Placeholders
-const TabPerformance = () => <div className="p-8 text-center text-blue-500 text-xl font-bold">績效分析功能區 (規劃中)</div>;
+const TabPerformance = () => <div className="p-8 text-center text-blue-600 text-xl font-bold">績效分析功能區 (規劃中)</div>;
 
 type NavItem = {
   id: string;
@@ -22,22 +22,22 @@ type NavItem = {
 
 // --- UPDATE PROMPT COMPONENT ---
 const UpdateOverlay = ({ serverVersion, onUpdate }: { serverVersion: string, onUpdate: () => void }) => (
-    <div className="fixed inset-0 z-[100] bg-slate-900/95 backdrop-blur-md flex flex-col items-center justify-center p-6 text-white animate-in fade-in duration-300">
+    <div className="fixed inset-0 z-[100] bg-blue-900/95 backdrop-blur-md flex flex-col items-center justify-center p-6 text-white animate-in fade-in duration-300">
         <div className="bg-white/10 p-6 rounded-full mb-6 animate-bounce">
             <Zap className="w-16 h-16 text-yellow-300 fill-yellow-300" />
         </div>
         <h1 className="text-3xl font-bold mb-4 text-center">偵測到版本更新 {serverVersion}</h1>
-        <p className="text-slate-200 mb-8 text-center max-w-md text-lg">
+        <p className="text-blue-100 mb-8 text-center max-w-md text-lg">
             新版本 {serverVersion} 已發布，請立即更新以獲取最佳體驗。
         </p>
         <button 
             onClick={onUpdate}
-            className="group relative bg-white hover:bg-gray-100 text-slate-900 font-bold text-xl px-10 py-4 rounded-full shadow-2xl transition-all hover:scale-105 active:scale-95 flex items-center gap-3"
+            className="group relative bg-white hover:bg-gray-100 text-blue-900 font-bold text-xl px-10 py-4 rounded-full shadow-2xl transition-all hover:scale-105 active:scale-95 flex items-center gap-3"
         >
             <span>立即更新 {serverVersion}</span>
             <ArrowRight className="w-6 h-6 group-hover:translate-x-1 transition-transform" />
         </button>
-        <div className="mt-8 text-sm text-slate-400/60 font-mono">Current: {DISPLAY_VERSION}</div>
+        <div className="mt-8 text-sm text-blue-300/60 font-mono">Current: {DISPLAY_VERSION}</div>
     </div>
 );
 
@@ -94,24 +94,24 @@ const SystemModal: React.FC<SystemModalProps> = ({ onClose, currentVersion, disp
     return (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
             <div className="bg-white rounded-xl w-full max-w-md shadow-2xl animate-in zoom-in-95 duration-200 overflow-hidden flex flex-col max-h-[90vh]">
-                <div className="bg-slate-800 text-white p-4 flex justify-between items-center shrink-0">
+                <div className="bg-blue-700 text-white p-4 flex justify-between items-center shrink-0">
                     <h3 className="font-bold text-lg flex items-center gap-2">
-                        <Settings className="w-5 h-5" /> 系統設定
+                        <Settings className="w-6 h-6" /> 系統設定
                     </h3>
-                    <button onClick={onClose} className="hover:bg-slate-700 p-1 rounded-full transition-colors">
-                        <X className="w-5 h-5" />
+                    <button onClick={onClose} className="hover:bg-blue-600 p-1 rounded-full transition-colors">
+                        <X className="w-6 h-6" />
                     </button>
                 </div>
                 
                 <div className="p-6 space-y-6 overflow-y-auto">
-                    <div className="text-center space-y-1">
+                    <div className="text-center space-y-2">
                         <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3">
                             <ShieldCheck className="w-8 h-8 text-blue-600" />
                         </div>
                         <h2 className="text-xl font-bold text-gray-800">ETF 戰情室</h2>
-                        <div className="flex justify-center gap-2 text-sm text-gray-500 font-mono">
-                            <span className="bg-gray-100 px-2 py-0.5 rounded">UI: {displayVersion}</span>
-                            <span className="bg-gray-100 px-2 py-0.5 rounded">Core: {currentVersion}</span>
+                        <div className="flex justify-center gap-2 text-base text-gray-600 font-mono">
+                            <span className="bg-gray-100 px-3 py-1 rounded">UI: {displayVersion}</span>
+                            <span className="bg-gray-100 px-3 py-1 rounded">Core: {currentVersion}</span>
                         </div>
                     </div>
 
@@ -121,12 +121,12 @@ const SystemModal: React.FC<SystemModalProps> = ({ onClose, currentVersion, disp
                          <button 
                             onClick={handleCheckUpdateClick}
                             disabled={isChecking}
-                            className="w-full flex flex-col p-4 bg-blue-50 hover:bg-blue-100 text-blue-900 rounded-xl transition-all border border-blue-100 group"
+                            className="w-full flex flex-col p-4 bg-blue-50 hover:bg-blue-100 text-blue-900 rounded-xl transition-all border border-blue-200 group"
                         >
                             <div className="flex items-center justify-between w-full">
-                                <div className="flex items-center gap-3">
+                                <div className="flex items-center gap-4">
                                     <div className="bg-white p-2 rounded-lg shadow-sm group-hover:scale-110 transition-transform">
-                                        <Search className={`w-6 h-6 text-blue-500 ${isChecking ? 'animate-pulse' : ''}`} />
+                                        <Search className={`w-6 h-6 text-blue-600 ${isChecking ? 'animate-pulse' : ''}`} />
                                     </div>
                                     <div className="text-left">
                                         <div className="font-bold text-base">檢查更新</div>
@@ -137,7 +137,7 @@ const SystemModal: React.FC<SystemModalProps> = ({ onClose, currentVersion, disp
                             </div>
                             
                             {checkResult && (
-                                <div className="mt-3 w-full bg-white/50 p-2 rounded text-sm text-left font-mono text-blue-800 border border-blue-100 whitespace-pre-wrap">
+                                <div className="mt-3 w-full bg-white/50 p-3 rounded text-sm text-left font-mono text-blue-800 border border-blue-200 whitespace-pre-wrap leading-relaxed">
                                     {checkResult}
                                 </div>
                             )}
@@ -146,15 +146,15 @@ const SystemModal: React.FC<SystemModalProps> = ({ onClose, currentVersion, disp
                         <button 
                             onClick={handleSoftReload}
                             disabled={isReloading}
-                            className="w-full flex items-center justify-between p-4 bg-slate-50 hover:bg-slate-100 text-slate-700 rounded-xl transition-all border border-slate-100 group"
+                            className="w-full flex items-center justify-between p-4 bg-gray-50 hover:bg-gray-100 text-gray-700 rounded-xl transition-all border border-gray-200 group"
                         >
-                            <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-4">
                                 <div className="bg-white p-2 rounded-lg shadow-sm group-hover:scale-110 transition-transform">
                                     <RefreshCw className={`w-6 h-6 ${isReloading ? 'animate-spin' : ''}`} />
                                 </div>
                                 <div className="text-left">
                                     <div className="font-bold text-base">重新整理</div>
-                                    <div className="text-sm text-slate-400">Reload System</div>
+                                    <div className="text-sm text-gray-500">Reload System</div>
                                 </div>
                             </div>
                         </button>
@@ -162,9 +162,9 @@ const SystemModal: React.FC<SystemModalProps> = ({ onClose, currentVersion, disp
                         <button 
                             onClick={handleFactoryReset}
                             disabled={isReloading}
-                            className="w-full flex items-center justify-between p-4 bg-red-50 hover:bg-red-100 text-red-700 rounded-xl transition-all border border-red-100 group"
+                            className="w-full flex items-center justify-between p-4 bg-red-50 hover:bg-red-100 text-red-700 rounded-xl transition-all border border-red-200 group"
                         >
-                            <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-4">
                                 <div className="bg-white p-2 rounded-lg shadow-sm group-hover:scale-110 transition-transform">
                                     <RotateCcw className="w-6 h-6 text-red-500" />
                                 </div>
@@ -303,43 +303,43 @@ const App: React.FC = () => {
 
   if (isInitializing) {
       return (
-          <div className="flex flex-col items-center justify-center h-screen bg-slate-50 text-slate-900">
+          <div className="flex flex-col items-center justify-center h-screen bg-blue-50 text-blue-900">
               <Loader2 className="w-16 h-16 animate-spin mb-6 text-blue-600" />
               <h2 className="text-2xl font-bold mb-2">系統重置中 ({DISPLAY_VERSION})...</h2>
-              <div className="bg-white/50 px-6 py-4 rounded-xl text-center border border-slate-200 max-w-sm">
-                  <p className="text-sm text-slate-600">正在清除舊版資料並初始化</p>
+              <div className="bg-white/50 px-6 py-4 rounded-xl text-center border border-blue-200 max-w-sm">
+                  <p className="text-base text-blue-700">正在清除舊版資料並初始化</p>
               </div>
           </div>
       );
   }
 
-  // --- ORIGINAL BLUE/SLATE THEME ---
+  // --- CLASSIC BLUE THEME IMPLEMENTATION ---
   return (
-    <div className="flex h-screen bg-slate-50 overflow-hidden relative">
-      {/* Sidebar - Slate 900 (Original) */}
-      <div className={`${sidebarOpen ? 'w-64' : 'w-20'} bg-slate-900 text-white transition-all duration-300 flex flex-col shadow-2xl z-20 border-r border-slate-800`}>
-        <div className="p-5 border-b border-slate-800 bg-slate-950">
+    <div className="flex h-screen bg-blue-50 overflow-hidden relative">
+      {/* Sidebar - Classic Blue (blue-700) instead of Slate-900 */}
+      <div className={`${sidebarOpen ? 'w-64' : 'w-20'} bg-blue-700 text-white transition-all duration-300 flex flex-col shadow-2xl z-20 border-r border-blue-600`}>
+        <div className="p-5 border-b border-blue-600 bg-blue-800">
           <div className={`flex flex-col ${!sidebarOpen && 'items-center'}`}>
              <div className="flex items-center justify-between w-full mb-1">
                  <div className={`flex items-center gap-3 ${!sidebarOpen && 'hidden'}`}>
-                    <CloudLightning className="w-7 h-7 text-blue-400" />
+                    <CloudLightning className="w-8 h-8 text-yellow-300" />
                     <span className="font-bold text-xl tracking-wider truncate">ETF 戰情室</span>
                  </div>
-                 <button onClick={() => setSidebarOpen(!sidebarOpen)} className="p-2 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white">
+                 <button onClick={() => setSidebarOpen(!sidebarOpen)} className="p-2 hover:bg-blue-600 rounded-lg text-blue-100 hover:text-white transition-colors">
                     <span className="text-2xl">☰</span>
                  </button>
              </div>
              
              {/* Status Indicators */}
-             <div className={`${!sidebarOpen && 'hidden'} px-1 flex items-center h-5 mt-1`}>
+             <div className={`${!sidebarOpen && 'hidden'} px-1 flex items-center h-5 mt-2`}>
                 {isBackgroundUpdating ? (
-                    <div className="flex items-center gap-1 text-sm text-amber-300 animate-pulse" title="背景資料更新中...">
-                        <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                        <span>資料更新中</span>
+                    <div className="flex items-center gap-2 text-sm text-yellow-200 animate-pulse" title="背景資料更新中...">
+                        <RefreshCw className="w-4 h-4 animate-spin" />
+                        <span>資料更新中...</span>
                     </div>
                 ) : lastUpdateStatus === 'success' ? (
-                    <div className="flex items-center gap-1 text-sm text-green-300 animate-in fade-in zoom-in">
-                        <CheckCircle2 className="w-3.5 h-3.5" />
+                    <div className="flex items-center gap-2 text-sm text-green-300 animate-in fade-in zoom-in">
+                        <CheckCircle2 className="w-4 h-4" />
                         <span>系統已就緒</span>
                     </div>
                 ) : null}
@@ -347,7 +347,7 @@ const App: React.FC = () => {
           </div>
         </div>
         
-        <div className="flex-1 overflow-y-auto py-6 flex flex-col bg-slate-900">
+        <div className="flex-1 overflow-y-auto py-6 flex flex-col bg-blue-700">
           <nav className="space-y-2 px-3 flex-1">
             {navItems.map((item) => {
               const isActive = activeTab === item.id;
@@ -358,8 +358,8 @@ const App: React.FC = () => {
                   onClick={() => setActiveTab(item.id)}
                   className={`w-full flex items-center px-4 py-4 rounded-xl transition-all duration-200 mb-1 ${
                     isActive
-                      ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/50' 
-                      : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+                      ? 'bg-blue-800 text-white shadow-lg border border-blue-600' 
+                      : 'text-blue-100 hover:bg-blue-600 hover:text-white border border-transparent'
                   } ${!sidebarOpen && 'justify-center'}`}
                 >
                   <span className={`${sidebarOpen ? 'mr-4' : ''}`}>
@@ -388,26 +388,26 @@ const App: React.FC = () => {
         {/* Footer */}
         <div 
             onClick={() => setShowSystemModal(true)}
-            className="p-4 border-t border-slate-800 bg-slate-950 cursor-pointer hover:bg-slate-900 transition-colors group"
+            className="p-4 border-t border-blue-600 bg-blue-800 cursor-pointer hover:bg-blue-900 transition-colors group"
         >
             <div className={`flex flex-col items-center ${sidebarOpen ? 'items-start' : 'items-center'}`}>
                 {sidebarOpen ? (
                     <div className="w-full flex justify-between items-end">
                         <div>
                             <p className="text-base font-bold text-white tracking-wide">julong chen</p>
-                            <div className="flex items-center gap-1">
-                                <p className="text-sm text-slate-400 mt-0.5">版本 {DISPLAY_VERSION}</p>
+                            <div className="flex items-center gap-2">
+                                <p className="text-sm text-blue-200 mt-0.5">版本 {DISPLAY_VERSION}</p>
                             </div>
                         </div>
-                        <Settings className="w-5 h-5 text-slate-500 group-hover:text-white group-hover:rotate-90 transition-all" />
+                        <Settings className="w-6 h-6 text-blue-300 group-hover:text-white group-hover:rotate-90 transition-all" />
                     </div>
                 ) : (
                     <div className="flex flex-col items-center gap-1">
-                        <div className="text-xs text-slate-500 font-mono text-center">
+                        <div className="text-xs text-blue-300 font-mono text-center">
                             <div>V1</div>
                             <div>.0</div>
                         </div>
-                        <Settings className="w-4 h-4 text-slate-500 group-hover:text-slate-300" />
+                        <Settings className="w-5 h-5 text-blue-300 group-hover:text-white" />
                     </div>
                 )}
             </div>
@@ -416,14 +416,14 @@ const App: React.FC = () => {
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col h-screen overflow-hidden relative">
-        <header className="bg-white shadow-sm border-b border-slate-200 p-4 flex justify-between items-center md:hidden z-10">
+        <header className="bg-white shadow-sm border-b border-blue-100 p-4 flex justify-between items-center md:hidden z-10">
             <div className="flex items-center gap-3">
-                <Presentation className="w-6 h-6 text-blue-900" />
-                <div className="font-bold text-slate-900 text-xl">ETF 戰情室</div>
+                <Presentation className="w-7 h-7 text-blue-600" />
+                <div className="font-bold text-blue-900 text-xl">ETF 戰情室</div>
             </div>
-            <button onClick={() => setSidebarOpen(!sidebarOpen)} className="text-slate-700"><span className="text-2xl">☰</span></button>
+            <button onClick={() => setSidebarOpen(!sidebarOpen)} className="text-blue-700"><span className="text-3xl">☰</span></button>
         </header>
-        <main className="flex-1 overflow-hidden relative bg-slate-50">
+        <main className="flex-1 overflow-hidden relative bg-blue-50">
           {getCurrentComponent()}
         </main>
       </div>
