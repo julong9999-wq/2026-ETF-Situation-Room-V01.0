@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import TabAnalysisHub from './components/TabAnalysisHub';
 import TabExport from './components/TabExport';
+import TabAdvancedSearch from './components/TabAdvancedSearch';
 import { clearAllData, checkAndFetchSystemData } from './services/dataService';
 import { Loader2, RefreshCw, CheckCircle2, LayoutDashboard, TrendingUp, Download, Presentation, Settings, Power, RotateCcw, X, CloudLightning, Zap, ArrowRight, Moon, Search, Clock, ShieldCheck } from 'lucide-react';
 
@@ -287,6 +288,7 @@ const App: React.FC = () => {
 
   const navItems: NavItem[] = [
     { id: 'ANALYSIS', name: '資料分析', icon: LayoutDashboard, component: <TabAnalysisHub /> },
+    { id: 'ADVANCED', name: '進階查詢', icon: Search, component: <TabAdvancedSearch /> },
     { id: 'PERFORMANCE', name: '績效分析', icon: TrendingUp, component: <TabPerformance /> },
     { id: 'EXPORT', name: '表單匯出', icon: Download, component: <TabExport /> }
   ];

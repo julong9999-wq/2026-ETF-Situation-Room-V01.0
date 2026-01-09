@@ -98,7 +98,8 @@ const parseCSV = (text: string): any[] => {
 
 const safeFloat = (val: any): number => {
     if (!val) return 0;
-    const str = String(val).replace(/,/g, '');
+    const str = String(val).replace(/,/g, '').trim();
+    if (str === '-' || str === '') return 0;
     const num = parseFloat(str);
     return isNaN(num) ? 0 : num;
 };
@@ -110,7 +111,6 @@ const normalizeDate = (dateVal: any): string => {
     const parts = dateStr.split(/[-/]/);
     if (parts.length === 3) {
         let y = parts[0];
-        // Handle ROC year if needed (e.g., 113)
         if (y.length === 3 && parseInt(y) < 1900) {
             y = String(parseInt(y) + 1911);
         }
@@ -121,26 +121,36 @@ const normalizeDate = (dateVal: any): string => {
     return dateStr;
 };
 
-// --- DATA ACCESSORS & SANITIZERS ---
+// --- PROPERTY GETTER (Strict Match) ---
+const getProp = (row: any, ...keys: string[]) => {
+    for (const k of keys) {
+        // 1. Direct Match
+        if (row[k] !== undefined) return row[k];
+        
+        // 2. Normalized Match (remove spaces, lowercase)
+        const normK = k.replace(/\s+/g, '').toLowerCase();
+        const foundKey = Object.keys(row).find(key => 
+            key.replace(/\s+/g, '').toLowerCase() === normK
+        );
+        if (foundKey) return row[foundKey];
+    }
+    // Partial match removed to prevent "Price" matching "Previous Price"
+    return undefined;
+};
+
+// --- DATA ACCESSORS ---
 const isCorrupted = (item: any) => {
     const json = JSON.stringify(item).toLowerCase();
-    return json.includes('doctype') || 
-           json.includes('html') || 
-           json.includes('檔案可能已遭到移動') ||
-           json.includes('file might have been moved');
+    return json.includes('doctype') || json.includes('html');
 };
 
 const safelyParse = <T>(json: string | null): T[] => {
     if (!json) return [];
     try {
         const parsed = JSON.parse(json);
-        if (Array.isArray(parsed)) {
-            const valid = parsed.filter(p => !isCorrupted(p));
-            return valid;
-        }
+        if (Array.isArray(parsed)) return parsed.filter(p => !isCorrupted(p));
         return [];
     } catch (e) {
-        console.error("JSON Parse Error:", e);
         return [];
     }
 };
@@ -180,7 +190,6 @@ export const getFillAnalysisData = async (): Promise<FillAnalysisData[]> => {
         let fillDate = '';
         let fillPrice: number | string = '';
         
-        // --- 1. Determine Time Status (Future vs Past) ---
         const isFuture = div.exDate > today;
         const exYear = parseInt(div.exDate.split('-')[0]);
 
@@ -188,73 +197,34 @@ export const getFillAnalysisData = async (): Promise<FillAnalysisData[]> => {
             const etfPrices = priceMap.get(div.etfCode)!;
             const exDate = div.exDate;
             const sortedDates = Array.from(etfPrices.keys()).sort();
-            
-            // Find Pre-Ex Date (Index before ex-date)
-            // Even for future, we can try to find the "Latest" available date as pre-ex if not yet reached?
-            // User requirement: "待除息資訊" for future fields.
-            
             const exDateIndex = sortedDates.findIndex(d => d >= exDate);
             let preExIndex = -1;
 
-            if (exDateIndex > 0) {
-                preExIndex = exDateIndex - 1;
-            } else if (exDateIndex === -1) {
-                // ExDate is later than all data (Future) OR ExDate is earlier than all data (History Gap)
-                // If Future, pre-ex might be the last available date? Or just pending.
-                // Requirement says "待除息資訊" for future.
-            }
+            if (exDateIndex > 0) preExIndex = exDateIndex - 1;
 
             if (preExIndex >= 0) {
                 preExDate = sortedDates[preExIndex];
                 pricePreEx = etfPrices.get(preExDate) || 0;
-                
-                // Calculate Ref Price if valid number
                 if (typeof pricePreEx === 'number' && pricePreEx > 0) {
                     priceReference = pricePreEx - div.amount;
                 }
-            } else {
-                 // Try to fallback? If data exists but exDate is not found (gap), might be issue.
-                 // If exDate is strictly before all data (e.g. 2024 data, but prices start 2025), preEx is unknown.
             }
             
-            // --- 2. Logic Rules Application ---
-            
             if (isFuture) {
-                 // RULE: Future Dividend
-                 pricePreEx = "待除息資訊";
-                 priceReference = "待除息資訊";
-                 fillDate = "";
-                 fillPrice = "待除息資訊";
-                 daysToFill = "待除息資訊";
-                 isFilled = false;
-                 // Note: preExDate might be empty or calculated if very close, but for "Pending" usually it's unknown until day before.
-                 if(!preExDate) preExDate = "待除息資訊"; 
+                 pricePreEx = "待除息資訊"; priceReference = "待除息資訊"; fillDate = ""; fillPrice = "待除息資訊"; daysToFill = "待除息資訊"; isFilled = false; if(!preExDate) preExDate = "待除息資訊"; 
             } 
-            else if (exYear < 2026) {
-                 // RULE: History (Before 2026/01/01 -> So <= 2025/12/31)
-                 pricePreEx = "無資料";
-                 priceReference = "無資料";
-                 fillDate = "";
-                 fillPrice = "無資料";
-                 daysToFill = "無資料";
-                 isFilled = false;
-                 if(!preExDate) preExDate = "無資料";
+            else if (exYear < 2026 && !pricePreEx) { 
+                 pricePreEx = "無資料"; priceReference = "無資料"; fillDate = ""; fillPrice = "無資料"; daysToFill = "無資料"; isFilled = false; if(!preExDate) preExDate = "無資料";
             } 
             else {
-                // RULE: Normal Calculation (2026 onwards)
                 if (pricePreEx === 0 || typeof pricePreEx !== 'number') {
-                    daysToFill = '無資料';
-                    isFilled = false;
-                    if(!preExDate) preExDate = "無資料";
+                    daysToFill = '無資料'; isFilled = false; if(!preExDate) preExDate = "無資料";
                 } else {
-                    // Check for Fill
                     const datesAfter = sortedDates.filter(d => d >= exDate);
                     for (const d of datesAfter) {
                         const p = etfPrices.get(d) || 0;
                         if (p >= (pricePreEx as number)) {
-                            isFilled = true;
-                            fillDate = d;
-                            fillPrice = p;
+                            isFilled = true; fillDate = d; fillPrice = p;
                             const start = new Date(exDate).getTime();
                             const end = new Date(d).getTime();
                             daysToFill = Math.ceil(Math.abs(end - start) / (1000 * 60 * 60 * 24));
@@ -265,58 +235,33 @@ export const getFillAnalysisData = async (): Promise<FillAnalysisData[]> => {
                 }
             }
         } else {
-            // No price map found
              if (isFuture) {
-                 pricePreEx = "待除息資訊";
-                 priceReference = "待除息資訊";
-                 fillPrice = "待除息資訊";
-                 daysToFill = "待除息資訊";
-                 preExDate = "待除息資訊";
-             } else if (exYear < 2026) {
-                 pricePreEx = "無資料";
-                 priceReference = "無資料";
-                 fillPrice = "無資料";
-                 daysToFill = "無資料";
-                 preExDate = "無資料";
+                 pricePreEx = "待除息資訊"; priceReference = "待除息資訊"; fillPrice = "待除息資訊"; daysToFill = "待除息資訊"; preExDate = "待除息資訊";
              } else {
                  daysToFill = "無資料";
              }
         }
-
-        results.push({
-            ...div,
-            preExDate,
-            pricePreEx,
-            priceReference,
-            fillDate,
-            fillPrice,
-            isFilled,
-            daysToFill
-        });
+        results.push({ ...div, preExDate, pricePreEx, priceReference, fillDate, fillPrice, isFilled, daysToFill });
     }
-
     return results.sort((a,b) => b.exDate.localeCompare(a.exDate));
-}
+};
 
 // --- FETCH & IMPORT ---
 const fetchGoogleSheet = async (urlStr: string): Promise<any[]> => {
     if (!urlStr) throw new Error("缺少 CSV 連結");
     const urls = urlStr.split('|').map(u => u.trim()).filter(u => u);
-    
     try {
         const fetchPromises = urls.map(async (url) => {
             if (!url.startsWith('http')) return [];
             let fetchUrl = url;
             if (url.includes('docs.google.com/spreadsheets') && !url.includes('output=csv')) {
-                 if (url.includes('?')) fetchUrl += '&output=csv';
-                 else fetchUrl += '?output=csv';
+                 if (url.includes('?')) fetchUrl += '&output=csv'; else fetchUrl += '?output=csv';
             }
             const response = await fetch(fetchUrl);
             if (!response.ok) return [];
             const text = await response.text();
             return parseCSV(text);
         });
-
         const results = await Promise.all(fetchPromises);
         const flattened = results.flat();
         if (flattened.length === 0) throw new Error("匯入失敗：內容為空。");
@@ -327,32 +272,20 @@ const fetchGoogleSheet = async (urlStr: string): Promise<any[]> => {
     }
 };
 
-const getProp = (row: any, ...keys: string[]) => {
-    for (const k of keys) {
-        if (row[k] !== undefined) return row[k];
-        const normK = k.replace(/\s+/g, '');
-        if (row[normK] !== undefined) return row[normK];
-        const lowerK = k.toLowerCase();
-        const found = Object.keys(row).find(key => key.toLowerCase() === lowerK || key.replace(/\s+/g, '').toLowerCase() === lowerK.replace(/\s+/g, ''));
-        if (found) return row[found];
-    }
-    return undefined;
-};
-
 export const importMarketData = async (url: string) => {
     const rawData = await fetchGoogleSheet(url);
     const newItems = rawData.map(row => ({
-        indexName: getProp(row, '指數名稱', 'IndexName') || '',
+        indexName: getProp(row, '指數名稱', 'IndexName', '名稱') || '',
         code: getProp(row, '代碼', 'Code') || '',
-        date: normalizeDate(getProp(row, '日期 tradetime', '日期', 'Date')),
-        prevClose: safeFloat(getProp(row, '昨日收盤 closeyest', '昨日收盤')),
-        open: safeFloat(getProp(row, '開盤 priceopen', '開盤')),
-        high: safeFloat(getProp(row, '高價 high', '高價')),
-        low: safeFloat(getProp(row, '低價 low', '低價')),
+        date: normalizeDate(getProp(row, '日期 tradetime', '日期', 'Date', 'tradetime')),
+        prevClose: safeFloat(getProp(row, '昨日收盤 closeyest', '昨日收盤', 'closeyest', '昨日')),
+        open: safeFloat(getProp(row, '開盤 priceopen', '開盤', 'open')),
+        high: safeFloat(getProp(row, '高價 high', '高價', 'high')),
+        low: safeFloat(getProp(row, '低價 low', '低價', 'low')),
         price: safeFloat(getProp(row, '現價 price', '現價', '收盤價', 'Price', 'Close', '收盤')),
-        volume: safeFloat(getProp(row, '成交量 volume', '成交量')),
-        change: safeFloat(getProp(row, '漲跌點數', '漲跌')),
-        changePercent: safeFloat(getProp(row, '漲跌幅度', '漲跌幅 changepercent', '漲跌幅')),
+        volume: safeFloat(getProp(row, '成交量 volume', '成交量', 'volume')),
+        change: safeFloat(getProp(row, '漲跌點數', '漲跌', 'change')),
+        changePercent: safeFloat(getProp(row, '漲跌幅度', '漲跌幅 changepercent', '漲跌幅', '幅度(%)', 'percent', 'changepercent')),
         type: ((getProp(row, '代碼', 'Code') && String(getProp(row, '代碼', 'Code')).length > 4) ? 'US' : 'TW') as 'TW' | 'US' 
     })).filter(item => item.indexName && item.date);
 
@@ -362,33 +295,69 @@ export const importMarketData = async (url: string) => {
 
 export const importBasicInfo = async (url: string) => {
     const rawData = await fetchGoogleSheet(url);
-    const newItems = rawData.map(row => ({
-        etfCode: getProp(row, 'ETF 代碼', '代碼') || 'UNKNOWN',
-        etfName: getProp(row, 'ETF 名稱', '名稱') || '',
-        category: getProp(row, '商品分類', '分類') || '',
-        dividendFreq: getProp(row, '配息週期', '週期') || '',
-        issuer: getProp(row, '發行投信', '投信') || '',
-        etfType: getProp(row, 'ETF類型', '類型') || '',
-        marketType: getProp(row, '上市/ 上櫃', '上市/上櫃', '市場') || '',
-        size: 0,
-        trend: ''
-    })).filter(d => d.etfCode !== 'UNKNOWN');
+    const newItems = rawData.map(row => {
+        return {
+            etfCode: String(getProp(row, 'ETF 代碼', '代碼', 'ETF代碼') || 'UNKNOWN').trim(),
+            etfName: getProp(row, 'ETF 名稱', '名稱', 'ETF名稱') || '',
+            category: getProp(row, '商品分類', '分類', 'Category') || '',
+            dividendFreq: getProp(row, '配息週期', '週期', 'Freq') || '',
+            issuer: getProp(row, '發行投信', '投信', 'Issuer') || '',
+            etfType: getProp(row, 'ETF類型', '類型', 'Type') || '',
+            marketType: getProp(row, '上市/ 上櫃', '上市/上櫃', '市場') || '',
+            size: 0,
+            trend: ''
+        };
+    }).filter(d => d.etfCode !== 'UNKNOWN') as BasicInfo[];
+
     localStorage.setItem(KEYS.BASIC, JSON.stringify(newItems)); 
     return { count: newItems.length, noChange: false };
 };
 
 export const importPriceData = async (url: string) => {
     const rawData = await fetchGoogleSheet(url);
-    const newItems = rawData.map(row => ({
-        etfCode: getProp(row, 'ETF 代碼', '代碼') || '',
-        etfName: getProp(row, 'ETF 名稱', '名稱') || '',
-        date: normalizeDate(getProp(row, '日期')),
-        prevClose: safeFloat(getProp(row, '昨日收盤價', '昨日收盤')),
-        open: safeFloat(getProp(row, '開盤')),
-        high: safeFloat(getProp(row, '最高')),
-        low: safeFloat(getProp(row, '最低')),
-        price: safeFloat(getProp(row, '股價'))
-    })).filter(item => item.etfCode && item.date);
+    const newItems: PriceData[] = [];
+    const ignoreKeys = ['代碼', '名稱', 'Code', 'Name', 'ETF', 'ETFName', 'ETFCode', 'ETF代碼', 'ETF名稱', '分類', '週期', '類型', 'Type', 'Category', 'Freq', '商品分類', '配息週期', 'ETF類型'];
+
+    rawData.forEach(row => {
+        const etfCode = String(getProp(row, 'ETF 代碼', '代碼', 'Code', 'ETFCode') || '').trim();
+        const etfName = getProp(row, 'ETF 名稱', '名稱', 'Name', 'ETFName') || '';
+        
+        if (!etfCode) return;
+
+        // 3. Strategy A: Wide Format (Dates as Headers)
+        Object.keys(row).forEach(key => {
+            if (ignoreKeys.some(k => key.includes(k))) return;
+            if (key.match(/\d{2,4}[-\/]\d{1,2}[-\/]\d{1,2}/)) {
+                 const val = row[key];
+                 const priceVal = safeFloat(val);
+                 if (priceVal > 0) {
+                     const dateStr = normalizeDate(key);
+                     if (dateStr) {
+                         newItems.push({ etfCode, etfName, date: dateStr, price: priceVal, prevClose: 0, open: 0, high: 0, low: 0 });
+                     }
+                 }
+            }
+        });
+
+        // 4. Strategy B: Vertical Format
+        const vDate = normalizeDate(getProp(row, '日期', 'Date'));
+        // STRICTER Price Column Selection
+        const vPrice = safeFloat(getProp(row, '收盤價', '收盤', 'Close', 'Price', '股價', '現價'));
+        
+        if (vDate && vPrice > 0) {
+            newItems.push({
+                etfCode,
+                etfName,
+                date: vDate,
+                price: vPrice,
+                prevClose: safeFloat(getProp(row, '昨日收盤價', '昨日收盤', 'Prev')),
+                open: safeFloat(getProp(row, '開盤', 'Open')),
+                high: safeFloat(getProp(row, '最高', 'High')),
+                low: safeFloat(getProp(row, '最低', 'Low'))
+            });
+        }
+    });
+
     const merged = mergeAndSave(KEYS.PRICE, await getPriceData(), newItems, 'etfCode', 'date');
     return { count: merged.length, noChange: false };
 };
@@ -396,12 +365,12 @@ export const importPriceData = async (url: string) => {
 export const importDividendData = async (url: string) => {
     const rawData = await fetchGoogleSheet(url);
     const newItems = rawData.map(row => ({
-        etfCode: getProp(row, 'ETF 代碼', '代碼', 'ETF代碼') || '',
+        etfCode: String(getProp(row, 'ETF 代碼', '代碼', 'ETF代碼') || '').trim(),
         etfName: getProp(row, 'ETF 名稱', '名稱', 'ETF名稱') || '',
-        yearMonth: getProp(row, '年月') || '',
-        exDate: normalizeDate(getProp(row, '除息日期', '除息日')),
-        amount: safeFloat(getProp(row, '除息金額', '金額')),
-        paymentDate: normalizeDate(getProp(row, '股利發放', '發放日')),
+        yearMonth: getProp(row, '年月', 'YearMonth') || '',
+        exDate: normalizeDate(getProp(row, '除息日期', '除息日', 'ExDate')),
+        amount: safeFloat(getProp(row, '除息金額', '金額', 'Amount')),
+        paymentDate: normalizeDate(getProp(row, '股利發放', '股利發放日', '發放日', 'PaymentDate')),
         yield: 0
     })).filter(item => item.etfCode && item.exDate); 
     const merged = mergeAndSave(KEYS.DIVIDEND, await getDividendData(), newItems, 'etfCode', 'exDate', 'amount');
@@ -412,7 +381,7 @@ export const importSizeData = async (url: string) => {
     const rawData = await fetchGoogleSheet(url);
     const newItems: SizeData[] = [];
     rawData.forEach(row => {
-        const etfCode = getProp(row, 'ETF 代碼', '代碼', 'Code', 'ETFCode');
+        const etfCode = String(getProp(row, 'ETF 代碼', '代碼', 'Code', 'ETFCode') || '').trim();
         const etfName = getProp(row, 'ETF 名稱', '名稱', 'Name', 'ETFName') || '';
         if (!etfCode) return;
         let foundDateColumn = false;
@@ -425,7 +394,7 @@ export const importSizeData = async (url: string) => {
                          const dateMatch = key.match(/(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})/);
                          if (dateMatch) {
                              const dateStr = `${dateMatch[1]}-${dateMatch[2].padStart(2,'0')}-${dateMatch[3].padStart(2,'0')}`;
-                             newItems.push({ etfCode: String(etfCode).trim(), etfName: String(etfName).trim(), date: dateStr, size: sizeVal });
+                             newItems.push({ etfCode: etfCode, etfName: etfName, date: dateStr, size: sizeVal });
                              foundDateColumn = true;
                          }
                     }
@@ -435,7 +404,7 @@ export const importSizeData = async (url: string) => {
         if (!foundDateColumn) {
              const sizeVal = safeFloat(getProp(row, '規模', '規模(億)', '資產規模', '最新規模', '基金規模', 'Size', 'Assets', 'AUM'));
              if (sizeVal > 0) {
-                 newItems.push({ etfCode: String(etfCode).trim(), etfName: String(etfName).trim(), date: normalizeDate(getProp(row, '日期', 'Date')) || new Date().toISOString().split('T')[0], size: sizeVal });
+                 newItems.push({ etfCode: etfCode, etfName: etfName, date: normalizeDate(getProp(row, '日期', 'Date')) || new Date().toISOString().split('T')[0], size: sizeVal });
              }
         }
     });
@@ -446,45 +415,32 @@ export const importSizeData = async (url: string) => {
 export const importHistoryData = async (url: string) => {
     const rawData = await fetchGoogleSheet(url);
     const newItems: HistoryData[] = [];
-
-    // Improved "Wide Format" detection:
-    // Simply iterate all keys. If a key looks like a date/month (e.g. 2025/1/1), treat as date col.
-    // Skip known non-date keys.
     const ignoreKeys = ['代碼', '名稱', 'Code', 'Name', 'ETF', 'ETFName', 'ETFCode', 'ETF 代碼', 'ETF 名稱'];
 
     rawData.forEach(row => {
-        const etfCode = getProp(row, 'ETF 代碼', '代碼', 'Code', 'ETFCode');
+        const etfCode = String(getProp(row, 'ETF 代碼', '代碼', 'Code', 'ETFCode') || '').trim();
         const etfName = getProp(row, 'ETF 名稱', '名稱', 'Name', 'ETFName') || '';
 
         if (!etfCode) return;
 
         Object.keys(row).forEach(key => {
             if (ignoreKeys.some(k => key.includes(k))) return;
-
-            // Check if key contains numbers resembling a date (YYYY/M/D or similar)
-            // This regex matches things like "2025/1/2", "2025-01-02", "114/05/20"
             if (key.match(/\d{2,4}[-\/]\d{1,2}[-\/]\d{1,2}/)) {
                  const val = row[key];
                  const priceVal = safeFloat(val);
                  if (priceVal > 0) {
                      const dateStr = normalizeDate(key);
                      if (dateStr) {
-                         newItems.push({
-                             etfCode: String(etfCode).trim(),
-                             etfName: String(etfName).trim(),
-                             date: dateStr,
-                             price: priceVal
-                         });
+                         newItems.push({ etfCode, etfName, date: dateStr, price: priceVal });
                      }
                  }
             }
         });
 
-        // Vertical Fallback
         const vDate = normalizeDate(getProp(row, '日期', 'Date'));
         const vPrice = safeFloat(getProp(row, '收盤價', 'Price', 'Close', '收盤', '股價'));
         if (vDate && vPrice > 0) {
-             newItems.push({ etfCode: String(etfCode).trim(), etfName: String(etfName).trim(), date: vDate, price: vPrice });
+             newItems.push({ etfCode: etfCode, etfName: etfName, date: vDate, price: vPrice });
         }
     });
 
@@ -500,7 +456,7 @@ const mergeAndSave = (key: string, existing: any[], newItems: any[], ...idKeys: 
     });
     newItems.forEach(i => {
         const id = idKeys.map(k => String(i[k]||'')).join('_');
-        dataMap.set(id, i); // Overwrite or add
+        dataMap.set(id, i); 
     });
     const merged = Array.from(dataMap.values());
     localStorage.setItem(key, JSON.stringify(merged));
@@ -518,9 +474,7 @@ export const exportToCSV = (filename: string, headers: string[], data: any[]) =>
         ...data.map(row => headers.map(fieldName => {
             const val = row[fieldName] || '';
             let finalVal = String(val).replace(/"/g, '""');
-            
-            // CRITICAL: Force Text Format for Codes (ETF Code)
-            if (fieldName.includes('代碼') || fieldName.includes('Code')) {
+            if (fieldName.match(/(代碼|Code|ID)/i)) {
                  return `="${finalVal}"`; 
             }
             return `"${finalVal}"`;

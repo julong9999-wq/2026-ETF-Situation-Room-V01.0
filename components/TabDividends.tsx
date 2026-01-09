@@ -317,18 +317,6 @@ const TabDividends: React.FC<TabDividendsProps> = ({
                 <button onClick={handleExport} className="flex items-center gap-2 px-3 py-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg hover:bg-emerald-100 font-bold text-base whitespace-nowrap shadow-sm" disabled={!selectedEtf}><Download className="w-4 h-4" /> 匯出表單</button>
               </div>
           </div>
-          {/* Chart Buttons Row */}
-          <div className="flex items-center justify-end gap-2 pt-2 border-t border-gray-100">
-                <button onClick={() => setActiveModal('TECH')} className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 text-white rounded-lg text-base font-bold hover:bg-blue-700 transition-colors shadow-sm">
-                    <LineChart className="w-4 h-4" /> 技術線圖
-                </button>
-                <button onClick={() => setActiveModal('TREND')} className="flex items-center gap-2 px-3 py-1.5 bg-orange-500 text-white rounded-lg text-base font-bold hover:bg-orange-600 transition-colors shadow-sm">
-                    <TrendingUp className="w-4 h-4" /> 月趨勢圖
-                </button>
-                <button onClick={() => setActiveModal('FILL')} className="flex items-center gap-2 px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-base font-bold hover:bg-emerald-700 transition-colors shadow-sm">
-                    <CheckCircle2 className="w-4 h-4" /> 填息分析
-                </button>
-          </div>
       </div>
 
        {/* Content */}

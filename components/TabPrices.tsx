@@ -387,7 +387,7 @@ const TabPrices: React.FC<TabPricesProps> = ({
           const totalDivs = periodDivs.reduce((acc, c) => acc + c.amount, 0);
           totalReturnVal = ((latestPrice + totalDivs - startPrice) / startPrice) * 100;
       }
-      return { latestPrice, startPrice, yieldVal, returnVal, totalReturnVal, estYieldVal };
+      return { latestPrice, startPrice, yieldVal, estYieldVal, returnVal, totalReturnVal };
   };
 
   const fmtP = (n: number | string) => { if (typeof n === 'string') return n; return n === 0 ? '-' : n.toFixed(2); };
@@ -486,21 +486,6 @@ const TabPrices: React.FC<TabPricesProps> = ({
                 </button>
               </div>
           </div>
-          {/* Chart Buttons Row */}
-          <div className="flex items-center justify-end gap-2 pt-2 border-t border-gray-100">
-                <button onClick={() => setActiveModal('TECH')} className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 text-white rounded-lg text-base font-bold hover:bg-blue-700 transition-colors shadow-sm">
-                    <LineChart className="w-4 h-4" /> 技術線圖
-                </button>
-                <button onClick={() => setActiveModal('DIV')} className="flex items-center gap-2 px-3 py-1.5 bg-purple-600 text-white rounded-lg text-base font-bold hover:bg-purple-700 transition-colors shadow-sm">
-                    <PieChart className="w-4 h-4" /> 除息資訊
-                </button>
-                <button onClick={() => setActiveModal('FILL')} className="flex items-center gap-2 px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-base font-bold hover:bg-emerald-700 transition-colors shadow-sm">
-                    <CheckCircle2 className="w-4 h-4" /> 填息分析
-                </button>
-                <button onClick={() => setActiveModal('TREND')} className="flex items-center gap-2 px-3 py-1.5 bg-orange-500 text-white rounded-lg text-base font-bold hover:bg-orange-600 transition-colors shadow-sm">
-                    <TrendingUp className="w-4 h-4" /> 月趨勢圖
-                </button>
-          </div>
       </div>
 
       {/* Main Content: Fixed Scroll Logic */}
@@ -549,6 +534,21 @@ const TabPrices: React.FC<TabPricesProps> = ({
                             <div className="flex items-center gap-3">
                                 <h3 className="font-bold text-blue-900 text-lg">{selectedEtf} 歷史股價</h3>
                                 <span className="text-base font-medium text-blue-600">({detailData.length} 筆)</span>
+                            </div>
+                            
+                            <div className="flex items-center gap-2">
+                                <button onClick={() => setActiveModal('TECH')} className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 text-white rounded-lg text-base font-bold hover:bg-blue-700 transition-colors shadow-sm">
+                                    <LineChart className="w-4 h-4" /> 技術線圖
+                                </button>
+                                <button onClick={() => setActiveModal('DIV')} className="flex items-center gap-2 px-3 py-1.5 bg-purple-600 text-white rounded-lg text-base font-bold hover:bg-purple-700 transition-colors shadow-sm">
+                                    <PieChart className="w-4 h-4" /> 除息資訊
+                                </button>
+                                <button onClick={() => setActiveModal('FILL')} className="flex items-center gap-2 px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-base font-bold hover:bg-emerald-700 transition-colors shadow-sm">
+                                    <CheckCircle2 className="w-4 h-4" /> 填息分析
+                                </button>
+                                <button onClick={() => setActiveModal('TREND')} className="flex items-center gap-2 px-3 py-1.5 bg-orange-500 text-white rounded-lg text-base font-bold hover:bg-orange-600 transition-colors shadow-sm">
+                                    <TrendingUp className="w-4 h-4" /> 月趨勢圖
+                                </button>
                             </div>
                         </div>
                         <div className="flex-1 overflow-auto min-h-0">
