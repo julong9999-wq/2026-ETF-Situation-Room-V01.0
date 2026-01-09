@@ -235,10 +235,10 @@ const TabAdvancedSearch: React.FC = () => {
         const scriptContent = `
 /**
  * ETF 戰情室 - 自動化週報生成腳本
- * 修正版: V3.2
- * 1. 嚴格欄位偵測：排除「昨日」、「開盤」、「漲跌」等關鍵字，解決抓錯價格問題。
- * 2. 日期標準化：強制轉換所有日期為 yyyy-MM-dd，解決比對失敗問題。
- * 3. 數值清理：處理千分位與空白。
+ * 修正版: V3.3
+ * 更新紀錄:
+ * 1. step4_UpdateFill: 修正「股價抓錯」問題 (增加 '開盤', '漲跌' 等中文關鍵字排除)，避免誤判填息。
+ * 2. 嚴格欄位偵測：全線排除「昨日」、「開盤」、「漲跌」等關鍵字。
  */
 
 var CONFIG = {
@@ -488,8 +488,8 @@ function step4_UpdateFill(dates) {
     var c = fetchCsv(u);
     if (c.length < 2) return;
     var h = c[0];
-    // 同樣使用嚴格排除
-    var exPrice = ['Open', 'High', 'Low', 'Prev', 'Change', 'Volume'];
+    // 同樣使用嚴格排除 (V3.3 修正: 增加中文關鍵字)
+    var exPrice = ['Open', 'High', 'Low', 'Prev', 'Change', 'Volume', '開盤', '最高', '最低', '昨收', '漲跌', '昨日'];
     var idx = { 
         code: findIdx(h,['代碼']), 
         date: findIdx(h,['日期']), 
@@ -670,7 +670,7 @@ function getWeight(cat, freq) {
         `;
 
         navigator.clipboard.writeText(scriptContent).then(() => {
-            alert("✅ 自動化腳本 V3.2 已複製！\n\n更新重點：\n1. 修正「股價抓錯」問題 (嚴格排除 Prev/Open/Change 欄位)\n2. 統一日期格式 (解決比對失敗)\n\n請至 Apps Script 貼上並執行。");
+            alert("✅ 自動化腳本 V3.3 已複製！\n\n更新重點：\n1. 修正「本周填息」可能誤抓到開盤/最高價的問題\n\n請至 Apps Script 貼上並執行。");
         }).catch(err => {
             console.error('Failed to copy: ', err);
             alert("複製失敗，請手動選取程式碼。");
