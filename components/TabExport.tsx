@@ -20,93 +20,56 @@ const TabExport: React.FC = () => {
         const d = (await getDividendData()).length;
         const s = (await getSizeData()).length;
         const h = (await getHistoryData()).length;
-        // Fill Analysis is calculated, count matches dividend records roughly
         setCounts({ market: m, basic: b, price: p, dividend: d, size: s, history: h, fill: d });
     };
 
     const handleExport = async (type: string, title: string) => {
         setLoadingState(prev => ({ ...prev, [type]: true }));
-        
         try {
             const dateStr = new Date().toISOString().split('T')[0];
-            
             if (type === 'market') {
                 const data = await getMarketData();
                 const headers = ['指數名稱', '日期', '昨日收盤', '開盤', '高價', '低價', '現價', '成交量', '漲跌', '漲跌幅'];
-                const rows = data.map(d => ({
-                    '指數名稱': d.indexName, 
-                    '日期': d.date,
-                    '昨日收盤': d.prevClose, 
-                    '開盤': d.open, 
-                    '高價': d.high, 
-                    '低價': d.low, 
-                    '現價': d.price,
-                    '成交量': d.volume, 
-                    '漲跌': d.change, 
-                    '漲跌幅': d.changePercent
-                }));
+                const rows = data.map(d => ({ '指數名稱': d.indexName, '日期': d.date, '昨日收盤': d.prevClose, '開盤': d.open, '高價': d.high, '低價': d.low, '現價': d.price, '成交量': d.volume, '漲跌': d.change, '漲跌幅': d.changePercent }));
                 exportToCSV(`DB_國際大盤_${dateStr}`, headers, rows);
             }
             else if (type === 'basic') {
                 const data = await getBasicInfo();
                 const headers = ['ETF代碼', 'ETF名稱', '商品分類', '配息週期', '發行投信', 'ETF類型', '上市櫃'];
-                const rows = data.map(d => ({
-                    'ETF代碼': d.etfCode, 'ETF名稱': d.etfName, '商品分類': d.category,
-                    '配息週期': d.dividendFreq, '發行投信': d.issuer, 'ETF類型': d.etfType, '上市櫃': d.marketType
-                }));
+                const rows = data.map(d => ({ 'ETF代碼': d.etfCode, 'ETF名稱': d.etfName, '商品分類': d.category, '配息週期': d.dividendFreq, '發行投信': d.issuer, 'ETF類型': d.etfType, '上市櫃': d.marketType }));
                 exportToCSV(`DB_基本資料_${dateStr}`, headers, rows);
             }
             else if (type === 'price') {
                 const data = await getPriceData();
                 const headers = ['ETF代碼', 'ETF名稱', '日期', '昨日收盤', '開盤', '最高', '最低', '股價'];
-                const rows = data.map(d => ({
-                    'ETF代碼': d.etfCode, 'ETF名稱': d.etfName, '日期': d.date,
-                    '昨日收盤': d.prevClose, '開盤': d.open, '最高': d.high, '最低': d.low, '股價': d.price
-                }));
+                const rows = data.map(d => ({ 'ETF代碼': d.etfCode, 'ETF名稱': d.etfName, '日期': d.date, '昨日收盤': d.prevClose, '開盤': d.open, '最高': d.high, '最低': d.low, '股價': d.price }));
                 exportToCSV(`DB_每日股價_${dateStr}`, headers, rows);
             }
             else if (type === 'dividend') {
                 const data = await getDividendData();
                 const headers = ['ETF代碼', 'ETF名稱', '年月', '除息日期', '除息金額', '發放日'];
-                const rows = data.map(d => ({
-                    'ETF代碼': d.etfCode, 'ETF名稱': d.etfName, '年月': d.yearMonth,
-                    '除息日期': d.exDate, '除息金額': d.amount, '發放日': d.paymentDate
-                }));
+                const rows = data.map(d => ({ 'ETF代碼': d.etfCode, 'ETF名稱': d.etfName, '年月': d.yearMonth, '除息日期': d.exDate, '除息金額': d.amount, '發放日': d.paymentDate }));
                 exportToCSV(`DB_除息資料_${dateStr}`, headers, rows);
             }
             else if (type === 'size') {
                 const data = await getSizeData();
                 const headers = ['ETF代碼', 'ETF名稱', '日期', '規模(億)'];
-                const rows = data.map(d => ({
-                    'ETF代碼': d.etfCode, 'ETF名稱': d.etfName, '日期': d.date, '規模(億)': d.size
-                }));
+                const rows = data.map(d => ({ 'ETF代碼': d.etfCode, 'ETF名稱': d.etfName, '日期': d.date, '規模(億)': d.size }));
                 exportToCSV(`DB_規模資料_${dateStr}`, headers, rows);
             }
             else if (type === 'history') {
                 const data = await getHistoryData();
                 const headers = ['ETF代碼', 'ETF名稱', '日期', '收盤價'];
-                const rows = data.map(d => ({
-                    'ETF代碼': d.etfCode, 'ETF名稱': d.etfName, '日期': d.date, '收盤價': d.price
-                }));
+                const rows = data.map(d => ({ 'ETF代碼': d.etfCode, 'ETF名稱': d.etfName, '日期': d.date, '收盤價': d.price }));
                 exportToCSV(`DB_歷史股價_${dateStr}`, headers, rows);
             }
             else if (type === 'fill') {
                 const data = await getFillAnalysisData();
                 const headers = ['ETF代碼', 'ETF名稱', '除息日期', '除息金額', '除息前股價', '參考價', '填息日期', '填息價', '是否填息', '填息天數'];
-                const rows = data.map(d => ({
-                    'ETF代碼': d.etfCode, 'ETF名稱': d.etfName, '除息日期': d.exDate, '除息金額': d.amount,
-                    '除息前股價': d.pricePreEx, '參考價': d.priceReference, '填息日期': d.fillDate, '填息價': d.fillPrice,
-                    '是否填息': d.isFilled ? '是' : '否', '填息天數': d.daysToFill
-                }));
+                const rows = data.map(d => ({ 'ETF代碼': d.etfCode, 'ETF名稱': d.etfName, '除息日期': d.exDate, '除息金額': d.amount, '除息前股價': d.pricePreEx, '參考價': d.priceReference, '填息日期': d.fillDate, '填息價': d.fillPrice, '是否填息': d.isFilled ? '是' : '否', '填息天數': d.daysToFill }));
                 exportToCSV(`REPORT_全市場填息分析_${dateStr}`, headers, rows);
             }
-
-        } catch (e) {
-            alert("匯出失敗，請檢查資料完整性。");
-            console.error(e);
-        } finally {
-            setTimeout(() => setLoadingState(prev => ({ ...prev, [type]: false })), 500);
-        }
+        } catch (e) { alert("匯出失敗，請檢查資料完整性。"); console.error(e); } finally { setTimeout(() => setLoadingState(prev => ({ ...prev, [type]: false })), 500); }
     };
 
     const cards = [
@@ -126,32 +89,32 @@ const TabExport: React.FC = () => {
                     <DownloadCloud className="w-8 h-8 text-primary-600" />
                     全域資料匯出中心
                 </h2>
-                <p className="text-primary-500 mt-1">
+                <p className="text-primary-500 mt-2 text-base">
                     此處可匯出系統資料庫中的完整原始數據，不包含任何過濾條件。
                 </p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 pb-10">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 pb-10">
                 {cards.map(card => {
                     const Icon = card.icon;
                     const count = counts[card.id] || 0;
                     const isProcessing = loadingState[card.id];
 
                     return (
-                        <div key={card.id} className={`bg-white rounded-xl shadow-sm border ${card.border} p-4 flex flex-col hover:shadow-md transition-shadow gap-3`}>
+                        <div key={card.id} className={`bg-white rounded-xl shadow-sm border ${card.border} p-5 flex flex-col hover:shadow-md transition-shadow gap-4`}>
                             {/* Line 1: Icon + Title + Count */}
                             <div className="flex items-center gap-3">
-                                <div className={`p-2 rounded-lg ${card.bg} shrink-0`}>
-                                    <Icon className={`w-5 h-5 ${card.color}`} />
+                                <div className={`p-2.5 rounded-lg ${card.bg} shrink-0`}>
+                                    <Icon className={`w-6 h-6 ${card.color}`} />
                                 </div>
-                                <h3 className="text-base font-bold text-gray-900 truncate flex-1">{card.title}</h3>
-                                <span className="bg-gray-100 text-gray-600 text-xs font-bold px-2 py-1 rounded-md font-mono shrink-0">
+                                <h3 className="text-lg font-bold text-gray-900 truncate flex-1">{card.title}</h3>
+                                <span className="bg-gray-100 text-gray-700 text-sm font-bold px-2 py-1 rounded-md font-mono shrink-0">
                                     {count.toLocaleString()} 筆
                                 </span>
                             </div>
                             
                             {/* Line 2: Description */}
-                            <div className="text-sm text-gray-500 leading-snug line-clamp-1 min-h-[1.25rem]">
+                            <div className="text-[15px] text-gray-500 leading-snug line-clamp-2 min-h-[2.5rem]">
                                 {card.desc}
                             </div>
 
@@ -160,7 +123,7 @@ const TabExport: React.FC = () => {
                                 onClick={() => handleExport(card.id, card.title)}
                                 disabled={isProcessing || count === 0}
                                 className={`
-                                    w-full py-2.5 rounded-lg font-bold text-sm flex items-center justify-center gap-2 transition-all active:scale-95
+                                    w-full py-3 rounded-lg font-bold text-[15px] flex items-center justify-center gap-2 transition-all active:scale-95
                                     ${count === 0 
                                         ? 'bg-gray-50 text-gray-300 cursor-not-allowed border border-gray-100' 
                                         : 'bg-white border border-gray-200 text-gray-700 hover:border-primary-500 hover:text-primary-600 hover:bg-primary-50'
@@ -169,11 +132,11 @@ const TabExport: React.FC = () => {
                             >
                                 {isProcessing ? (
                                     <span className="flex items-center gap-2 animate-pulse">
-                                        <DownloadCloud className="w-4 h-4" /> 處理中...
+                                        <DownloadCloud className="w-5 h-5" /> 處理中...
                                     </span>
                                 ) : (
                                     <>
-                                        <DownloadCloud className="w-4 h-4" />
+                                        <DownloadCloud className="w-5 h-5" />
                                         匯出 CSV
                                     </>
                                 )}
@@ -183,7 +146,7 @@ const TabExport: React.FC = () => {
                 })}
             </div>
             
-            <div className="mt-auto text-center text-xs text-gray-400">
+            <div className="mt-auto text-center text-sm text-gray-400">
                 系統資料最後更新檢查: {new Date().toLocaleDateString()}
             </div>
         </div>

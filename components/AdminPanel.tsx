@@ -21,7 +21,7 @@ import {
     getDividendData,
     getSizeData,
     getHistoryData,
-    DEFAULT_SYSTEM_URLS // Import the hardcoded system defaults
+    DEFAULT_SYSTEM_URLS 
 } from '../services/dataService';
 
 interface AdminPanelProps {
@@ -35,16 +35,12 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ userRole, onLoginSuccess }) => 
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [statusMsg, setStatusMsg] = useState<{id: string, msg: string, type: 'success' | 'error' | 'warning'} | null>(null);
   const [counts, setCounts] = useState<Record<string, number>>({});
-  
-  // Initial state uses System Defaults
   const [urls, setUrls] = useState(DEFAULT_SYSTEM_URLS);
 
   useEffect(() => {
       const savedUrls = localStorage.getItem(URL_STORAGE_KEY);
-      
       if (savedUrls) {
           const parsed = JSON.parse(savedUrls);
-          // Allow override, but fallback to System Defaults if keys missing
           setUrls({
               market: parsed.market || DEFAULT_SYSTEM_URLS.market,
               price: parsed.price || DEFAULT_SYSTEM_URLS.price,
@@ -54,10 +50,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ userRole, onLoginSuccess }) => 
               history: parsed.history || DEFAULT_SYSTEM_URLS.history
           });
       } else {
-          // If no local overrides, use the hardcoded system defaults
           setUrls(DEFAULT_SYSTEM_URLS);
       }
-      
       loadCounts();
   }, []);
 
@@ -132,26 +126,26 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ userRole, onLoginSuccess }) => 
             <div className="bg-gradient-to-r from-primary-600 to-primary-700 p-5 flex justify-between items-center text-white shadow-md flex-none">
                 <div className="flex items-center gap-3">
                     <div className="bg-white/20 p-2 rounded-lg backdrop-blur-sm">
-                        <Database className="w-5 h-5 text-white" />
+                        <Database className="w-6 h-6 text-white" />
                     </div>
-                    <h2 className="text-lg font-bold tracking-wide">資料庫維護中心</h2>
+                    <h2 className="text-xl font-bold tracking-wide">資料庫維護中心</h2>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-3">
                     <button 
                         onClick={handleResetToDefault}
-                        className="flex items-center gap-1 bg-white/20 hover:bg-white/30 px-3 py-1 rounded-full text-sm font-medium transition-colors"
+                        className="flex items-center gap-2 bg-white/20 hover:bg-white/30 px-4 py-1.5 rounded-full text-sm font-bold transition-colors"
                     >
-                        <RefreshCw className="w-3 h-3" />
+                        <RefreshCw className="w-4 h-4" />
                         還原預設連結
                     </button>
-                    <div className="text-sm font-medium bg-white/20 px-3 py-1 rounded-full border border-white/20">
+                    <div className="text-sm font-bold bg-white/20 px-4 py-1.5 rounded-full border border-white/20">
                         總筆數: {Object.values(counts).reduce((a: number, b: number) => a + b, 0).toLocaleString()}
                     </div>
                 </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-4 bg-primary-50/30">
-                <div className="grid gap-4">
+            <div className="flex-1 overflow-y-auto p-5 bg-primary-50/30">
+                <div className="grid gap-5">
                     {items.map((item) => {
                         const count = counts[item.id] || 0;
                         const hasData = count > 0;
@@ -159,21 +153,21 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ userRole, onLoginSuccess }) => 
                         const status = statusMsg?.id === item.id ? statusMsg : null;
 
                         return (
-                            <div key={item.id} className="group bg-white rounded-lg border border-primary-100 p-4 shadow-sm hover:shadow-md hover:border-primary-300 transition-all duration-200 flex flex-col lg:flex-row lg:items-center gap-4">
-                                <div className="flex items-center gap-3 w-full lg:w-1/3">
-                                    <div className={`w-2 h-10 rounded-full ${hasData ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.4)]' : 'bg-gray-300'}`}></div>
+                            <div key={item.id} className="group bg-white rounded-lg border border-primary-100 p-5 shadow-sm hover:shadow-md hover:border-primary-300 transition-all duration-200 flex flex-col lg:flex-row lg:items-center gap-5">
+                                <div className="flex items-center gap-4 w-full lg:w-1/3">
+                                    <div className={`w-2 h-12 rounded-full ${hasData ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.4)]' : 'bg-gray-300'}`}></div>
                                     <div>
-                                        <h3 className="text-base font-bold text-primary-900">{item.label}</h3>
-                                        <div className="flex items-center gap-2 mt-0.5">
-                                            <span className={`text-sm font-mono font-bold ${hasData ? 'text-green-600' : 'text-gray-400'}`}>
+                                        <h3 className="text-lg font-bold text-primary-900">{item.label}</h3>
+                                        <div className="flex items-center gap-2 mt-1">
+                                            <span className={`text-[15px] font-mono font-bold ${hasData ? 'text-green-600' : 'text-gray-400'}`}>
                                                 {count > 0 ? `${count.toLocaleString()} 筆` : '無資料'}
                                             </span>
                                             {status && (
-                                                <span className={`text-sm animate-in fade-in flex items-center gap-1 font-bold
+                                                <span className={`text-sm animate-in fade-in flex items-center gap-1 font-bold ml-2
                                                     ${status.type === 'success' ? 'text-primary-600' : 
                                                       status.type === 'warning' ? 'text-amber-600' : 'text-red-500'}`}>
-                                                    {status.type === 'warning' && <AlertCircle className="w-3 h-3" />}
-                                                    {status.type === 'success' && <CheckCircle className="w-3 h-3" />}
+                                                    {status.type === 'warning' && <AlertCircle className="w-4 h-4" />}
+                                                    {status.type === 'success' && <CheckCircle className="w-4 h-4" />}
                                                     {status.msg}
                                                 </span>
                                             )}
@@ -183,13 +177,13 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ userRole, onLoginSuccess }) => 
 
                                 <div className="flex-1 w-full relative">
                                     <div className="absolute left-3 top-1/2 -translate-y-1/2 text-primary-300 group-hover:text-primary-500 transition-colors">
-                                        <LinkIcon className="w-4 h-4" />
+                                        <LinkIcon className="w-5 h-5" />
                                     </div>
                                     <input 
                                         type="text" 
                                         value={(urls as any)[item.id]}
                                         onChange={(e) => handleInputChange(item.id, e.target.value)}
-                                        className="w-full pl-9 pr-3 py-2.5 bg-primary-50/50 border border-primary-100 rounded-lg text-sm text-primary-700 font-mono focus:bg-white focus:border-primary-400 focus:ring-4 focus:ring-primary-100 outline-none transition-all"
+                                        className="w-full pl-10 pr-3 py-3 bg-primary-50/50 border border-primary-100 rounded-lg text-base text-primary-700 font-mono focus:bg-white focus:border-primary-400 focus:ring-4 focus:ring-primary-100 outline-none transition-all"
                                         placeholder="系統預設連結 (唯讀模式建議)"
                                     />
                                 </div>
@@ -199,14 +193,14 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ userRole, onLoginSuccess }) => 
                                         onClick={() => handleImport(item.id as any, item.label)}
                                         disabled={isProcessing}
                                         className={`
-                                            h-10 px-5 rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm transition-all active:scale-95 border
+                                            h-11 px-6 rounded-lg text-[15px] font-bold flex items-center gap-2 shadow-sm transition-all active:scale-95 border
                                             ${isProcessing 
                                                 ? 'bg-primary-50 text-primary-400 border-primary-100 cursor-wait' 
                                                 : 'bg-primary-600 hover:bg-primary-700 text-white border-transparent shadow-primary-200'
                                             }
                                         `}
                                     >
-                                        <Search className={`w-4 h-4 ${isProcessing ? 'animate-spin' : ''}`} />
+                                        <Search className={`w-5 h-5 ${isProcessing ? 'animate-spin' : ''}`} />
                                         {isProcessing ? '處理中' : '匯入'}
                                     </button>
                                 </div>
