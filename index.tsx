@@ -2,7 +2,7 @@ import React, { ReactNode } from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 
-console.log("V1.24 Loaded - Robust Update");
+console.log("V1.25 Loaded - Stability Check");
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {
