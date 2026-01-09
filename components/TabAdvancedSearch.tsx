@@ -53,9 +53,6 @@ const TabAdvancedSearch: React.FC = () => {
         const base = new Date(refDate);
         const day = base.getDay(); // 0 (Sun) - 6 (Sat)
         // Calculate "This Monday"
-        // If Sunday (0), Monday is -6 days away? No, typically "This Week" implies Mon-Sun or Sun-Sat. 
-        // Let's assume ISO week: Monday is start.
-        // If today is Sunday(0), "This Monday" was 6 days ago.
         const diffToMon = base.getDate() - day + (day === 0 ? -6 : 1);
         
         const thisMondayObj = new Date(base);
@@ -106,7 +103,7 @@ const TabAdvancedSearch: React.FC = () => {
             if (cat.includes('國際') || cat.includes('國外')) return false;
             if (type.includes('國際') || type.includes('國外')) return false;
             if (market.includes('國外')) return false;
-            if (code === '00911') return false; // Known international
+            if (code === '00911') return false; 
 
             // Exclude Semi-Annual
             if (freq.includes('半年')) return false;
@@ -158,14 +155,21 @@ const TabAdvancedSearch: React.FC = () => {
             .sort((a,b) => a.exDate.localeCompare(b.exDate));
     }, [divData, mainTab, reportType, dateRange]);
 
-    // 4. FILL: This Mon -> This Fri (Filled Only)
+    // 4. FILL: This Mon -> This Fri (Filled Only, ExDate >= 2026)
     const reportFill = useMemo(() => {
         if (mainTab !== 'WEEKLY' || reportType !== 'FILL') return [];
         const start = dateRange.thisMonday;
         const end = dateRange.thisFriday;
 
         return fillData
-            .filter(d => d.isFilled && d.fillDate >= start && d.fillDate <= end)
+            .filter(d => {
+                const exYear = parseInt(d.exDate.split('-')[0]);
+                // Filter: Must be filled, Fill Date within range, AND Ex-Date Year >= 2026
+                return d.isFilled && 
+                       d.fillDate >= start && 
+                       d.fillDate <= end && 
+                       exYear >= 2026;
+            })
             .sort((a,b) => a.fillDate.localeCompare(b.fillDate));
     }, [fillData, mainTab, reportType, dateRange]);
 
@@ -183,7 +187,6 @@ const TabAdvancedSearch: React.FC = () => {
             const { headers: dateHeaders, rows } = reportPrice;
             const fixedHeaders = ['商品分類', '配息週期', 'ETF代碼', 'ETF名稱', 'ETF類型'];
             const allHeaders = [...fixedHeaders, ...dateHeaders];
-            // CSV utility expects array of objects, existing rows are perfect
             exportToCSV(`周報_ETF股價_${timestamp}`, allHeaders, rows);
         } else if (reportType === 'DIVIDEND') {
             const headers = ['ETF代碼', 'ETF名稱', '除息日期', '除息金額', '股利發放'];
@@ -256,19 +259,19 @@ const TabAdvancedSearch: React.FC = () => {
                             </button>
                         </div>
 
-                        {/* Report Type Tabs */}
+                        {/* Report Type Tabs - SHORTENED LABELS */}
                         <div className="p-2 border-b border-gray-200 bg-white flex gap-2 flex-none overflow-x-auto">
                             {[
-                                { id: 'MARKET', label: '國際大盤 (上週五~本週五)', icon: TrendingUp, color: 'text-blue-600' },
-                                { id: 'PRICE', label: 'ETF 股價 (排除半年/國際)', icon: FileText, color: 'text-indigo-600' },
+                                { id: 'MARKET', label: '國際大盤', icon: TrendingUp, color: 'text-blue-600' },
+                                { id: 'PRICE', label: 'ETF股價', icon: FileText, color: 'text-indigo-600' },
                                 { id: 'DIVIDEND', label: '本週除息', icon: Filter, color: 'text-purple-600' },
-                                { id: 'FILL', label: '本週填息 (成功名單)', icon: Search, color: 'text-emerald-600' }
+                                { id: 'FILL', label: '本週填息', icon: Search, color: 'text-emerald-600' }
                             ].map(btn => (
                                 <button
                                     key={btn.id}
                                     onClick={() => setReportType(btn.id as any)}
                                     className={`
-                                        flex items-center gap-2 px-4 py-2 rounded-lg font-bold border transition-all whitespace-nowrap
+                                        flex items-center gap-2 px-4 py-2 rounded-lg font-bold border transition-all whitespace-nowrap min-w-[120px] justify-center
                                         ${reportType === btn.id 
                                             ? `bg-gray-800 text-white border-gray-800 shadow-md` 
                                             : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
@@ -397,7 +400,7 @@ const TabAdvancedSearch: React.FC = () => {
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-gray-100">
-                                        {reportFill.length === 0 ? <tr><td colSpan={9} className="p-8 text-center text-gray-400">本週無填息資料</td></tr> :
+                                        {reportFill.length === 0 ? <tr><td colSpan={9} className="p-8 text-center text-gray-400">本週無填息資料 (僅顯示2026年起之除息)</td></tr> :
                                         reportFill.map((d, i) => (
                                             <tr key={i} className="hover:bg-emerald-50">
                                                 <td className="p-3 font-mono font-bold text-emerald-700">{d.etfCode}</td>
