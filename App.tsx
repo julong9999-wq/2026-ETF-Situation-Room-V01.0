@@ -6,8 +6,8 @@ import { Loader2, RefreshCw, CheckCircle2, LayoutDashboard, TrendingUp, Download
 import AdSenseBlock from './components/AdSenseBlock';
 
 // --- SYSTEM VERSION CONTROL ---
-const APP_VERSION = 'V.01.31'; // Internal Logic Version (Bumped for V1.25)
-const DISPLAY_VERSION = 'V1.25'; // UI Display Version
+const APP_VERSION = 'V.01.32'; // Internal Logic Version (Bumped for V1.26)
+const DISPLAY_VERSION = 'V1.26'; // UI Display Version
 const STORAGE_VERSION_KEY = 'app_system_version';
 
 // Placeholders
@@ -28,13 +28,13 @@ const UpdateOverlay = ({ serverVersion, onUpdate }: { serverVersion: string, onU
         </div>
         <h1 className="text-3xl font-bold mb-4 text-center">偵測到版本更新 {serverVersion}</h1>
         <p className="text-indigo-200 mb-8 text-center max-w-md text-lg">
-            新版本 V1.25 已發布。
+            新版本 V1.26 已發布。
         </p>
         <button 
             onClick={onUpdate}
             className="group relative bg-white hover:bg-gray-100 text-indigo-900 font-bold text-xl px-10 py-4 rounded-full shadow-2xl transition-all hover:scale-105 active:scale-95 flex items-center gap-3"
         >
-            <span>立即更新 V1.25</span>
+            <span>立即更新 V1.26</span>
             <ArrowRight className="w-6 h-6 group-hover:translate-x-1 transition-transform" />
         </button>
         <div className="mt-8 text-sm text-indigo-400/60 font-mono">Current: {DISPLAY_VERSION}</div>
@@ -192,7 +192,7 @@ const App: React.FC = () => {
   // New State for Auto Update
   const [updateAvailable, setUpdateAvailable] = useState<string | null>(null);
 
-  // --- AUTO UPDATER LOGIC (DUAL FALLBACK) ---
+  // --- AUTO UPDATER LOGIC (DUAL FALLBACK & AGGRESSIVE CACHE BUSTING) ---
   const checkForUpdates = async (manual = false) => {
       try {
           if (window.location.protocol === 'file:') {
@@ -204,11 +204,17 @@ const App: React.FC = () => {
           let serverVersion = null;
           let source = 'metadata';
 
-          // 1. Try metadata.json
+          // 1. Try metadata.json with NO-STORE headers
           try {
               const targetUrl = new URL('metadata.json', window.location.href).href;
-              // Add timestamp to prevent caching
-              const response = await fetch(`${targetUrl}?t=${Date.now()}`);
+              const response = await fetch(`${targetUrl}?t=${Date.now()}`, {
+                  cache: 'no-store', // Force network
+                  headers: {
+                      'Pragma': 'no-cache',
+                      'Cache-Control': 'no-cache'
+                  }
+              });
+              
               if (response.ok) {
                   const data = await response.json();
                   serverVersion = data.version;
@@ -224,13 +230,13 @@ const App: React.FC = () => {
               source = 'html_fallback';
               try {
                   console.log("Attempting HTML fallback check...");
-                  // Fetch current page content from server
                   const pageUrl = window.location.href.split('#')[0].split('?')[0]; 
-                  const response = await fetch(`${pageUrl}?t=${Date.now()}`, { cache: 'no-store' });
+                  const response = await fetch(`${pageUrl}?t=${Date.now()}`, { 
+                      cache: 'no-store',
+                      headers: { 'Pragma': 'no-cache', 'Cache-Control': 'no-cache' }
+                  });
                   if (response.ok) {
                       const text = await response.text();
-                      // Look for <title>ETF Master Dashboard V1.xx</title>
-                      // Using strict regex to find V\d.\d\d format
                       const match = text.match(/<title>.*?ETF Master Dashboard (V\d+\.\d+).*?<\/title>/i);
                       if (match && match[1]) {
                           serverVersion = match[1];
@@ -248,7 +254,7 @@ const App: React.FC = () => {
                return true;
           } else {
                if (serverVersion) {
-                   if (manual) alert(`目前已是最新版本 (${DISPLAY_VERSION}) - Source: ${source}`);
+                   if (manual) alert(`檢查結果：目前已是最新。\n\n伺服器版本: ${serverVersion}\n本地版本: ${DISPLAY_VERSION}\n來源: ${source}\n\n(若您確定已部署新版，請嘗試清除瀏覽器快取)`);
                } else {
                    if (manual) alert(`檢查更新失敗：無法讀取版本資訊 (metadata.json 或 index.html 皆失敗)`);
                }
@@ -369,10 +375,10 @@ const App: React.FC = () => {
       return (
           <div className="flex flex-col items-center justify-center h-screen bg-blue-50 text-blue-900">
               <Loader2 className="w-16 h-16 animate-spin mb-6 text-blue-600" />
-              <h2 className="text-2xl font-bold mb-2">系統載入中 (V1.25)...</h2>
+              <h2 className="text-2xl font-bold mb-2">系統載入中 (V1.26)...</h2>
               <div className="bg-white/50 px-6 py-4 rounded-xl text-center border border-blue-200 max-w-sm">
-                  <p className="text-sm text-blue-800 font-bold mb-1">正在套用 V1.25 更新</p>
-                  <p className="text-xs text-blue-600">系統效能優化</p>
+                  <p className="text-sm text-blue-800 font-bold mb-1">正在套用 V1.26 更新</p>
+                  <p className="text-xs text-blue-600">強力快取清除機制</p>
               </div>
           </div>
       );
@@ -436,7 +442,7 @@ const App: React.FC = () => {
             })}
           </nav>
           
-          {/* V1.25 Feature Highlight */}
+          {/* V1.26 Feature Highlight */}
           {sidebarOpen && (
             <div className="mx-2 mb-2 p-3 bg-indigo-900/80 rounded-lg border border-indigo-700 shadow-inner group relative overflow-hidden">
                 <div className="absolute top-0 right-0 p-1 opacity-20">
@@ -444,11 +450,11 @@ const App: React.FC = () => {
                 </div>
                 <div className="text-xs font-bold text-indigo-300 mb-1 flex items-center gap-1.5 relative z-10">
                     <Zap className="w-3.5 h-3.5 fill-indigo-400" /> 
-                    <span>Version 1.25</span>
+                    <span>Version 1.26</span>
                 </div>
                 <p className="text-[10px] text-indigo-100 leading-relaxed font-mono relative z-10">
-                    更新機制驗證<br/>
-                    系統穩定性優化
+                    強力快取清除機制<br/>
+                    伺服器版本除錯
                 </p>
             </div>
           )}
@@ -485,7 +491,7 @@ const App: React.FC = () => {
                     <div className="flex flex-col items-center gap-1">
                         <div className="text-xs text-blue-500 font-mono text-center">
                             <div>V1</div>
-                            <div>.25</div>
+                            <div>.26</div>
                         </div>
                         <Settings className="w-3 h-3 text-blue-500 group-hover:text-blue-300" />
                     </div>
