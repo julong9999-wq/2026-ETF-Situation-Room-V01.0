@@ -4,12 +4,12 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     
-    <!-- V1.32: Cache Control Meta Tags -->
+    <!-- V1.33: Cache Control Meta Tags -->
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
     <meta http-equiv="Pragma" content="no-cache" />
     <meta http-equiv="Expires" content="0" />
     
-    <title>ETF Master Dashboard V1.32</title>
+    <title>ETF Master Dashboard V1.33</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
       window.process = {
@@ -20,7 +20,7 @@
       };
       window.global = window;
 
-      // --- KILL SWITCH FOR SERVICE WORKERS (V1.32) ---
+      // --- KILL SWITCH FOR SERVICE WORKERS (V1.33) ---
       if ('serviceWorker' in navigator) {
         navigator.serviceWorker.getRegistrations().then(function(registrations) {
           for(let registration of registrations) {
@@ -37,17 +37,17 @@
           extend: {
             colors: {
               primary: {
-                50: '#eff6ff',
-                100: '#dbeafe',
-                200: '#bfdbfe',
-                300: '#93c5fd',
-                400: '#60a5fa',
-                500: '#3b82f6',
-                600: '#2563eb',
-                700: '#1d4ed8',
-                800: '#1e40af',
-                900: '#1e3a8a',
-                950: '#172554',
+                50: '#fff1f2',
+                100: '#ffe4e6',
+                200: '#fecdd3',
+                300: '#fda4af',
+                400: '#fb7185',
+                500: '#f43f5e',
+                600: '#e11d48',
+                700: '#be123c',
+                800: '#9f1239',
+                900: '#881337',
+                950: '#4c0519',
               },
             }
           },
@@ -56,9 +56,9 @@
     </script>
     <style>
       ::-webkit-scrollbar { width: 8px; height: 8px; }
-      ::-webkit-scrollbar-track { background: #eff6ff; }
-      ::-webkit-scrollbar-thumb { background: #93c5fd; border-radius: 4px; }
-      ::-webkit-scrollbar-thumb:hover { background: #60a5fa; }
+      ::-webkit-scrollbar-track { background: #fff1f2; }
+      ::-webkit-scrollbar-thumb { background: #fda4af; border-radius: 4px; }
+      ::-webkit-scrollbar-thumb:hover { background: #fb7185; }
       body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
     </style>
   <script type="importmap">
@@ -75,7 +75,7 @@
 }
 </script>
 </head>
-  <body class="bg-blue-50 text-slate-900 h-screen overflow-hidden">
+  <body class="bg-rose-50 text-slate-900 h-screen overflow-hidden">
     <div id="root"></div>
     <script type="module" src="./index.tsx"></script>
   </body>

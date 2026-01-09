@@ -2,7 +2,7 @@ import React, { Component, ReactNode } from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 
-console.log("V1.32 Loaded - Violet Theme & URL Logic");
+console.log("V1.33 Loaded - Rose Theme & Snapshot Guard");
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {
@@ -55,7 +55,7 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
             padding: '20px', 
             fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif', 
             color: '#4b5563', 
-            backgroundColor: '#f3f4f6', 
+            backgroundColor: '#fff1f2', 
             display: 'flex', 
             flexDirection: 'column', 
             alignItems: 'center', 
@@ -65,29 +65,29 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
             overflow: 'auto'
         }}>
           <div style={{ fontSize: '80px', marginBottom: '20px', opacity: 0.8 }}>🔧</div>
-          <h1 style={{ fontSize: '24px', fontWeight: 'bold', marginBottom: '8px', color: '#1f2937' }}>系統自動偵測到異常</h1>
-          <p style={{ marginBottom: '24px', color: '#6b7280' }}>可能是因為資料來源連結失效，導致匯入了錯誤的內容。</p>
+          <h1 style={{ fontSize: '24px', fontWeight: 'bold', marginBottom: '8px', color: '#881337' }}>系統自動偵測到異常</h1>
+          <p style={{ marginBottom: '24px', color: '#9f1239' }}>可能是因為資料來源連結失效，導致匯入了錯誤的內容。</p>
           
           <button 
             onClick={this.handleHardReset}
             style={{
                 marginTop: '10px',
                 padding: '16px 32px',
-                backgroundColor: '#dc2626',
+                backgroundColor: '#e11d48',
                 color: 'white',
                 border: 'none',
                 borderRadius: '12px',
                 fontSize: '18px',
                 fontWeight: 'bold',
                 cursor: 'pointer',
-                boxShadow: '0 4px 6px -1px rgba(220, 38, 38, 0.4)',
+                boxShadow: '0 4px 6px -1px rgba(225, 29, 72, 0.4)',
                 transition: 'transform 0.1s'
             }}
           >
             🚀 點擊這裡：強制修復並重啟
           </button>
 
-          <p style={{ marginTop: '20px', fontSize: '12px', color: '#9ca3af' }}>
+          <p style={{ marginTop: '20px', fontSize: '12px', color: '#fda4af' }}>
             點擊後將清除暫存資料並重新整理頁面。
           </p>
         </div>
