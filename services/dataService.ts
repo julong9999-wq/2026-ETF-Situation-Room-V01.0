@@ -88,6 +88,7 @@ const parseCSV = (text: string): any[] => {
         const obj: any = {};
         originalHeaders.forEach((h, idx) => {
             obj[h] = row[idx];
+            // Also store normalized key for easier access later
             const normH = h.replace(/\s+/g, ''); 
             if (normH !== h) obj[normH] = row[idx];
         });
@@ -121,20 +122,36 @@ const normalizeDate = (dateVal: any): string => {
     return dateStr;
 };
 
-// --- PROPERTY GETTER (Strict Match) ---
-const getProp = (row: any, ...keys: string[]) => {
+// --- ROBUST PROPERTY GETTER (V3.2 COMPLIANT) ---
+// keys: candidates to look for
+// exclude: if the found key contains any of these, ignore it (case-insensitive)
+const getVal = (row: any, keys: string[], exclude: string[] = []): string | undefined => {
+    const isExcluded = (k: string) => {
+        if (exclude.length === 0) return false;
+        const lowerK = k.toLowerCase();
+        return exclude.some(ex => lowerK.includes(ex.toLowerCase()));
+    };
+
+    // 1. Try Direct Match on Keys
     for (const k of keys) {
-        // 1. Direct Match
-        if (row[k] !== undefined) return row[k];
-        
-        // 2. Normalized Match (remove spaces, lowercase)
-        const normK = k.replace(/\s+/g, '').toLowerCase();
-        const foundKey = Object.keys(row).find(key => 
-            key.replace(/\s+/g, '').toLowerCase() === normK
-        );
-        if (foundKey) return row[foundKey];
+        if (row[k] !== undefined && row[k] !== null && row[k] !== '') {
+            if (!isExcluded(k)) return row[k];
+        }
     }
-    // Partial match removed to prevent "Price" matching "Previous Price"
+
+    // 2. Try Normalized Match (ignore spaces/case)
+    const rowKeys = Object.keys(row);
+    for (const k of keys) {
+        const normTarget = k.replace(/\s+/g, '').toLowerCase();
+        const foundKey = rowKeys.find(rk => {
+            return rk.replace(/\s+/g, '').toLowerCase() === normTarget;
+        });
+        
+        if (foundKey && row[foundKey] !== undefined && !isExcluded(foundKey)) {
+            return row[foundKey];
+        }
+    }
+
     return undefined;
 };
 
@@ -274,19 +291,21 @@ const fetchGoogleSheet = async (urlStr: string): Promise<any[]> => {
 
 export const importMarketData = async (url: string) => {
     const rawData = await fetchGoogleSheet(url);
+    const exPrice = ['昨日', '前日', '開盤', '漲跌', 'Closeyest', 'Open', 'Change', 'Prev'];
+    
     const newItems = rawData.map(row => ({
-        indexName: getProp(row, '指數名稱', 'IndexName', '名稱') || '',
-        code: getProp(row, '代碼', 'Code') || '',
-        date: normalizeDate(getProp(row, '日期 tradetime', '日期', 'Date', 'tradetime')),
-        prevClose: safeFloat(getProp(row, '昨日收盤 closeyest', '昨日收盤', 'closeyest', '昨日')),
-        open: safeFloat(getProp(row, '開盤 priceopen', '開盤', 'open')),
-        high: safeFloat(getProp(row, '高價 high', '高價', 'high')),
-        low: safeFloat(getProp(row, '低價 low', '低價', 'low')),
-        price: safeFloat(getProp(row, '現價 price', '現價', '收盤價', 'Price', 'Close', '收盤')),
-        volume: safeFloat(getProp(row, '成交量 volume', '成交量', 'volume')),
-        change: safeFloat(getProp(row, '漲跌點數', '漲跌', 'change')),
-        changePercent: safeFloat(getProp(row, '漲跌幅度', '漲跌幅 changepercent', '漲跌幅', '幅度(%)', 'percent', 'changepercent')),
-        type: ((getProp(row, '代碼', 'Code') && String(getProp(row, '代碼', 'Code')).length > 4) ? 'US' : 'TW') as 'TW' | 'US' 
+        indexName: getVal(row, ['指數名稱', 'IndexName', '名稱']) || '',
+        code: getVal(row, ['代碼', 'Code']) || '',
+        date: normalizeDate(getVal(row, ['日期 tradetime', '日期', 'Date', 'tradetime'])),
+        prevClose: safeFloat(getVal(row, ['昨日收盤 closeyest', '昨日收盤', 'closeyest', '昨日'])),
+        open: safeFloat(getVal(row, ['開盤 priceopen', '開盤', 'open'], ['漲跌'])),
+        high: safeFloat(getVal(row, ['高價 high', '高價', 'high'])),
+        low: safeFloat(getVal(row, ['低價 low', '低價', 'low'])),
+        price: safeFloat(getVal(row, ['現價 price', '現價', '收盤價', 'Price', 'Close', '收盤'], exPrice)),
+        volume: safeFloat(getVal(row, ['成交量 volume', '成交量', 'volume'])),
+        change: safeFloat(getVal(row, ['漲跌點數', '漲跌', 'change'], ['幅度', 'Percent'])),
+        changePercent: safeFloat(getVal(row, ['漲跌幅度', '漲跌幅 changepercent', '漲跌幅', '幅度(%)', 'percent', 'changepercent'])),
+        type: ((getVal(row, ['代碼', 'Code']) && String(getVal(row, ['代碼', 'Code'])).length > 4) ? 'US' : 'TW') as 'TW' | 'US' 
     })).filter(item => item.indexName && item.date);
 
     const merged = mergeAndSave(KEYS.MARKET, await getMarketData(), newItems, 'indexName', 'date');
@@ -297,13 +316,13 @@ export const importBasicInfo = async (url: string) => {
     const rawData = await fetchGoogleSheet(url);
     const newItems = rawData.map(row => {
         return {
-            etfCode: String(getProp(row, 'ETF 代碼', '代碼', 'ETF代碼') || 'UNKNOWN').trim(),
-            etfName: getProp(row, 'ETF 名稱', '名稱', 'ETF名稱') || '',
-            category: getProp(row, '商品分類', '分類', 'Category') || '',
-            dividendFreq: getProp(row, '配息週期', '週期', 'Freq') || '',
-            issuer: getProp(row, '發行投信', '投信', 'Issuer') || '',
-            etfType: getProp(row, 'ETF類型', '類型', 'Type') || '',
-            marketType: getProp(row, '上市/ 上櫃', '上市/上櫃', '市場') || '',
+            etfCode: String(getVal(row, ['ETF 代碼', '代碼', 'ETF代碼', 'Code']) || 'UNKNOWN').trim(),
+            etfName: getVal(row, ['ETF 名稱', '名稱', 'ETF名稱', 'Name']) || '',
+            category: getVal(row, ['商品分類', '分類', 'Category']) || '',
+            dividendFreq: getVal(row, ['配息週期', '週期', 'Freq']) || '',
+            issuer: getVal(row, ['發行投信', '投信', 'Issuer']) || '',
+            etfType: getVal(row, ['ETF類型', '類型', 'Type']) || '',
+            marketType: getVal(row, ['上市/ 上櫃', '上市/上櫃', '市場', 'Market']) || '',
             size: 0,
             trend: ''
         };
@@ -317,10 +336,13 @@ export const importPriceData = async (url: string) => {
     const rawData = await fetchGoogleSheet(url);
     const newItems: PriceData[] = [];
     const ignoreKeys = ['代碼', '名稱', 'Code', 'Name', 'ETF', 'ETFName', 'ETFCode', 'ETF代碼', 'ETF名稱', '分類', '週期', '類型', 'Type', 'Category', 'Freq', '商品分類', '配息週期', 'ETF類型'];
+    
+    // Strict Exclusion List for Price
+    const exPrice = ['Open', 'High', 'Low', 'Prev', 'Change', 'Volume', '開盤', '最高', '最低', '昨收', '漲跌', '昨日'];
 
     rawData.forEach(row => {
-        const etfCode = String(getProp(row, 'ETF 代碼', '代碼', 'Code', 'ETFCode') || '').trim();
-        const etfName = getProp(row, 'ETF 名稱', '名稱', 'Name', 'ETFName') || '';
+        const etfCode = String(getVal(row, ['ETF 代碼', '代碼', 'Code', 'ETFCode', 'Symbol']) || '').trim();
+        const etfName = getVal(row, ['ETF 名稱', '名稱', 'Name', 'ETFName']) || '';
         
         if (!etfCode) return;
 
@@ -340,9 +362,9 @@ export const importPriceData = async (url: string) => {
         });
 
         // 4. Strategy B: Vertical Format
-        const vDate = normalizeDate(getProp(row, '日期', 'Date'));
+        const vDate = normalizeDate(getVal(row, ['日期', 'Date', 'Time']));
         // STRICTER Price Column Selection
-        const vPrice = safeFloat(getProp(row, '收盤價', '收盤', 'Close', 'Price', '股價', '現價'));
+        const vPrice = safeFloat(getVal(row, ['收盤價', '收盤', 'Close', 'Price', '股價', '現價'], exPrice));
         
         if (vDate && vPrice > 0) {
             newItems.push({
@@ -350,10 +372,10 @@ export const importPriceData = async (url: string) => {
                 etfName,
                 date: vDate,
                 price: vPrice,
-                prevClose: safeFloat(getProp(row, '昨日收盤價', '昨日收盤', 'Prev')),
-                open: safeFloat(getProp(row, '開盤', 'Open')),
-                high: safeFloat(getProp(row, '最高', 'High')),
-                low: safeFloat(getProp(row, '最低', 'Low'))
+                prevClose: safeFloat(getVal(row, ['昨日收盤價', '昨日收盤', 'Prev'])),
+                open: safeFloat(getVal(row, ['開盤', 'Open'], ['漲跌'])),
+                high: safeFloat(getVal(row, ['最高', 'High'])),
+                low: safeFloat(getVal(row, ['最低', 'Low']))
             });
         }
     });
@@ -365,12 +387,12 @@ export const importPriceData = async (url: string) => {
 export const importDividendData = async (url: string) => {
     const rawData = await fetchGoogleSheet(url);
     const newItems = rawData.map(row => ({
-        etfCode: String(getProp(row, 'ETF 代碼', '代碼', 'ETF代碼') || '').trim(),
-        etfName: getProp(row, 'ETF 名稱', '名稱', 'ETF名稱') || '',
-        yearMonth: getProp(row, '年月', 'YearMonth') || '',
-        exDate: normalizeDate(getProp(row, '除息日期', '除息日', 'ExDate')),
-        amount: safeFloat(getProp(row, '除息金額', '金額', 'Amount')),
-        paymentDate: normalizeDate(getProp(row, '股利發放', '股利發放日', '發放日', 'PaymentDate')),
+        etfCode: String(getVal(row, ['ETF 代碼', '代碼', 'ETF代碼', 'Code']) || '').trim(),
+        etfName: getVal(row, ['ETF 名稱', '名稱', 'ETF名稱', 'Name']) || '',
+        yearMonth: getVal(row, ['年月', 'YearMonth']) || '',
+        exDate: normalizeDate(getVal(row, ['除息日期', '除息日', 'ExDate'])),
+        amount: safeFloat(getVal(row, ['除息金額', '金額', 'Amount'])),
+        paymentDate: normalizeDate(getVal(row, ['股利發放', '股利發放日', '發放日', 'PaymentDate'])),
         yield: 0
     })).filter(item => item.etfCode && item.exDate); 
     const merged = mergeAndSave(KEYS.DIVIDEND, await getDividendData(), newItems, 'etfCode', 'exDate', 'amount');
@@ -381,8 +403,8 @@ export const importSizeData = async (url: string) => {
     const rawData = await fetchGoogleSheet(url);
     const newItems: SizeData[] = [];
     rawData.forEach(row => {
-        const etfCode = String(getProp(row, 'ETF 代碼', '代碼', 'Code', 'ETFCode') || '').trim();
-        const etfName = getProp(row, 'ETF 名稱', '名稱', 'Name', 'ETFName') || '';
+        const etfCode = String(getVal(row, ['ETF 代碼', '代碼', 'Code', 'ETFCode']) || '').trim();
+        const etfName = getVal(row, ['ETF 名稱', '名稱', 'Name', 'ETFName']) || '';
         if (!etfCode) return;
         let foundDateColumn = false;
         Object.keys(row).forEach(key => {
@@ -402,9 +424,9 @@ export const importSizeData = async (url: string) => {
             }
         });
         if (!foundDateColumn) {
-             const sizeVal = safeFloat(getProp(row, '規模', '規模(億)', '資產規模', '最新規模', '基金規模', 'Size', 'Assets', 'AUM'));
+             const sizeVal = safeFloat(getVal(row, ['規模', '規模(億)', '資產規模', '最新規模', '基金規模', 'Size', 'Assets', 'AUM']));
              if (sizeVal > 0) {
-                 newItems.push({ etfCode: etfCode, etfName: etfName, date: normalizeDate(getProp(row, '日期', 'Date')) || new Date().toISOString().split('T')[0], size: sizeVal });
+                 newItems.push({ etfCode: etfCode, etfName: etfName, date: normalizeDate(getVal(row, ['日期', 'Date'])) || new Date().toISOString().split('T')[0], size: sizeVal });
              }
         }
     });
@@ -416,10 +438,11 @@ export const importHistoryData = async (url: string) => {
     const rawData = await fetchGoogleSheet(url);
     const newItems: HistoryData[] = [];
     const ignoreKeys = ['代碼', '名稱', 'Code', 'Name', 'ETF', 'ETFName', 'ETFCode', 'ETF 代碼', 'ETF 名稱'];
+    const exPrice = ['Open', 'High', 'Low', 'Prev', 'Change', 'Volume'];
 
     rawData.forEach(row => {
-        const etfCode = String(getProp(row, 'ETF 代碼', '代碼', 'Code', 'ETFCode') || '').trim();
-        const etfName = getProp(row, 'ETF 名稱', '名稱', 'Name', 'ETFName') || '';
+        const etfCode = String(getVal(row, ['ETF 代碼', '代碼', 'Code', 'ETFCode']) || '').trim();
+        const etfName = getVal(row, ['ETF 名稱', '名稱', 'Name', 'ETFName']) || '';
 
         if (!etfCode) return;
 
@@ -437,8 +460,8 @@ export const importHistoryData = async (url: string) => {
             }
         });
 
-        const vDate = normalizeDate(getProp(row, '日期', 'Date'));
-        const vPrice = safeFloat(getProp(row, '收盤價', 'Price', 'Close', '收盤', '股價'));
+        const vDate = normalizeDate(getVal(row, ['日期', 'Date']));
+        const vPrice = safeFloat(getVal(row, ['收盤價', 'Price', 'Close', '收盤', '股價'], exPrice));
         if (vDate && vPrice > 0) {
              newItems.push({ etfCode: etfCode, etfName: etfName, date: vDate, price: vPrice });
         }

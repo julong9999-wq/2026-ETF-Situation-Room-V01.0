@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { getFillAnalysisData, getBasicInfo, getPriceData, getHistoryData, getDividendData, exportToCSV } from '../services/dataService';
 import { FillAnalysisData, BasicInfo, PriceData, HistoryData, DividendData } from '../types';
-import { Download, CheckCircle, Clock, Database, ChevronRight, ArrowRight, AlertCircle, CheckCircle2, LineChart, PieChart, TrendingUp, X } from 'lucide-react';
+import { Download, CheckCircle, Clock, Database, ChevronRight, ArrowRight, AlertCircle, CheckCircle2, LineChart, PieChart, TrendingUp, X, RefreshCw } from 'lucide-react';
 import { createChart, ColorType } from 'lightweight-charts';
 
 // --- SHARED MODAL COMPONENTS ---
@@ -133,6 +133,8 @@ const TabFillAnalysis: React.FC<TabFillAnalysisProps> = ({
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [activeModal, setActiveModal] = useState<'NONE' | 'TECH' | 'DIV' | 'TREND'>('NONE');
+  const [isDataStale, setIsDataStale] = useState(false);
+  const [latestDateStr, setLatestDateStr] = useState('');
 
   useEffect(() => {
     Promise.all([getFillAnalysisData(), getBasicInfo(), getPriceData(), getHistoryData(), getDividendData()]).then(([f, b, p, h, d]) => {
@@ -141,6 +143,17 @@ const TabFillAnalysis: React.FC<TabFillAnalysisProps> = ({
         const now = new Date();
         const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0); 
         setEndDate(lastDay.toISOString().split('T')[0]);
+
+        // Check Freshness
+        if (p.length > 0) {
+            let maxD = '';
+            p.forEach(x => { if(x.date > maxD) maxD = x.date; });
+            setLatestDateStr(maxD);
+            if (maxD) {
+                const diff = (new Date().getTime() - new Date(maxD).getTime()) / (1000 * 3600 * 24);
+                if (diff > 3) setIsDataStale(true);
+            }
+        }
     });
   }, []);
 
@@ -308,6 +321,20 @@ const TabFillAnalysis: React.FC<TabFillAnalysisProps> = ({
               </div>
           </div>
       </div>
+
+      {/* Freshness Alert */}
+      {isDataStale && (
+          <div className="bg-red-50 border-l-4 border-red-500 p-3 mx-2 rounded shadow-sm flex items-center justify-between animate-in fade-in slide-in-from-top-2">
+              <div className="flex items-center gap-3">
+                  <AlertCircle className="w-5 h-5 text-red-600" />
+                  <div>
+                      <p className="font-bold text-red-800 text-sm">注意：介面資料可能過期</p>
+                      <p className="text-xs text-red-600">系統最後股價日期為 {latestDateStr}，距離今天已超過 3 天。請前往「資料維護」執行匯入更新，否則填息判定可能不準確。</p>
+                  </div>
+              </div>
+              <a href="/?tab=ADVANCED" className="text-xs bg-white border border-red-200 text-red-700 px-3 py-1 rounded hover:bg-red-100 font-bold shadow-sm whitespace-nowrap">前往更新</a>
+          </div>
+      )}
 
       <div className="flex-1 flex gap-2 overflow-hidden min-h-0">
           
