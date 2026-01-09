@@ -297,7 +297,7 @@ const TabDividends: React.FC<TabDividendsProps> = ({
               <div className="flex gap-2 overflow-x-auto no-scrollbar">
                 {['全部', '季配', '月配', '債券', '主動', '國際', '半年'].map(cat => (
                     <button key={cat} onClick={() => { setMainFilter(cat); setSubFilter('ALL'); }}
-                        className={`px-5 py-2.5 rounded-lg text-base font-bold whitespace-nowrap transition-all border ${mainFilter === cat ? 'bg-blue-600 text-white border-blue-600 shadow-md' : 'bg-white text-blue-500 border-blue-100 hover:bg-blue-50 hover:text-blue-700'}`}>
+                        className={`px-4 py-2 rounded-lg text-base font-bold whitespace-nowrap transition-all border ${mainFilter === cat ? 'bg-blue-600 text-white border-blue-600 shadow-md' : 'bg-white text-blue-500 border-blue-100 hover:bg-blue-50 hover:text-blue-700'}`}>
                         {cat}
                     </button>
                 ))}
@@ -308,14 +308,14 @@ const TabDividends: React.FC<TabDividendsProps> = ({
                      <span className="text-base text-gray-400">~</span>
                      <input type="date" value={endDate} onChange={e=>setEndDate(e.target.value)} className="bg-transparent text-base w-40 font-mono outline-none text-gray-700 font-bold"/>
                  </div>
-                 <button onClick={() => setShowAnnoModal(true)} className="flex items-center gap-2 px-5 py-2.5 bg-purple-50 text-purple-700 border border-purple-200 rounded-lg hover:bg-purple-100 font-bold text-base whitespace-nowrap shadow-sm"><Megaphone className="w-5 h-5" /> <span className="hidden sm:inline">配息公告</span></button>
-                <button onClick={handleExport} className="flex items-center gap-2 px-5 py-2.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg hover:bg-emerald-100 font-bold text-base whitespace-nowrap shadow-sm" disabled={!selectedEtf}><Download className="w-5 h-5" /> <span>匯出表單</span></button>
+                 <button onClick={() => setShowAnnoModal(true)} className="flex items-center gap-2 px-4 py-2 bg-purple-50 text-purple-700 border border-purple-200 rounded-lg hover:bg-purple-100 font-bold text-base whitespace-nowrap shadow-sm"><Megaphone className="w-5 h-5" /> <span className="hidden sm:inline">配息公告</span></button>
+                <button onClick={handleExport} className="flex items-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg hover:bg-emerald-100 font-bold text-base whitespace-nowrap shadow-sm" disabled={!selectedEtf}><Download className="w-5 h-5" /> <span>匯出表單</span></button>
               </div>
           </div>
           {subOptions.length > 0 && (
               <div className="flex items-center gap-2 overflow-x-auto no-scrollbar border-t border-gray-100 pt-3 animate-in fade-in slide-in-from-top-1">
                   {subOptions.map(sub => (
-                      <button key={sub} onClick={() => setSubFilter(sub === '全部' ? 'ALL' : sub)} className={`px-4 py-2 rounded-lg text-base whitespace-nowrap transition-colors font-bold border ${(subFilter === sub || (subFilter === 'ALL' && sub === '全部')) ? 'bg-blue-800 text-white border-blue-800 shadow-sm' : 'bg-gray-50 text-gray-500 border-gray-200 hover:bg-white hover:text-blue-600 hover:border-blue-200'}`}>{sub}</button>
+                      <button key={sub} onClick={() => setSubFilter(sub === '全部' ? 'ALL' : sub)} className={`px-3 py-1.5 rounded-lg text-base whitespace-nowrap transition-colors font-bold border ${(subFilter === sub || (subFilter === 'ALL' && sub === '全部')) ? 'bg-blue-800 text-white border-blue-800 shadow-sm' : 'bg-gray-50 text-gray-500 border-gray-200 hover:bg-white hover:text-blue-600 hover:border-blue-200'}`}>{sub}</button>
                   ))}
               </div>
           )}
@@ -369,13 +369,13 @@ const TabDividends: React.FC<TabDividendsProps> = ({
                                 <span className="text-base font-medium text-purple-600">共 {detailData.length} 筆</span>
                             </div>
                             <div className="flex items-center gap-2">
-                                <button onClick={() => setActiveModal('TECH')} className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-lg text-base font-bold hover:bg-blue-700 transition-colors shadow-sm">
+                                <button onClick={() => setActiveModal('TECH')} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-base font-bold hover:bg-blue-700 transition-colors shadow-sm">
                                     <LineChart className="w-5 h-5" /> 技術線圖
                                 </button>
-                                <button onClick={() => setActiveModal('TREND')} className="flex items-center gap-2 px-5 py-2.5 bg-orange-500 text-white rounded-lg text-base font-bold hover:bg-orange-600 transition-colors shadow-sm">
+                                <button onClick={() => setActiveModal('TREND')} className="flex items-center gap-2 px-4 py-2 bg-orange-500 text-white rounded-lg text-base font-bold hover:bg-orange-600 transition-colors shadow-sm">
                                     <TrendingUp className="w-5 h-5" /> 月趨勢圖
                                 </button>
-                                <button onClick={() => setActiveModal('FILL')} className="flex items-center gap-2 px-5 py-2.5 bg-emerald-600 text-white rounded-lg text-base font-bold hover:bg-emerald-700 transition-colors shadow-sm">
+                                <button onClick={() => setActiveModal('FILL')} className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg text-base font-bold hover:bg-emerald-700 transition-colors shadow-sm">
                                     <CheckCircle2 className="w-5 h-5" /> 填息分析
                                 </button>
                             </div>

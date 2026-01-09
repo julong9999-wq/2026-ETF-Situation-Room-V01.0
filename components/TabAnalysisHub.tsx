@@ -5,7 +5,6 @@ import TabPrices from './TabPrices';
 import TabDividends from './TabDividends';
 import TabFillAnalysis from './TabFillAnalysis';
 import { LayoutDashboard, Receipt, LineChart, PieChart, TrendingUp, Users } from 'lucide-react';
-import AdSenseBlock from './AdSenseBlock';
 
 const TabAnalysisHub: React.FC = () => {
   const [activeTab, setActiveTab] = useState<string>('market');
@@ -57,7 +56,7 @@ const TabAnalysisHub: React.FC = () => {
                         key={feature.id}
                         onClick={() => setActiveTab(feature.id)}
                         className={`
-                            flex items-center gap-2 px-5 py-3 rounded-lg text-base font-bold whitespace-nowrap transition-all duration-200 border
+                            flex items-center gap-2 px-4 py-2 rounded-lg text-base font-bold whitespace-nowrap transition-all duration-200 border
                             ${isActive 
                                 ? 'bg-blue-600 text-white border-blue-600 shadow-md transform scale-105' 
                                 : 'bg-white text-blue-600 border-blue-100 hover:bg-blue-50 hover:border-blue-200'
@@ -78,26 +77,11 @@ const TabAnalysisHub: React.FC = () => {
 
       </div>
       
-      {/* Main Content Area */}
+      {/* Main Content Area - Full width, No Ads */}
       <div className="flex-1 flex min-h-0 overflow-hidden relative">
         <div className="flex-1 flex flex-col min-w-0 min-h-0 overflow-hidden relative">
             {activeFeature?.component}
         </div>
-
-        <div className="hidden lg:flex flex-none w-[220px] border-l border-blue-200 bg-white flex-col items-center p-4 z-10 min-h-0 overflow-hidden">
-            <div className="text-xs text-gray-400 mb-2 font-mono tracking-widest flex-none">SPONSORED</div>
-            <div className="w-full flex-1 flex flex-col gap-4 overflow-y-auto no-scrollbar">
-                 <div className="w-full rounded bg-gray-50 border border-gray-200 shadow-sm overflow-hidden flex-shrink-0" style={{ minHeight: '400px' }}>
-                     <AdSenseBlock 
-                         slot="0987654321" 
-                         format="vertical" 
-                         style={{ display: 'block', width: '100%', height: '100%' }}
-                         label="熱門推薦"
-                     />
-                 </div>
-            </div>
-        </div>
-
       </div>
     </div>
   );

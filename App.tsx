@@ -3,7 +3,6 @@ import TabAnalysisHub from './components/TabAnalysisHub';
 import TabExport from './components/TabExport';
 import { clearAllData, checkAndFetchSystemData } from './services/dataService';
 import { Loader2, RefreshCw, CheckCircle2, LayoutDashboard, TrendingUp, Download, Presentation, Settings, Power, RotateCcw, X, CloudLightning, Zap, ArrowRight, Moon, Search, Clock, ShieldCheck } from 'lucide-react';
-import AdSenseBlock from './components/AdSenseBlock';
 
 // --- SYSTEM VERSION CONTROL ---
 const APP_VERSION = 'V.01.00'; // Reset Logic Version
@@ -316,9 +315,9 @@ const App: React.FC = () => {
   // --- CLASSIC BLUE THEME IMPLEMENTATION ---
   return (
     <div className="flex h-screen bg-blue-50 overflow-hidden relative">
-      {/* Sidebar - Classic Blue (blue-700) instead of Slate-900 */}
-      <div className={`${sidebarOpen ? 'w-64' : 'w-20'} bg-blue-700 text-white transition-all duration-300 flex flex-col shadow-2xl z-20 border-r border-blue-600`}>
-        <div className="p-5 border-b border-blue-600 bg-blue-800">
+      {/* Sidebar - Reduced width to w-52 */}
+      <div className={`${sidebarOpen ? 'w-52' : 'w-20'} bg-blue-700 text-white transition-all duration-300 flex flex-col shadow-2xl z-20 border-r border-blue-600`}>
+        <div className="p-4 border-b border-blue-600 bg-blue-800">
           <div className={`flex flex-col ${!sidebarOpen && 'items-center'}`}>
              <div className="flex items-center justify-between w-full mb-1">
                  <div className={`flex items-center gap-3 ${!sidebarOpen && 'hidden'}`}>
@@ -347,7 +346,7 @@ const App: React.FC = () => {
           </div>
         </div>
         
-        <div className="flex-1 overflow-y-auto py-6 flex flex-col bg-blue-700">
+        <div className="flex-1 overflow-y-auto py-4 flex flex-col bg-blue-700">
           <nav className="space-y-2 px-3 flex-1">
             {navItems.map((item) => {
               const isActive = activeTab === item.id;
@@ -356,7 +355,7 @@ const App: React.FC = () => {
                 <button
                   key={item.id}
                   onClick={() => setActiveTab(item.id)}
-                  className={`w-full flex items-center px-4 py-4 rounded-xl transition-all duration-200 mb-1 ${
+                  className={`w-full flex items-center px-4 py-3 rounded-xl transition-all duration-200 mb-1 ${
                     isActive
                       ? 'bg-blue-800 text-white shadow-lg border border-blue-600' 
                       : 'text-blue-100 hover:bg-blue-600 hover:text-white border border-transparent'
@@ -370,19 +369,6 @@ const App: React.FC = () => {
               );
             })}
           </nav>
-
-          {/* SIDEBAR AD SLOT */}
-          {sidebarOpen && (
-              <div className="px-4 pb-4 mt-auto">
-                 <AdSenseBlock 
-                    slot="1234567890" 
-                    format="rectangle"
-                    style={{ minHeight: '150px', width: '100%' }}
-                    className="rounded-lg overflow-hidden opacity-90 hover:opacity-100 transition-opacity"
-                    label="贊助廣告"
-                 />
-              </div>
-          )}
         </div>
 
         {/* Footer */}

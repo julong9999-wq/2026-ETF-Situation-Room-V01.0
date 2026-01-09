@@ -287,7 +287,7 @@ const TabFillAnalysis: React.FC<TabFillAnalysisProps> = ({
               <div className="flex gap-2 overflow-x-auto no-scrollbar">
                 {['全部', '季配', '月配', '債券', '主動', '國際', '半年'].map(cat => (
                     <button key={cat} onClick={() => { setMainFilter(cat); setSubFilter('ALL'); }}
-                        className={`px-5 py-2.5 rounded-lg text-base font-bold whitespace-nowrap transition-all border ${mainFilter === cat ? 'bg-blue-600 text-white border-blue-600 shadow-md' : 'bg-white text-blue-500 border-blue-100 hover:bg-blue-50 hover:text-blue-700'}`}>
+                        className={`px-4 py-2 rounded-lg text-base font-bold whitespace-nowrap transition-all border ${mainFilter === cat ? 'bg-blue-600 text-white border-blue-600 shadow-md' : 'bg-white text-blue-500 border-blue-100 hover:bg-blue-50 hover:text-blue-700'}`}>
                         {cat}
                     </button>
                 ))}
@@ -298,7 +298,7 @@ const TabFillAnalysis: React.FC<TabFillAnalysisProps> = ({
                     <span className="text-base text-gray-400">~</span>
                     <input type="date" value={endDate} onChange={e=>setEndDate(e.target.value)} className="bg-transparent text-base w-40 font-mono outline-none text-gray-700 font-bold"/>
                 </div>
-                <button onClick={handleExport} className="flex items-center gap-2 px-5 py-2.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg hover:bg-emerald-100 font-bold text-base whitespace-nowrap shadow-sm" disabled={!selectedEtf}><Download className="w-5 h-5" /> <span>匯出表單</span></button>
+                <button onClick={handleExport} className="flex items-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg hover:bg-emerald-100 font-bold text-base whitespace-nowrap shadow-sm" disabled={!selectedEtf}><Download className="w-5 h-5" /> <span>匯出表單</span></button>
               </div>
           </div>
           {subOptions.length > 0 && (
@@ -359,13 +359,13 @@ const TabFillAnalysis: React.FC<TabFillAnalysisProps> = ({
                             </div>
                             
                             <div className="flex items-center gap-2">
-                                <button onClick={() => setActiveModal('TECH')} className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-lg text-base font-bold hover:bg-blue-700 transition-colors shadow-sm">
+                                <button onClick={() => setActiveModal('TECH')} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-base font-bold hover:bg-blue-700 transition-colors shadow-sm">
                                     <LineChart className="w-5 h-5" /> 技術線圖
                                 </button>
-                                <button onClick={() => setActiveModal('DIV')} className="flex items-center gap-2 px-5 py-2.5 bg-purple-600 text-white rounded-lg text-base font-bold hover:bg-purple-700 transition-colors shadow-sm">
+                                <button onClick={() => setActiveModal('DIV')} className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg text-base font-bold hover:bg-purple-700 transition-colors shadow-sm">
                                     <PieChart className="w-5 h-5" /> 除息資訊
                                 </button>
-                                <button onClick={() => setActiveModal('TREND')} className="flex items-center gap-2 px-5 py-2.5 bg-orange-500 text-white rounded-lg text-base font-bold hover:bg-orange-600 transition-colors shadow-sm">
+                                <button onClick={() => setActiveModal('TREND')} className="flex items-center gap-2 px-4 py-2 bg-orange-500 text-white rounded-lg text-base font-bold hover:bg-orange-600 transition-colors shadow-sm">
                                     <TrendingUp className="w-5 h-5" /> 月趨勢圖
                                 </button>
                             </div>

@@ -123,7 +123,7 @@ const TabExport: React.FC = () => {
                                 onClick={() => handleExport(card.id, card.title)}
                                 disabled={isProcessing || count === 0}
                                 className={`
-                                    w-full py-3.5 rounded-lg font-bold text-base flex items-center justify-center gap-2 transition-all active:scale-95
+                                    w-full py-2.5 rounded-lg font-bold text-base flex items-center justify-center gap-2 transition-all active:scale-95
                                     ${count === 0 
                                         ? 'bg-gray-50 text-gray-300 cursor-not-allowed border border-gray-100' 
                                         : 'bg-white border border-gray-200 text-gray-700 hover:border-blue-500 hover:text-blue-600 hover:bg-blue-50'

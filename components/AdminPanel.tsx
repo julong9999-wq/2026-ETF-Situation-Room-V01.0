@@ -193,7 +193,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ userRole, onLoginSuccess }) => 
                                         onClick={() => handleImport(item.id as any, item.label)}
                                         disabled={isProcessing}
                                         className={`
-                                            h-12 px-8 rounded-lg text-base font-bold flex items-center gap-2 shadow-sm transition-all active:scale-95 border
+                                            h-12 px-6 rounded-lg text-base font-bold flex items-center gap-2 shadow-sm transition-all active:scale-95 border
                                             ${isProcessing 
                                                 ? 'bg-blue-50 text-blue-400 border-blue-100 cursor-wait' 
                                                 : 'bg-blue-600 hover:bg-blue-700 text-white border-transparent shadow-blue-200'

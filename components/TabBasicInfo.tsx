@@ -185,7 +185,7 @@ const TabBasicInfo: React.FC<TabBasicInfoProps> = ({
                         key={cat}
                         onClick={() => { setMainFilter(cat); setSubFilter('ALL'); }}
                         className={`
-                            px-5 py-2.5 rounded-lg text-base font-bold whitespace-nowrap transition-all border
+                            px-4 py-2 rounded-lg text-base font-bold whitespace-nowrap transition-all border
                             ${mainFilter === cat 
                                 ? 'bg-blue-600 text-white border-blue-600 shadow-md' 
                                 : 'bg-white text-blue-500 border-blue-100 hover:bg-blue-50 hover:text-blue-700'}
@@ -201,7 +201,7 @@ const TabBasicInfo: React.FC<TabBasicInfoProps> = ({
                     <span>Count:</span>
                     {filteredData.length}
                 </div>
-                <button onClick={handleExport} className="flex items-center justify-center gap-2 px-5 py-2.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg hover:bg-emerald-100 font-bold text-base whitespace-nowrap shadow-sm">
+                <button onClick={handleExport} className="flex items-center justify-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg hover:bg-emerald-100 font-bold text-base whitespace-nowrap shadow-sm">
                     <span>匯出表單</span>
                 </button>
             </div>

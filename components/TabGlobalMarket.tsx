@@ -131,13 +131,13 @@ const TabGlobalMarket: React.FC = () => {
           
           {/* Left: Filters */}
           <div className="flex items-center gap-3 flex-1">
-              <div className="flex gap-2 shrink-0 bg-blue-50 p-1.5 rounded-lg border border-blue-100">
+              <div className="flex gap-2 shrink-0 bg-blue-50 p-1 rounded-lg border border-blue-100">
                   {['TW', 'US'].map(cat => (
                       <button
                         key={cat}
                         onClick={() => handleMainFilterChange(cat as 'TW'|'US')}
                         className={`
-                            px-6 py-2.5 rounded-md text-base font-bold whitespace-nowrap transition-all 
+                            px-4 py-2 rounded-md text-base font-bold whitespace-nowrap transition-all 
                             ${mainFilter === cat 
                                 ? 'bg-white text-blue-700 shadow border border-blue-200' 
                                 : 'text-blue-500 hover:bg-blue-100 hover:text-blue-700'}
@@ -157,7 +157,7 @@ const TabGlobalMarket: React.FC = () => {
                                     key={sub} 
                                     onClick={() => setSubFilter(sub)}
                                     className={`
-                                        px-5 py-2.5 rounded text-base whitespace-nowrap transition-colors font-bold border
+                                        px-4 py-2 rounded text-base whitespace-nowrap transition-colors font-bold border
                                         ${subFilter === sub
                                             ? 'bg-blue-600 text-white border-blue-600 shadow-sm' 
                                             : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50 hover:text-blue-600 hover:border-blue-300'}
@@ -180,13 +180,13 @@ const TabGlobalMarket: React.FC = () => {
              </div>
              
              <div className="flex gap-2">
-                <button onClick={() => setShowChartModal(true)} className="flex items-center justify-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-bold text-base whitespace-nowrap shadow-md transition-colors">
+                <button onClick={() => setShowChartModal(true)} className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-bold text-base whitespace-nowrap shadow-md transition-colors">
                     <LineChartIcon className="w-5 h-5" /> <span className="hidden sm:inline">技術線圖</span>
                 </button>
-                <button onClick={() => setShowRecentModal(true)} className="flex items-center justify-center gap-2 px-5 py-2.5 bg-amber-50 text-amber-700 border border-amber-200 rounded-lg hover:bg-amber-100 font-bold text-base whitespace-nowrap shadow-sm">
+                <button onClick={() => setShowRecentModal(true)} className="flex items-center justify-center gap-2 px-4 py-2 bg-amber-50 text-amber-700 border border-amber-200 rounded-lg hover:bg-amber-100 font-bold text-base whitespace-nowrap shadow-sm">
                     <Info className="w-5 h-5" /> <span className="hidden sm:inline">近期資訊</span>
                 </button>
-                <button onClick={handleExport} className="flex items-center justify-center gap-2 px-5 py-2.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg hover:bg-emerald-100 font-bold text-base whitespace-nowrap shadow-sm">
+                <button onClick={handleExport} className="flex items-center justify-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg hover:bg-emerald-100 font-bold text-base whitespace-nowrap shadow-sm">
                     <Download className="w-5 h-5" /> <span className="hidden sm:inline">匯出表單</span>
                 </button>
              </div>
