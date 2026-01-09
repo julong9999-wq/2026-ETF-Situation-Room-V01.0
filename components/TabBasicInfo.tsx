@@ -176,8 +176,8 @@ const TabBasicInfo: React.FC<TabBasicInfoProps> = ({
   }
 
   return (
-    <div className="h-full flex flex-col p-4 gap-4 relative overflow-hidden">
-      <div className="bg-white p-4 rounded-xl shadow-sm border border-blue-200 flex flex-col gap-4 flex-none">
+    <div className="h-full flex flex-col p-2 gap-2 relative overflow-hidden">
+      <div className="bg-white p-3 rounded-lg shadow-sm border border-blue-200 flex flex-col gap-2 flex-none">
         <div className="flex items-center justify-between">
             <div className="flex gap-2 overflow-x-auto no-scrollbar">
                 {['全部', '季配', '月配', '債券', '主動', '國際', '半年'].map(cat => (
@@ -185,7 +185,7 @@ const TabBasicInfo: React.FC<TabBasicInfoProps> = ({
                         key={cat}
                         onClick={() => { setMainFilter(cat); setSubFilter('ALL'); }}
                         className={`
-                            px-4 py-2 rounded-lg text-base font-bold whitespace-nowrap transition-all border
+                            px-4 py-1.5 rounded-lg text-base font-bold whitespace-nowrap transition-all border
                             ${mainFilter === cat 
                                 ? 'bg-blue-600 text-white border-blue-600 shadow-md' 
                                 : 'bg-white text-blue-500 border-blue-100 hover:bg-blue-50 hover:text-blue-700'}
@@ -196,25 +196,25 @@ const TabBasicInfo: React.FC<TabBasicInfoProps> = ({
                 ))}
             </div>
 
-            <div className="flex items-center gap-3 shrink-0 pl-3 border-l border-gray-100">
-                <div className="flex items-center gap-2 text-blue-600 text-base font-bold bg-blue-50 px-4 py-2 rounded-lg border border-blue-100">
+            <div className="flex items-center gap-2 shrink-0 pl-3 border-l border-gray-100">
+                <div className="flex items-center gap-2 text-blue-600 text-base font-bold bg-blue-50 px-3 py-1.5 rounded-lg border border-blue-100">
                     <span>Count:</span>
                     {filteredData.length}
                 </div>
-                <button onClick={handleExport} className="flex items-center justify-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg hover:bg-emerald-100 font-bold text-base whitespace-nowrap shadow-sm">
+                <button onClick={handleExport} className="flex items-center justify-center gap-2 px-4 py-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg hover:bg-emerald-100 font-bold text-base whitespace-nowrap shadow-sm">
                     <span>匯出表單</span>
                 </button>
             </div>
         </div>
 
         {showSubFilters && (
-            <div className="flex items-center gap-2 overflow-x-auto no-scrollbar border-t border-gray-100 pt-3 animate-in fade-in slide-in-from-top-1">
+            <div className="flex items-center gap-2 overflow-x-auto no-scrollbar border-t border-gray-100 pt-2 animate-in fade-in slide-in-from-top-1">
                 {subOptions.map(sub => (
                     <button 
                         key={sub}
                         onClick={() => setSubFilter(sub === '全部' ? 'ALL' : sub)} 
                         className={`
-                            px-4 py-2 rounded-lg text-base whitespace-nowrap transition-colors font-bold border
+                            px-3 py-1.5 rounded-lg text-base whitespace-nowrap transition-colors font-bold border
                             ${(subFilter === sub || (subFilter === 'ALL' && sub === '全部'))
                                 ? 'bg-blue-800 text-white border-blue-800 shadow-sm' 
                                 : 'bg-gray-50 text-gray-500 border-gray-200 hover:bg-white hover:text-blue-600 hover:border-blue-200'}
@@ -227,48 +227,48 @@ const TabBasicInfo: React.FC<TabBasicInfoProps> = ({
         )}
       </div>
 
-      <div className="flex-1 overflow-auto bg-white rounded-xl shadow-sm border border-blue-200 min-h-0">
+      <div className="flex-1 overflow-auto bg-white rounded-lg shadow-sm border border-blue-200 min-h-0">
         <table className="w-full text-left border-collapse">
             <thead className="bg-blue-50 sticky top-0 z-10 shadow-sm border-b border-blue-100">
                 <tr>
-                    <th className="p-4 font-bold text-blue-900 text-base whitespace-nowrap">ETF 代碼</th>
-                    <th className="p-4 font-bold text-blue-900 text-base whitespace-nowrap">ETF 名稱</th>
-                    <th className="p-4 font-bold text-blue-900 text-base whitespace-nowrap">商品分類</th>
-                    <th className="p-4 font-bold text-blue-900 text-base whitespace-nowrap">配息週期</th>
-                    <th className="p-4 font-bold text-blue-900 text-base whitespace-nowrap">發行投信</th>
-                    <th className="p-4 font-bold text-blue-900 text-base whitespace-nowrap">ETF類型</th>
-                    <th className="p-4 font-bold text-blue-900 text-right text-base whitespace-nowrap">規模(億)</th>
-                    <th className="p-4 font-bold text-blue-900 text-base whitespace-nowrap">規模趨勢</th>
+                    <th className="p-2.5 font-bold text-blue-900 text-base whitespace-nowrap">ETF 代碼</th>
+                    <th className="p-2.5 font-bold text-blue-900 text-base whitespace-nowrap">ETF 名稱</th>
+                    <th className="p-2.5 font-bold text-blue-900 text-base whitespace-nowrap">商品分類</th>
+                    <th className="p-2.5 font-bold text-blue-900 text-base whitespace-nowrap">配息週期</th>
+                    <th className="p-2.5 font-bold text-blue-900 text-base whitespace-nowrap">發行投信</th>
+                    <th className="p-2.5 font-bold text-blue-900 text-base whitespace-nowrap">ETF類型</th>
+                    <th className="p-2.5 font-bold text-blue-900 text-right text-base whitespace-nowrap">規模(億)</th>
+                    <th className="p-2.5 font-bold text-blue-900 text-base whitespace-nowrap">規模趨勢</th>
                 </tr>
             </thead>
             <tbody className="divide-y divide-blue-100 text-[15px]">
                 {filteredData.length === 0 ? (
                     <tr>
-                        <td colSpan={8} className="p-12 text-center text-gray-400 text-lg font-medium">
+                        <td colSpan={8} className="p-8 text-center text-gray-400 text-lg font-medium">
                             無符合條件的資料。
                         </td>
                     </tr>
                 ) : filteredData.map((row, index) => (
                     <tr key={String(row?.etfCode) || `row-${index}`} className="hover:bg-blue-50 transition-colors">
-                        <td className="p-4 font-mono font-bold text-blue-700">{row?.etfCode || '-'}</td>
-                        <td className="p-4 font-bold text-gray-800">{row?.etfName || '-'}</td>
-                        <td className="p-4">
-                            <span className={`px-2.5 py-1 rounded text-sm font-bold whitespace-nowrap border ${getSmartCategoryClass(row)}`}>
+                        <td className="p-2.5 font-mono font-bold text-blue-700">{row?.etfCode || '-'}</td>
+                        <td className="p-2.5 font-bold text-gray-800">{row?.etfName || '-'}</td>
+                        <td className="p-2.5">
+                            <span className={`px-2 py-0.5 rounded text-sm font-bold whitespace-nowrap border ${getSmartCategoryClass(row)}`}>
                                 {row?.category || '-'}
                             </span>
                         </td>
-                        <td className="p-4">
-                             <span className="px-2.5 py-1 rounded text-sm font-bold whitespace-nowrap bg-gray-50 text-gray-600 border border-gray-200">
+                        <td className="p-2.5">
+                             <span className="px-2 py-0.5 rounded text-sm font-bold whitespace-nowrap bg-gray-50 text-gray-600 border border-gray-200">
                                 {row?.dividendFreq || '-'}
                             </span>
                         </td>
-                        <td className="p-4 text-gray-700 whitespace-nowrap font-medium">{row?.issuer || '-'}</td>
-                        <td className="p-4 text-gray-700 whitespace-nowrap font-medium">{row?.etfType || '-'}</td>
-                        <td className="p-4 text-right font-mono font-bold text-blue-900">
+                        <td className="p-2.5 text-gray-700 whitespace-nowrap font-medium">{row?.issuer || '-'}</td>
+                        <td className="p-2.5 text-gray-700 whitespace-nowrap font-medium">{row?.etfType || '-'}</td>
+                        <td className="p-2.5 text-right font-mono font-bold text-blue-900">
                             {row.size > 0 ? row.size.toLocaleString() : <span className="text-gray-300">-</span>}
                         </td>
-                        <td className="p-4">
-                            <span className={`px-2.5 py-1 rounded text-sm font-bold whitespace-nowrap ${
+                        <td className="p-2.5">
+                            <span className={`px-2 py-0.5 rounded text-sm font-bold whitespace-nowrap ${
                                 row?.trend === '成長' ? 'bg-red-100 text-red-700' : 
                                 row?.trend === '衰退' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'
                             }`}>

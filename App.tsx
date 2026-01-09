@@ -312,42 +312,41 @@ const App: React.FC = () => {
       );
   }
 
-  // --- CLASSIC BLUE THEME IMPLEMENTATION ---
   return (
     <div className="flex h-screen bg-blue-50 overflow-hidden relative">
-      {/* Sidebar - Reduced width to w-52 */}
-      <div className={`${sidebarOpen ? 'w-52' : 'w-20'} bg-blue-700 text-white transition-all duration-300 flex flex-col shadow-2xl z-20 border-r border-blue-600`}>
-        <div className="p-4 border-b border-blue-600 bg-blue-800">
+      {/* Sidebar */}
+      <div className={`${sidebarOpen ? 'w-48' : 'w-16'} bg-blue-700 text-white transition-all duration-300 flex flex-col shadow-2xl z-20 border-r border-blue-600`}>
+        <div className="p-3 border-b border-blue-600 bg-blue-800">
           <div className={`flex flex-col ${!sidebarOpen && 'items-center'}`}>
              <div className="flex items-center justify-between w-full mb-1">
-                 <div className={`flex items-center gap-3 ${!sidebarOpen && 'hidden'}`}>
-                    <CloudLightning className="w-8 h-8 text-yellow-300" />
-                    <span className="font-bold text-xl tracking-wider truncate">ETF 戰情室</span>
+                 <div className={`flex items-center gap-2 ${!sidebarOpen && 'hidden'}`}>
+                    <CloudLightning className="w-6 h-6 text-yellow-300" />
+                    <span className="font-bold text-lg tracking-wider truncate">ETF 戰情室</span>
                  </div>
-                 <button onClick={() => setSidebarOpen(!sidebarOpen)} className="p-2 hover:bg-blue-600 rounded-lg text-blue-100 hover:text-white transition-colors">
-                    <span className="text-2xl">☰</span>
+                 <button onClick={() => setSidebarOpen(!sidebarOpen)} className="p-1.5 hover:bg-blue-600 rounded-lg text-blue-100 hover:text-white transition-colors">
+                    <span className="text-xl">☰</span>
                  </button>
              </div>
              
              {/* Status Indicators */}
-             <div className={`${!sidebarOpen && 'hidden'} px-1 flex items-center h-5 mt-2`}>
+             <div className={`${!sidebarOpen && 'hidden'} px-1 flex items-center h-5 mt-1`}>
                 {isBackgroundUpdating ? (
-                    <div className="flex items-center gap-2 text-sm text-yellow-200 animate-pulse" title="背景資料更新中...">
-                        <RefreshCw className="w-4 h-4 animate-spin" />
-                        <span>資料更新中...</span>
+                    <div className="flex items-center gap-1.5 text-xs text-yellow-200 animate-pulse" title="背景資料更新中...">
+                        <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                        <span>更新中...</span>
                     </div>
                 ) : lastUpdateStatus === 'success' ? (
-                    <div className="flex items-center gap-2 text-sm text-green-300 animate-in fade-in zoom-in">
-                        <CheckCircle2 className="w-4 h-4" />
-                        <span>系統已就緒</span>
+                    <div className="flex items-center gap-1.5 text-xs text-green-300 animate-in fade-in zoom-in">
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        <span>已就緒</span>
                     </div>
                 ) : null}
              </div>
           </div>
         </div>
         
-        <div className="flex-1 overflow-y-auto py-4 flex flex-col bg-blue-700">
-          <nav className="space-y-2 px-3 flex-1">
+        <div className="flex-1 overflow-y-auto py-3 flex flex-col bg-blue-700">
+          <nav className="space-y-1 px-2 flex-1">
             {navItems.map((item) => {
               const isActive = activeTab === item.id;
               const Icon = item.icon;
@@ -355,14 +354,14 @@ const App: React.FC = () => {
                 <button
                   key={item.id}
                   onClick={() => setActiveTab(item.id)}
-                  className={`w-full flex items-center px-4 py-3 rounded-xl transition-all duration-200 mb-1 ${
+                  className={`w-full flex items-center px-3 py-2.5 rounded-lg transition-all duration-200 mb-1 ${
                     isActive
                       ? 'bg-blue-800 text-white shadow-lg border border-blue-600' 
                       : 'text-blue-100 hover:bg-blue-600 hover:text-white border border-transparent'
                   } ${!sidebarOpen && 'justify-center'}`}
                 >
-                  <span className={`${sidebarOpen ? 'mr-4' : ''}`}>
-                      <Icon className="w-6 h-6" />
+                  <span className={`${sidebarOpen ? 'mr-3' : ''}`}>
+                      <Icon className="w-5 h-5" />
                   </span>
                   {sidebarOpen && <span className="text-base font-bold tracking-wide">{item.name}</span>}
                 </button>
@@ -374,26 +373,25 @@ const App: React.FC = () => {
         {/* Footer */}
         <div 
             onClick={() => setShowSystemModal(true)}
-            className="p-4 border-t border-blue-600 bg-blue-800 cursor-pointer hover:bg-blue-900 transition-colors group"
+            className="p-3 border-t border-blue-600 bg-blue-800 cursor-pointer hover:bg-blue-900 transition-colors group"
         >
             <div className={`flex flex-col items-center ${sidebarOpen ? 'items-start' : 'items-center'}`}>
                 {sidebarOpen ? (
                     <div className="w-full flex justify-between items-end">
                         <div>
-                            <p className="text-base font-bold text-white tracking-wide">julong chen</p>
-                            <div className="flex items-center gap-2">
-                                <p className="text-sm text-blue-200 mt-0.5">版本 {DISPLAY_VERSION}</p>
+                            <p className="text-sm font-bold text-white tracking-wide">julong chen</p>
+                            <div className="flex items-center gap-1">
+                                <p className="text-xs text-blue-200 mt-0.5">{DISPLAY_VERSION}</p>
                             </div>
                         </div>
-                        <Settings className="w-6 h-6 text-blue-300 group-hover:text-white group-hover:rotate-90 transition-all" />
+                        <Settings className="w-5 h-5 text-blue-300 group-hover:text-white group-hover:rotate-90 transition-all" />
                     </div>
                 ) : (
                     <div className="flex flex-col items-center gap-1">
-                        <div className="text-xs text-blue-300 font-mono text-center">
+                        <div className="text-[10px] text-blue-300 font-mono text-center">
                             <div>V1</div>
-                            <div>.0</div>
                         </div>
-                        <Settings className="w-5 h-5 text-blue-300 group-hover:text-white" />
+                        <Settings className="w-4 h-4 text-blue-300 group-hover:text-white" />
                     </div>
                 )}
             </div>
@@ -402,12 +400,12 @@ const App: React.FC = () => {
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col h-screen overflow-hidden relative">
-        <header className="bg-white shadow-sm border-b border-blue-100 p-4 flex justify-between items-center md:hidden z-10">
-            <div className="flex items-center gap-3">
-                <Presentation className="w-7 h-7 text-blue-600" />
-                <div className="font-bold text-blue-900 text-xl">ETF 戰情室</div>
+        <header className="bg-white shadow-sm border-b border-blue-100 p-3 flex justify-between items-center md:hidden z-10">
+            <div className="flex items-center gap-2">
+                <Presentation className="w-6 h-6 text-blue-600" />
+                <div className="font-bold text-blue-900 text-lg">ETF 戰情室</div>
             </div>
-            <button onClick={() => setSidebarOpen(!sidebarOpen)} className="text-blue-700"><span className="text-3xl">☰</span></button>
+            <button onClick={() => setSidebarOpen(!sidebarOpen)} className="text-blue-700"><span className="text-2xl">☰</span></button>
         </header>
         <main className="flex-1 overflow-hidden relative bg-blue-50">
           {getCurrentComponent()}

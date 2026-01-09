@@ -387,7 +387,7 @@ const TabPrices: React.FC<TabPricesProps> = ({
           const totalDivs = periodDivs.reduce((acc, c) => acc + c.amount, 0);
           totalReturnVal = ((latestPrice + totalDivs - startPrice) / startPrice) * 100;
       }
-      return { latestPrice, startPrice, yieldVal, returnVal, totalReturnVal, estYieldVal };
+      return { latestPrice, startPrice, yieldVal, estYieldVal, returnVal, totalReturnVal };
   };
 
   const fmtP = (n: number | string) => { if (typeof n === 'string') return n; return n === 0 ? '-' : n.toFixed(2); };
@@ -451,38 +451,38 @@ const TabPrices: React.FC<TabPricesProps> = ({
   };
 
   return (
-    <div className="h-full flex flex-col p-4 gap-4 bg-blue-50">
+    <div className="h-full flex flex-col p-2 gap-2 bg-blue-50">
       
       {/* 2-Row Filter Header */}
-      <div className="bg-white p-4 rounded-xl shadow-sm border border-blue-200 flex flex-col gap-4 flex-none">
+      <div className="bg-white p-3 rounded-lg shadow-sm border border-blue-200 flex flex-col gap-3 flex-none">
           {/* Row 1 */}
           <div className="flex items-center justify-between">
               <div className="flex gap-2 overflow-x-auto no-scrollbar">
                 {['全部', '季配', '月配', '債券', '主動', '國際', '半年'].map(cat => (
                     <button key={cat} onClick={() => { setMainFilter(cat); setSubFilter('ALL'); }}
-                        className={`px-4 py-2 rounded-lg text-base font-bold whitespace-nowrap transition-all border ${mainFilter === cat ? 'bg-blue-600 text-white border-blue-600 shadow-md' : 'bg-white text-blue-500 border-blue-100 hover:bg-blue-50 hover:text-blue-700'}`}>
+                        className={`px-4 py-1.5 rounded-lg text-base font-bold whitespace-nowrap transition-all border ${mainFilter === cat ? 'bg-blue-600 text-white border-blue-600 shadow-md' : 'bg-white text-blue-500 border-blue-100 hover:bg-blue-50 hover:text-blue-700'}`}>
                         {cat}
                     </button>
                 ))}
               </div>
-              <div className="flex items-center gap-3 shrink-0 pl-3 border-l border-gray-100">
-                <div className="flex items-center gap-2 bg-gray-50 px-3 py-2 rounded-md border border-gray-200 shadow-inner">
-                    <input type="date" value={startDate} onChange={e=>setStartDate(e.target.value)} className="bg-transparent text-base w-40 font-mono outline-none text-gray-700 font-bold"/>
-                    <span className="text-base text-gray-400">~</span>
-                    <input type="date" value={endDate} onChange={e=>setEndDate(e.target.value)} className="bg-transparent text-base w-40 font-mono outline-none text-gray-700 font-bold"/>
+              <div className="flex items-center gap-2 shrink-0 pl-3 border-l border-gray-100">
+                <div className="flex items-center gap-2 bg-gray-50 px-2 py-1.5 rounded-md border border-gray-200 shadow-inner">
+                    <input type="date" value={startDate} onChange={e=>setStartDate(e.target.value)} className="bg-transparent text-[15px] w-32 font-mono outline-none text-gray-700 font-bold"/>
+                    <span className="text-sm text-gray-400">~</span>
+                    <input type="date" value={endDate} onChange={e=>setEndDate(e.target.value)} className="bg-transparent text-[15px] w-32 font-mono outline-none text-gray-700 font-bold"/>
                 </div>
                 {/* RECENT INFO BUTTON */}
-                <button onClick={() => setActiveModal('RECENT')} className="flex items-center gap-2 px-4 py-2 bg-amber-50 text-amber-700 border border-amber-200 rounded-lg hover:bg-amber-100 font-bold text-base whitespace-nowrap shadow-sm">
-                    <Info className="w-5 h-5" /> <span>近期資訊</span>
+                <button onClick={() => setActiveModal('RECENT')} className="flex items-center gap-2 px-3 py-1.5 bg-amber-50 text-amber-700 border border-amber-200 rounded-lg hover:bg-amber-100 font-bold text-base whitespace-nowrap shadow-sm">
+                    <Info className="w-4 h-4" /> <span>近期資訊</span>
                 </button>
-                <button onClick={handleExport} className="flex items-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg hover:bg-emerald-100 font-bold text-base whitespace-nowrap shadow-sm" disabled={!selectedEtf}>
-                    <Download className="w-5 h-5" /> <span>匯出表單</span>
+                <button onClick={handleExport} className="flex items-center gap-2 px-3 py-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg hover:bg-emerald-100 font-bold text-base whitespace-nowrap shadow-sm" disabled={!selectedEtf}>
+                    <Download className="w-4 h-4" /> <span>匯出表單</span>
                 </button>
               </div>
           </div>
           {/* Row 2 */}
           {subOptions.length > 0 && (
-              <div className="flex items-center gap-2 overflow-x-auto no-scrollbar border-t border-gray-100 pt-3 animate-in fade-in slide-in-from-top-1">
+              <div className="flex items-center gap-2 overflow-x-auto no-scrollbar border-t border-gray-100 pt-2 animate-in fade-in slide-in-from-top-1">
                   {subOptions.map(sub => (
                       <button key={sub} onClick={() => setSubFilter(sub === '全部' ? 'ALL' : sub)}
                           className={`px-3 py-1.5 rounded-lg text-base whitespace-nowrap transition-colors font-bold border ${(subFilter === sub || (subFilter === 'ALL' && sub === '全部')) ? 'bg-blue-800 text-white border-blue-800 shadow-sm' : 'bg-gray-50 text-gray-500 border-gray-200 hover:bg-white hover:text-blue-600 hover:border-blue-200'}`}>{sub}</button>
@@ -492,19 +492,19 @@ const TabPrices: React.FC<TabPricesProps> = ({
       </div>
 
       {/* Main Content: Fixed Scroll Logic */}
-      <div className="flex-1 flex gap-4 overflow-hidden min-h-0">
+      <div className="flex-1 flex gap-2 overflow-hidden min-h-0">
           
           {/* Left List - UPDATED TEXT SIZES */}
-          <div className="w-[340px] flex-none bg-white rounded-xl shadow-sm border border-blue-200 flex flex-col overflow-hidden min-h-0">
-              <div className="p-4 bg-blue-50 border-b border-blue-100 font-bold text-blue-900 flex justify-between items-center text-base flex-none">
+          <div className="w-[340px] flex-none bg-white rounded-lg shadow-sm border border-blue-200 flex flex-col overflow-hidden min-h-0">
+              <div className="p-3 bg-blue-50 border-b border-blue-100 font-bold text-blue-900 flex justify-between items-center text-base flex-none">
                   <div className="flex gap-2 text-sm"><span>起始: <span className="font-mono">{systemDates.start}</span></span><span>現值: <span className="font-mono">{systemDates.end}</span></span></div>
                   <span className="bg-blue-200 text-blue-800 px-3 py-0.5 rounded-full text-sm flex items-center font-bold">{filteredMaster.length}</span>
               </div>
-              <div className="flex-1 overflow-y-auto p-3 space-y-2 min-h-0">
+              <div className="flex-1 overflow-y-auto p-2 space-y-2 min-h-0">
                   {filteredMaster.map(item => {
                       const metrics = calculateMetrics(item);
                       return (
-                      <div key={item.etfCode} onClick={() => setSelectedEtf(item.etfCode)} className={`rounded-xl p-4 cursor-pointer transition-all duration-200 flex flex-col gap-1 relative ${getRowBgColor(item, selectedEtf === item.etfCode)}`}>
+                      <div key={item.etfCode} onClick={() => setSelectedEtf(item.etfCode)} className={`rounded-lg p-3 cursor-pointer transition-all duration-200 flex flex-col gap-1 relative ${getRowBgColor(item, selectedEtf === item.etfCode)}`}>
                           <div className="flex items-baseline gap-3 border-b border-gray-200/50 pb-2 mb-2">
                               <span className="text-xl font-bold text-blue-700 font-mono">{item.etfCode}</span>
                               <span className="text-base font-bold text-gray-700 truncate">{item.etfName}</span>
@@ -525,7 +525,7 @@ const TabPrices: React.FC<TabPricesProps> = ({
           </div>
 
           {/* Right Detail Panel - UPDATED TABLE SIZES */}
-          <div className="flex-1 bg-white rounded-xl shadow-sm border border-blue-200 flex flex-col overflow-hidden min-h-0">
+          <div className="flex-1 bg-white rounded-lg shadow-sm border border-blue-200 flex flex-col overflow-hidden min-h-0">
                 {!selectedEtf ? (
                     <div className="h-full flex flex-col items-center justify-center text-gray-400">
                         <Database className="w-16 h-16 mb-4 opacity-30" />
@@ -533,24 +533,24 @@ const TabPrices: React.FC<TabPricesProps> = ({
                     </div>
                 ) : (
                     <>
-                        <div className="p-4 bg-blue-50 border-b border-blue-100 flex flex-wrap gap-4 justify-between items-center flex-none">
+                        <div className="p-3 bg-blue-50 border-b border-blue-100 flex flex-wrap gap-4 justify-between items-center flex-none">
                             <div className="flex items-center gap-3">
                                 <h3 className="font-bold text-blue-900 text-lg">{selectedEtf} 歷史股價</h3>
                                 <span className="text-base font-medium text-blue-600">({detailData.length} 筆)</span>
                             </div>
                             
                             <div className="flex items-center gap-2">
-                                <button onClick={() => setActiveModal('TECH')} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-base font-bold hover:bg-blue-700 transition-colors shadow-sm">
-                                    <LineChart className="w-5 h-5" /> 技術線圖
+                                <button onClick={() => setActiveModal('TECH')} className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 text-white rounded-lg text-base font-bold hover:bg-blue-700 transition-colors shadow-sm">
+                                    <LineChart className="w-4 h-4" /> 技術線圖
                                 </button>
-                                <button onClick={() => setActiveModal('DIV')} className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg text-base font-bold hover:bg-purple-700 transition-colors shadow-sm">
-                                    <PieChart className="w-5 h-5" /> 除息資訊
+                                <button onClick={() => setActiveModal('DIV')} className="flex items-center gap-2 px-3 py-1.5 bg-purple-600 text-white rounded-lg text-base font-bold hover:bg-purple-700 transition-colors shadow-sm">
+                                    <PieChart className="w-4 h-4" /> 除息資訊
                                 </button>
-                                <button onClick={() => setActiveModal('FILL')} className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg text-base font-bold hover:bg-emerald-700 transition-colors shadow-sm">
-                                    <CheckCircle2 className="w-5 h-5" /> 填息分析
+                                <button onClick={() => setActiveModal('FILL')} className="flex items-center gap-2 px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-base font-bold hover:bg-emerald-700 transition-colors shadow-sm">
+                                    <CheckCircle2 className="w-4 h-4" /> 填息分析
                                 </button>
-                                <button onClick={() => setActiveModal('TREND')} className="flex items-center gap-2 px-4 py-2 bg-orange-500 text-white rounded-lg text-base font-bold hover:bg-orange-600 transition-colors shadow-sm">
-                                    <TrendingUp className="w-5 h-5" /> 月趨勢圖
+                                <button onClick={() => setActiveModal('TREND')} className="flex items-center gap-2 px-3 py-1.5 bg-orange-500 text-white rounded-lg text-base font-bold hover:bg-orange-600 transition-colors shadow-sm">
+                                    <TrendingUp className="w-4 h-4" /> 月趨勢圖
                                 </button>
                             </div>
                         </div>
@@ -558,14 +558,14 @@ const TabPrices: React.FC<TabPricesProps> = ({
                             <table className="w-full text-left border-collapse">
                                 <thead className="bg-blue-50 sticky top-0 text-base text-blue-900 border-b border-blue-200 z-10 font-bold">
                                     <tr>
-                                        <th className="p-4 pl-6 whitespace-nowrap">日期</th>
-                                        <th className="p-4 text-right whitespace-nowrap">昨日收盤</th>
-                                        <th className="p-4 text-right whitespace-nowrap">開盤</th>
-                                        <th className="p-4 text-right whitespace-nowrap">最高</th>
-                                        <th className="p-4 text-right whitespace-nowrap">最低</th>
-                                        <th className="p-4 text-right whitespace-nowrap">股價</th>
-                                        <th className="p-4 text-right whitespace-nowrap">漲跌</th>
-                                        <th className="p-4 text-right pr-6 whitespace-nowrap">幅度</th>
+                                        <th className="p-2.5 pl-4 whitespace-nowrap">日期</th>
+                                        <th className="p-2.5 text-right whitespace-nowrap">昨日收盤</th>
+                                        <th className="p-2.5 text-right whitespace-nowrap">開盤</th>
+                                        <th className="p-2.5 text-right whitespace-nowrap">最高</th>
+                                        <th className="p-2.5 text-right whitespace-nowrap">最低</th>
+                                        <th className="p-2.5 text-right whitespace-nowrap">股價</th>
+                                        <th className="p-2.5 text-right whitespace-nowrap">漲跌</th>
+                                        <th className="p-2.5 text-right pr-4 whitespace-nowrap">幅度</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y text-[15px]">
@@ -587,20 +587,20 @@ const TabPrices: React.FC<TabPricesProps> = ({
                                         return (
                                             <React.Fragment key={i}>
                                                 <tr className={rowClass}>
-                                                    <td className="p-4 pl-6 font-mono text-gray-700 font-bold">{d.date}</td>
-                                                    <td className="p-4 text-right font-mono text-gray-500">{fmtP(d.prevClose)}</td>
-                                                    <td className="p-4 text-right font-mono text-gray-700">{fmtP(d.open)}</td>
-                                                    <td className="p-4 text-right font-mono text-red-600 font-medium">{fmtP(d.high)}</td>
-                                                    <td className="p-4 text-right font-mono text-green-600 font-medium">{fmtP(d.low)}</td>
-                                                    <td className="p-4 text-right font-mono font-bold text-blue-900 text-lg">{fmtP(d.price)}</td>
-                                                    <td className={`p-4 text-right font-mono font-bold ${fmtCol(displayChange)}`}>{displayChange > 0 ? '+' : ''}{fmtP(displayChange)}</td>
-                                                    <td className={`p-4 text-right font-mono font-bold pr-6 ${fmtCol(displayChange)}`}>{fmtPct(displayPct)}</td>
+                                                    <td className="p-2.5 pl-4 font-mono text-gray-700 font-bold">{d.date}</td>
+                                                    <td className="p-2.5 text-right font-mono text-gray-500">{fmtP(d.prevClose)}</td>
+                                                    <td className="p-2.5 text-right font-mono text-gray-700">{fmtP(d.open)}</td>
+                                                    <td className="p-2.5 text-right font-mono text-red-600 font-medium">{fmtP(d.high)}</td>
+                                                    <td className="p-2.5 text-right font-mono text-green-600 font-medium">{fmtP(d.low)}</td>
+                                                    <td className="p-2.5 text-right font-mono font-bold text-blue-900 text-lg">{fmtP(d.price)}</td>
+                                                    <td className={`p-2.5 text-right font-mono font-bold ${fmtCol(displayChange)}`}>{displayChange > 0 ? '+' : ''}{fmtP(displayChange)}</td>
+                                                    <td className={`p-2.5 text-right font-mono font-bold pr-4 ${fmtCol(displayChange)}`}>{fmtPct(displayPct)}</td>
                                                 </tr>
                                                 {(exInfo || fillInfo) && (
                                                     <tr className={exInfo ? "bg-red-50 border-b border-red-100" : "bg-green-50 border-b border-green-100"}>
-                                                        <td colSpan={8} className="p-3 text-center text-base font-bold tracking-wide">
-                                                            {exInfo && <span className="text-red-700 flex items-center justify-center gap-2"><AlertCircle className="w-5 h-5" />{`*** 除息前一日股價: ${fmtP(d.prevClose)}, (除息金額: ${fmtP(exInfo.amount)}), 除息參考價: ${fmtP(d.prevClose - exInfo.amount)} ***`}</span>}
-                                                            {fillInfo && <span className="text-green-700 flex items-center justify-center gap-2"><CheckCircle2 className="w-5 h-5" />{`*** 除息前一日股價: ${fmtP(fillInfo.pricePreEx)}, (填息天數: ${fillInfo.daysToFill}天), 今日股價: ${fmtP(d.price)} ***`}</span>}
+                                                        <td colSpan={8} className="p-2 text-center text-sm font-bold tracking-wide">
+                                                            {exInfo && <span className="text-red-700 flex items-center justify-center gap-2"><AlertCircle className="w-4 h-4" />{`*** 除息前一日股價: ${fmtP(d.prevClose)}, (除息金額: ${fmtP(exInfo.amount)}), 除息參考價: ${fmtP(d.prevClose - exInfo.amount)} ***`}</span>}
+                                                            {fillInfo && <span className="text-green-700 flex items-center justify-center gap-2"><CheckCircle2 className="w-4 h-4" />{`*** 除息前一日股價: ${fmtP(fillInfo.pricePreEx)}, (填息天數: ${fillInfo.daysToFill}天), 今日股價: ${fmtP(d.price)} ***`}</span>}
                                                         </td>
                                                     </tr>
                                                 )}

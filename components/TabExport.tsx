@@ -83,38 +83,38 @@ const TabExport: React.FC = () => {
     ];
 
     return (
-        <div className="h-full flex flex-col p-6 bg-blue-50 overflow-y-auto">
-            <div className="mb-6">
-                <h2 className="text-2xl font-bold text-blue-900 flex items-center gap-2">
-                    <DownloadCloud className="w-8 h-8 text-blue-600" />
+        <div className="h-full flex flex-col p-4 bg-blue-50 overflow-y-auto">
+            <div className="mb-4">
+                <h2 className="text-xl font-bold text-blue-900 flex items-center gap-2">
+                    <DownloadCloud className="w-6 h-6 text-blue-600" />
                     全域資料匯出中心
                 </h2>
-                <p className="text-blue-500 mt-2 text-base">
+                <p className="text-blue-500 mt-1 text-sm">
                     此處可匯出系統資料庫中的完整原始數據，不包含任何過濾條件。
                 </p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 pb-10">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 pb-10">
                 {cards.map(card => {
                     const Icon = card.icon;
                     const count = counts[card.id] || 0;
                     const isProcessing = loadingState[card.id];
 
                     return (
-                        <div key={card.id} className={`bg-white rounded-xl shadow-sm border ${card.border} p-5 flex flex-col hover:shadow-md transition-shadow gap-4`}>
+                        <div key={card.id} className={`bg-white rounded-lg shadow-sm border ${card.border} p-4 flex flex-col hover:shadow-md transition-shadow gap-3`}>
                             {/* Line 1: Icon + Title + Count */}
-                            <div className="flex items-center gap-3">
-                                <div className={`p-2.5 rounded-lg ${card.bg} shrink-0`}>
-                                    <Icon className={`w-6 h-6 ${card.color}`} />
+                            <div className="flex items-center gap-2">
+                                <div className={`p-2 rounded-lg ${card.bg} shrink-0`}>
+                                    <Icon className={`w-5 h-5 ${card.color}`} />
                                 </div>
-                                <h3 className="text-xl font-bold text-gray-900 truncate flex-1">{card.title}</h3>
-                                <span className="bg-gray-100 text-gray-700 text-sm font-bold px-2 py-1 rounded-md font-mono shrink-0">
+                                <h3 className="text-lg font-bold text-gray-900 truncate flex-1">{card.title}</h3>
+                                <span className="bg-gray-100 text-gray-700 text-xs font-bold px-2 py-1 rounded-md font-mono shrink-0">
                                     {count.toLocaleString()} 筆
                                 </span>
                             </div>
                             
                             {/* Line 2: Description */}
-                            <div className="text-base text-gray-500 leading-snug line-clamp-2 min-h-[3rem]">
+                            <div className="text-sm text-gray-500 leading-snug line-clamp-2 min-h-[2.5rem]">
                                 {card.desc}
                             </div>
 
@@ -132,11 +132,11 @@ const TabExport: React.FC = () => {
                             >
                                 {isProcessing ? (
                                     <span className="flex items-center gap-2 animate-pulse">
-                                        <DownloadCloud className="w-5 h-5" /> 處理中...
+                                        <DownloadCloud className="w-4 h-4" /> 處理中...
                                     </span>
                                 ) : (
                                     <>
-                                        <DownloadCloud className="w-5 h-5" />
+                                        <DownloadCloud className="w-4 h-4" />
                                         匯出 CSV
                                     </>
                                 )}
@@ -146,7 +146,7 @@ const TabExport: React.FC = () => {
                 })}
             </div>
             
-            <div className="mt-auto text-center text-sm text-gray-400">
+            <div className="mt-auto text-center text-xs text-gray-400">
                 系統資料最後更新檢查: {new Date().toLocaleDateString()}
             </div>
         </div>
