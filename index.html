@@ -4,12 +4,12 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     
-    <!-- AGGRESSIVE CACHE BUSTING V1.16 -->
+    <!-- AGGRESSIVE CACHE BUSTING V1.17 -->
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
     <meta http-equiv="Pragma" content="no-cache" />
     <meta http-equiv="Expires" content="0" />
     
-    <title>ETF Master Dashboard V1.16</title>
+    <title>ETF Master Dashboard V1.17</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
       window.process = {
@@ -19,6 +19,20 @@
         }
       };
       window.global = window;
+
+      // --- VERSION CHECK SCRIPT ---
+      // This script runs before the app loads to ensure we aren't stuck in a cache loop
+      (function() {
+        // If we just updated, clear old caches immediately
+        if (window.location.search.includes('v=')) {
+           console.log("Version tag detected, clearing caches...");
+           if ('caches' in window) {
+             caches.keys().then(function(names) {
+               for (let name of names) caches.delete(name);
+             });
+           }
+        }
+      })();
     </script>
     <!-- GOOGLE ADSENSE -->
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5925575464455571" crossorigin="anonymous"></script>
