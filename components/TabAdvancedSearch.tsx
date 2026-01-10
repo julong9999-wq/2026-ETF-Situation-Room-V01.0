@@ -9,6 +9,9 @@ import {
     Calendar, Search, FileText, Download, TrendingUp, Filter, Code, AlertCircle, PieChart, Table as TableIcon, Zap, Moon, Check, AlertTriangle
 } from 'lucide-react';
 
+// Specific ETFs requested by user to always include regardless of category filters
+const WHITE_LIST = ['00712', '00771', '00903', '00908', '00956', '00960', '00972'];
+
 const TabAdvancedSearch: React.FC = () => {
     // --- STATE ---
     const [mainTab, setMainTab] = useState<'PRE_MARKET' | 'POST_MARKET' | 'WEEKLY' | 'SELF_MONTHLY'>('WEEKLY');
@@ -160,7 +163,7 @@ const TabAdvancedSearch: React.FC = () => {
         if (mainTab !== 'PRE_MARKET') return { market: [], etf: { headers: [], rows: [] } };
 
         // 1. GLOBAL MARKET (Last 10 days)
-        const allMarketDates = Array.from(new Set(marketData.map(d => d.date))).sort().reverse().slice(0, 10);
+        const allMarketDates = Array.from<string>(new Set(marketData.map(d => d.date))).sort().reverse().slice(0, 10);
         const marketDateSet = new Set(allMarketDates);
         const market = marketData
             .filter(d => marketDateSet.has(d.date))
@@ -181,8 +184,8 @@ const TabAdvancedSearch: React.FC = () => {
             const market = (b.marketType || '').trim();
             const code = (b.etfCode || '').trim();
 
-            // WHITELIST: Always include 00712 and 00771 (Quarterly products that might be filtered as international/bond)
-            if (['00712', '00771'].includes(code)) return true;
+            // WHITELIST: Always include user specified codes regardless of category
+            if (WHITE_LIST.includes(code)) return true;
 
             if (code === '00911') return false; 
             
@@ -204,7 +207,7 @@ const TabAdvancedSearch: React.FC = () => {
 
         const targetCodes = new Set(targets.map(t => t.etfCode));
         // Get last 10 unique dates from ALL price data (assuming data sync)
-        const allEtfDates: string[] = (Array.from(new Set(priceData.map(p => p.date))) as string[]).sort().reverse().slice(0, 10);
+        const allEtfDates: string[] = Array.from<string>(new Set(priceData.map(p => p.date))).sort().reverse().slice(0, 10);
         
         // Build Rows
         const etfRows = targets.map(etf => {
@@ -242,7 +245,11 @@ const TabAdvancedSearch: React.FC = () => {
             const type = (b.etfType || '').trim();
             const market = (b.marketType || '').trim();
             const name = (b.etfName || '').trim();
+            const code = (b.etfCode || '').trim();
             
+            // WHITELIST: Always include user specified codes
+            if (WHITE_LIST.includes(code)) return true;
+
             // Exclude Half-Year and International
             const isHalfYear = freq.includes('半年') || cat.includes('半年');
             const isForeign = cat.includes('國外') || type.includes('國外') || market.includes('國外') || cat.includes('國際') || type.includes('國際') || name.includes('國際');
@@ -312,7 +319,7 @@ const TabAdvancedSearch: React.FC = () => {
 
         // 3. FILLED LIST (Within 3 Trading Days)
         // Identify "Recent 3 Trading Days" including refDate
-        const uniqueDates = Array.from(new Set(priceData.map(p => p.date))).sort().reverse();
+        const uniqueDates = Array.from<string>(new Set(priceData.map(p => p.date))).sort().reverse();
         const refIndex = uniqueDates.indexOf(refDate);
         // If refDate not in data (e.g. holiday), find closest past date
         let validDates: string[] = [];
@@ -344,9 +351,13 @@ const TabAdvancedSearch: React.FC = () => {
             return a['ETF代碼'].localeCompare(b['ETF代碼']);
         });
 
-        // 4. UNFILLED SINCE 2026/01/02
-        // UPDATED: Use 2025 to ensure data visibility if 2026 is future
-        const unfilledList = fillData.filter(f => f.exDate >= '2025-01-02' && !f.isFilled).map(f => ({
+        // 4. UNFILLED SINCE 2025/01/02
+        // EXCLUDE FUTURE DIVIDENDS (Already ex-dividended BUT not filled)
+        const unfilledList = fillData.filter(f => {
+            const isAfter2025 = f.exDate >= '2025-01-02';
+            const isAlreadyEx = f.exDate <= refDate; // Ensure we only show items that HAVE ex-dividended by refDate
+            return isAfter2025 && isAlreadyEx && !f.isFilled;
+        }).map(f => ({
             'ETF代碼': f.etfCode,
             'ETF名稱': f.etfName,
             '除息日期': f.exDate,
@@ -406,7 +417,7 @@ const TabAdvancedSearch: React.FC = () => {
 
         const validCodes = new Set(validEtfs.map(e => e.etfCode));
         const pricesInRange = priceData.filter(p => validCodes.has(p.etfCode) && p.date >= start && p.date <= end);
-        const uniqueDates = Array.from(new Set(pricesInRange.map(p => p.date))).sort();
+        const uniqueDates = Array.from<string>(new Set(pricesInRange.map(p => p.date))).sort();
 
         const pivotRows = validEtfs.map(etf => {
             const row: any = {
@@ -1240,303 +1251,6 @@ function importAllData() {
                                                 <td className={`p-3 text-right font-bold ${d['hasDiv'] ? 'text-emerald-600' : 'text-gray-400 italic'}`}>
                                                     {d['hasDiv'] ? fmtDiv(d['除息金額']) : '無除息'}
                                                 </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            )}
-                        </div>
-                    </div>
-                ) : mainTab === 'PRE_MARKET' ? (
-                     <div className={`h-full flex flex-col bg-white rounded-xl shadow-sm border border-${activeTheme}-200 overflow-hidden`}>
-                        {/* PRE MARKET HEADER */}
-                        <div className="p-4 border-b border-gray-200 bg-gray-50 flex flex-wrap gap-4 items-center justify-between flex-none">
-                            <div className="flex items-center gap-4">
-                                <div className="text-base font-bold text-gray-500 flex items-center gap-2">
-                                     <Zap className="w-5 h-5 text-amber-500" />
-                                     每日盤前數據中心 (Recent 10 Days)
-                                </div>
-                            </div>
-                            <div className="flex items-center gap-2">
-                                <span className="text-base font-bold text-gray-500 mr-2">(共 {getCurrentCount()} 筆)</span>
-                                <button onClick={handleCopyScript} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 transition-colors shadow-sm text-base">
-                                    <Code className="w-4 h-4" /> 自動化腳本
-                                </button>
-                                <button onClick={handleExport} className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg font-bold hover:bg-emerald-700 transition-colors shadow-sm text-base">
-                                    <Download className="w-4 h-4" /> 匯出 CSV
-                                </button>
-                            </div>
-                        </div>
-
-                         {/* PRE MARKET SUB-TABS */}
-                        <div className="p-2 border-b border-gray-200 bg-white flex gap-2 flex-none">
-                            {PRE_MARKET_SUB.map(btn => (
-                                <button
-                                    key={btn.id}
-                                    onClick={() => setPreMarketType(btn.id as any)}
-                                    className={`
-                                        flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-base border transition-all 
-                                        ${preMarketType === btn.id 
-                                            ? `bg-gray-700 text-white border-gray-700 shadow-md` 
-                                            : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'
-                                        }
-                                    `}
-                                >
-                                    <btn.icon className={`w-4 h-4 ${preMarketType === btn.id ? 'text-white' : btn.color}`} />
-                                    {btn.label}
-                                </button>
-                            ))}
-                        </div>
-
-                        {/* PRE MARKET CONTENT */}
-                        <div className="flex-1 overflow-auto bg-white p-0">
-                            {preMarketType === 'GLOBAL_MARKET' && (
-                                <table className="w-full text-left border-collapse">
-                                    <thead className={getTableHeadClass()}>
-                                        <tr>
-                                            <th className="p-3">日期</th>
-                                            <th className="p-3">指數名稱</th>
-                                            <th className="p-3 text-right">昨日收盤</th>
-                                            <th className="p-3 text-right">開盤</th>
-                                            <th className="p-3 text-right">高價</th>
-                                            <th className="p-3 text-right">低價</th>
-                                            <th className="p-3 text-right">現價</th>
-                                            <th className="p-3 text-right">漲跌點數</th>
-                                            <th className="p-3 text-right">漲跌幅度</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className={getTableBodyClass()}>
-                                        {preMarketReports.market.length === 0 ? <tr><td colSpan={9} className="p-8 text-center text-gray-400 text-lg">無資料</td></tr> :
-                                        preMarketReports.market.map((d, i) => (
-                                            <tr key={i} className={getRowHoverClass()}>
-                                                <td className="p-3 font-mono">{d.date}</td>
-                                                <td className="p-3 font-bold">{d.indexName}</td>
-                                                <td className="p-3 text-right font-mono text-gray-400">{fmtNum(d.prevClose)}</td>
-                                                <td className="p-3 text-right font-mono">{fmtNum(d.open)}</td>
-                                                <td className="p-3 text-right font-mono text-red-500">{fmtNum(d.high)}</td>
-                                                <td className="p-3 text-right font-mono text-green-500">{fmtNum(d.low)}</td>
-                                                <td className="p-3 text-right font-mono font-bold text-blue-700">{fmtNum(d.price)}</td>
-                                                <td className={`p-3 text-right font-mono font-bold ${d.change >= 0 ? 'text-red-600' : 'text-green-600'}`}>{d.change >= 0 ? '+' : ''}{fmtNum(d.change)}</td>
-                                                <td className={`p-3 text-right font-mono font-bold ${d.changePercent >= 0 ? 'text-red-600' : 'text-green-600'}`}>{fmtNum(d.changePercent)}%</td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            )}
-
-                            {preMarketType === 'ETF_PRICE' && (
-                                <table className="w-full text-left border-separate border-spacing-0">
-                                    <thead>
-                                        <tr>
-                                            <th className={`p-3 whitespace-nowrap bg-${activeTheme}-50 sticky top-0 left-0 z-30 font-bold border-b border-${activeTheme}-100`}>ETF代碼</th>
-                                            <th className={`p-3 whitespace-nowrap bg-${activeTheme}-50 sticky top-0 left-[90px] z-30 font-bold border-b border-${activeTheme}-100`}>ETF名稱</th>
-                                            <th className={`p-3 whitespace-nowrap bg-${activeTheme}-50 sticky top-0 z-20 font-bold border-b border-${activeTheme}-100`}>ETF類型</th>
-                                            {preMarketReports.etf.headers.map(d => (
-                                                <th key={d} className={`p-3 whitespace-nowrap text-right font-mono bg-${activeTheme}-50 sticky top-0 z-20 font-bold border-b border-${activeTheme}-100`}>{d}</th>
-                                            ))}
-                                        </tr>
-                                    </thead>
-                                    <tbody className={getTableBodyClass()}>
-                                        {preMarketReports.etf.rows.length === 0 ? <tr><td colSpan={3 + preMarketReports.etf.headers.length} className="p-8 text-center text-gray-400 text-lg">無資料 (或全部被排除)</td></tr> :
-                                        preMarketReports.etf.rows.map((row: any, i: number) => (
-                                            <tr key={i} className={getRowHoverClass()}>
-                                                <td className={`p-3 font-mono font-bold text-indigo-600 bg-white sticky left-0 z-10 border-b border-gray-100 group-hover:bg-${activeTheme}-50 transition-colors`}>{row['ETF代碼']}</td>
-                                                <td className={`p-3 font-bold text-gray-600 bg-white sticky left-[90px] z-10 border-b border-gray-100 group-hover:bg-${activeTheme}-50 transition-colors`}>{row['ETF名稱']}</td>
-                                                <td className="p-3 border-b border-gray-100">{row['ETF類型']}</td>
-                                                {preMarketReports.etf.headers.map(d => (
-                                                    <td key={d} className="p-3 text-right font-mono font-medium text-gray-600 bg-gray-50/30 border-b border-gray-100">
-                                                        {row[d] !== '' ? fmtNum(row[d]) : '-'}
-                                                    </td>
-                                                ))}
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            )}
-                        </div>
-                     </div>
-                ) : mainTab === 'POST_MARKET' ? (
-                    <div className={`h-full flex flex-col bg-white rounded-xl shadow-sm border border-${activeTheme}-200 overflow-hidden`}>
-                        {/* POST MARKET HEADER */}
-                        <div className="p-4 border-b border-gray-200 bg-gray-50 flex flex-wrap gap-4 items-center justify-between flex-none">
-                            <div className="flex items-center gap-4">
-                                <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-lg border border-gray-300 shadow-sm">
-                                    <Calendar className="w-5 h-5 text-indigo-600" />
-                                    <span className="font-bold text-gray-500 text-base">交易日期:</span>
-                                    <input 
-                                        type="date" 
-                                        value={refDate} 
-                                        onChange={(e) => setRefDate(e.target.value)} 
-                                        className="outline-none font-mono font-bold text-gray-600 bg-transparent text-base"
-                                    />
-                                </div>
-                            </div>
-                            <div className="flex items-center gap-2">
-                                <span className="text-base font-bold text-gray-500 mr-2">(共 {getCurrentCount()} 筆)</span>
-                                <button onClick={handleCopyScript} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 transition-colors shadow-sm text-base">
-                                    <Code className="w-4 h-4" /> 自動化腳本
-                                </button>
-                                <button onClick={handleExport} className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg font-bold hover:bg-emerald-700 transition-colors shadow-sm text-base">
-                                    <Download className="w-4 h-4" /> 匯出 CSV
-                                </button>
-                            </div>
-                        </div>
-
-                        {/* POST MARKET SUB-TABS */}
-                        <div className="p-2 border-b border-gray-200 bg-white flex gap-2 flex-none">
-                            {POST_MARKET_SUB.map(btn => (
-                                <button
-                                    key={btn.id}
-                                    onClick={() => setPostMarketType(btn.id as any)}
-                                    className={`
-                                        flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-base border transition-all 
-                                        ${postMarketType === btn.id 
-                                            ? `bg-gray-700 text-white border-gray-700 shadow-md` 
-                                            : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'
-                                        }
-                                    `}
-                                >
-                                    <btn.icon className={`w-4 h-4 ${postMarketType === btn.id ? 'text-white' : btn.color}`} />
-                                    {btn.label}
-                                </button>
-                            ))}
-                        </div>
-
-                        {/* POST MARKET CONTENT */}
-                        <div className="flex-1 overflow-auto bg-white p-0">
-                            {postMarketType === 'BASIC' && (
-                                <table className="w-full text-left border-collapse">
-                                    <thead className={getTableHeadClass()}>
-                                        <tr>
-                                            <th className="p-3 whitespace-nowrap">商品分類</th>
-                                            <th className="p-3 whitespace-nowrap">配息週期</th>
-                                            <th className="p-3 whitespace-nowrap">ETF代碼</th>
-                                            <th className="p-3 whitespace-nowrap">ETF名稱</th>
-                                            <th className="p-3 whitespace-nowrap">ETF類型</th>
-                                            <th className="p-3 whitespace-nowrap text-right">規模大小</th>
-                                            <th className="p-3 whitespace-nowrap text-center">月初日期</th>
-                                            <th className="p-3 whitespace-nowrap text-right">月初股價</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className={getTableBodyClass()}>
-                                        {postMarketReports.basic.length === 0 ? <tr><td colSpan={8} className="p-8 text-center text-gray-400 text-lg">無資料</td></tr> :
-                                        postMarketReports.basic.map((row: any, i: number) => (
-                                            <tr key={i} className={getRowHoverClass()}>
-                                                <td className="p-3">{row['商品分類']}</td>
-                                                <td className="p-3"><span className="bg-gray-100 px-2 py-0.5 rounded text-xs font-bold text-gray-500">{row['配息週期']}</span></td>
-                                                <td className="p-3 font-mono font-bold text-indigo-600">{row['ETF代碼']}</td>
-                                                <td className="p-3 font-bold text-gray-600">{row['ETF名稱']}</td>
-                                                <td className="p-3">{row['ETF類型']}</td>
-                                                <td className="p-3 text-right font-mono">{row['規模大小'] !== '-' ? Number(row['規模大小']).toLocaleString() : '-'}</td>
-                                                <td className="p-3 text-center font-mono text-gray-500">{row['月初日期']}</td>
-                                                <td className="p-3 text-right font-mono font-bold text-indigo-600">{fmtNum(row['月初股價'])}</td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            )}
-
-                            {postMarketType === 'TODAY_EX' && (
-                                <table className="w-full text-left border-collapse">
-                                    <thead className={getTableHeadClass()}>
-                                        <tr>
-                                            <th className="p-3">ETF代碼</th>
-                                            <th className="p-3">ETF名稱</th>
-                                            <th className="p-3">除息日期</th>
-                                            <th className="p-3 text-right">除息金額</th>
-                                            <th className="p-3 text-right">股利發放</th>
-                                            <th className="p-3 text-right">除息參考價</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className={getTableBodyClass()}>
-                                        {postMarketReports.todayEx.length === 0 ? 
-                                            <tr>
-                                                <td colSpan={6} className="p-4 text-center font-bold text-gray-500 bg-gray-50">
-                                                    本日無除息資料
-                                                </td>
-                                            </tr> 
-                                        : postMarketReports.todayEx.map((d: any, i: number) => (
-                                            <tr key={i} className={getRowHoverClass()}>
-                                                <td className="p-3 font-mono font-bold text-indigo-600">{d['ETF代碼']}</td>
-                                                <td className="p-3 font-bold text-gray-600">{d['ETF名稱']}</td>
-                                                <td className="p-3 font-mono">{d['除息日期']}</td>
-                                                <td className="p-3 text-right font-bold text-emerald-600">{fmtDiv(d['除息金額'])}</td>
-                                                <td className="p-3 text-right font-mono">{d['股利發放']}</td>
-                                                <td className="p-3 text-right font-mono font-bold text-gray-700">{d['除息參考價']}</td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            )}
-
-                            {postMarketType === 'FILLED_3DAYS' && (
-                                <table className="w-full text-left border-collapse">
-                                    <thead className={getTableHeadClass()}>
-                                        <tr>
-                                            <th className="p-3">ETF代碼</th>
-                                            <th className="p-3">ETF名稱</th>
-                                            <th className="p-3">除息日期</th>
-                                            <th className="p-3 text-right">除息金額</th>
-                                            <th className="p-3 text-right">除息前一天股價</th>
-                                            <th className="p-3 text-right">除息參考價</th>
-                                            <th className="p-3 text-center">分析比對日期</th>
-                                            <th className="p-3 text-right">分析比對價格</th>
-                                            <th className="p-3 text-center">分析是否填息成功</th>
-                                            <th className="p-3 text-right">幾天填息</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className={getTableBodyClass()}>
-                                        {postMarketReports.filled.length === 0 ? 
-                                            <tr>
-                                                <td colSpan={10} className="p-4 text-center font-bold text-gray-500 bg-gray-50">
-                                                    本日無填息資料 (近3日無填息紀錄)
-                                                </td>
-                                            </tr> 
-                                        : postMarketReports.filled.map((d: any, i: number) => (
-                                            <tr key={i} className={getRowHoverClass()}>
-                                                <td className="p-3 font-mono font-bold text-indigo-600">{d['ETF代碼']}</td>
-                                                <td className="p-3 font-bold text-gray-600">{d['ETF名稱']}</td>
-                                                <td className="p-3 font-mono">{d['除息日期']}</td>
-                                                <td className="p-3 text-right font-bold text-emerald-600">{fmtDiv(d['除息金額'])}</td>
-                                                <td className="p-3 text-right font-mono text-gray-500">{fmtNum(d['除息前一天股價'])}</td>
-                                                <td className="p-3 text-right font-mono text-gray-500">{fmtNum(d['除息參考價'])}</td>
-                                                <td className="p-3 text-center font-mono text-green-600 font-bold">{d['分析比對日期']}</td>
-                                                <td className="p-3 text-right font-mono font-bold text-green-600">{fmtNum(d['分析比對價格'])}</td>
-                                                <td className="p-3 text-center font-bold text-green-600">{d['分析是否填息成功']}</td>
-                                                <td className="p-3 text-right font-mono">{d['幾天填息']}</td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            )}
-
-                            {postMarketType === 'UNFILLED_2026' && (
-                                <table className="w-full text-left border-collapse">
-                                    <thead className={getTableHeadClass()}>
-                                        <tr>
-                                            <th className="p-3">ETF代碼</th>
-                                            <th className="p-3">ETF名稱</th>
-                                            <th className="p-3">除息日期</th>
-                                            <th className="p-3 text-right">除息金額</th>
-                                            <th className="p-3 text-right">除息前一天股價</th>
-                                            <th className="p-3 text-right">除息參考價</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className={getTableBodyClass()}>
-                                        {postMarketReports.unfilled.length === 0 ? 
-                                            <tr>
-                                                <td colSpan={6} className="p-4 text-center font-bold text-gray-500 bg-gray-50">
-                                                    本日無比對資料 (2026/01/02 起皆已填息或無資料)
-                                                </td>
-                                            </tr> 
-                                        : postMarketReports.unfilled.map((d: any, i: number) => (
-                                            <tr key={i} className={getRowHoverClass()}>
-                                                <td className="p-3 font-mono font-bold text-red-600">{d['ETF代碼']}</td>
-                                                <td className="p-3 font-bold text-gray-600">{d['ETF名稱']}</td>
-                                                <td className="p-3 font-mono">{d['除息日期']}</td>
-                                                <td className="p-3 text-right font-bold text-gray-600">{fmtDiv(d['除息金額'])}</td>
-                                                <td className="p-3 text-right font-mono text-gray-500">{fmtNum(d['除息前一天股價'])}</td>
-                                                <td className="p-3 text-right font-mono text-gray-500">{fmtNum(d['除息參考價'])}</td>
                                             </tr>
                                         ))}
                                     </tbody>
