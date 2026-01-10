@@ -12,8 +12,12 @@ import {
 const TabAdvancedSearch: React.FC = () => {
     // --- STATE ---
     const [mainTab, setMainTab] = useState<'PRE_MARKET' | 'POST_MARKET' | 'WEEKLY' | 'SELF_MONTHLY'>('WEEKLY');
-    const [reportType, setReportType] = useState<'MARKET' | 'PRICE' | 'DIVIDEND' | 'FILL'>('MARKET');
-    const [selfMonthlySubTab, setSelfMonthlySubTab] = useState<'QUARTERLY_LIST' | 'EX_DIV_DATA'>('QUARTERLY_LIST');
+    
+    // Sub-tab states for different modules
+    const [reportType, setReportType] = useState<'MARKET' | 'PRICE' | 'DIVIDEND' | 'FILL'>('MARKET'); // For WEEKLY
+    const [selfMonthlySubTab, setSelfMonthlySubTab] = useState<'QUARTERLY_LIST' | 'EX_DIV_DATA'>('QUARTERLY_LIST'); // For SELF_MONTHLY
+    const [preMarketType, setPreMarketType] = useState<'GLOBAL_MARKET' | 'ETF_PRICE'>('GLOBAL_MARKET'); // For PRE_MARKET
+
     const [refDate, setRefDate] = useState(new Date().toISOString().split('T')[0]);
     
     // --- RAW DATA ---
@@ -132,7 +136,81 @@ const TabAdvancedSearch: React.FC = () => {
         return n.toFixed(3);
     };
 
-    // --- REPORT DATA PROCESSING ---
+    // --- PRE MARKET DATA PROCESSING ---
+    const preMarketReports = useMemo(() => {
+        if (mainTab !== 'PRE_MARKET') return { market: [], etf: { headers: [], rows: [] } };
+
+        // 1. GLOBAL MARKET (Last 10 days)
+        const allMarketDates = Array.from(new Set(marketData.map(d => d.date))).sort().reverse().slice(0, 10);
+        const marketDateSet = new Set(allMarketDates);
+        const market = marketData
+            .filter(d => marketDateSet.has(d.date))
+            .sort((a,b) => {
+                const wA = getIndexWeight(a.indexName);
+                const wB = getIndexWeight(b.indexName);
+                if (wA !== wB) return wA - wB;
+                return b.date.localeCompare(a.date); // Date Descending
+            });
+
+        // 2. ETF PRICE (Last 10 days, Pivot)
+        // Filter Targets
+        const targets = basicInfo.filter(b => {
+            const cat = (b.category || '').trim();
+            const type = (b.etfType || '').trim();
+            const freq = (b.dividendFreq || '').trim();
+            const name = (b.etfName || '').trim();
+            const market = (b.marketType || '').trim();
+            const code = (b.etfCode || '').trim();
+
+            if (code === '00911') return false; 
+            
+            // Exclude Half-Year
+            if (freq.includes('半年') || cat.includes('半年')) return false;
+            
+            // Exclude International
+            const isForeign = cat.includes('國外') || type.includes('國外') || market.includes('國外') || cat.includes('國際') || type.includes('國際') || name.includes('國際');
+            if (isForeign) return false;
+
+            // NEW: Exclude Monthly
+            if (freq.includes('月')) return false;
+
+            // NEW: Exclude Bond
+            if (cat.includes('債')) return false;
+
+            return true;
+        });
+
+        const targetCodes = new Set(targets.map(t => t.etfCode));
+        // Get last 10 unique dates from ALL price data (assuming data sync)
+        const allEtfDates: string[] = Array.from(new Set(priceData.map(p => p.date))).sort().reverse().slice(0, 10);
+        
+        // Build Rows
+        const etfRows = targets.map(etf => {
+            const row: any = {
+                // '商品分類': etf.category, // Removed from requirement
+                // '配息週期': etf.dividendFreq, // Removed from requirement
+                'ETF代碼': etf.etfCode,
+                'ETF名稱': etf.etfName,
+                'ETF類型': etf.etfType
+            };
+            allEtfDates.forEach((d: string) => {
+                const found = priceData.find(p => p.etfCode === etf.etfCode && p.date === d);
+                row[d] = found ? found.price : '';
+            });
+            return row;
+        });
+
+        // Sort ETF Rows: 股號由小至大
+        etfRows.sort((a, b) => {
+            return a['ETF代碼'].localeCompare(b['ETF代碼']);
+        });
+
+        return { market, etf: { headers: allEtfDates, rows: etfRows } };
+
+    }, [marketData, basicInfo, priceData, mainTab]);
+
+
+    // --- WEEKLY REPORT DATA PROCESSING ---
     const reportMarket = useMemo(() => {
         // Always generate this, don't depend on reportType for existence, just mainTab for relevance
         if (mainTab !== 'WEEKLY') return [];
@@ -363,6 +441,9 @@ const TabAdvancedSearch: React.FC = () => {
         } else if (mainTab === 'SELF_MONTHLY') {
             if (selfMonthlySubTab === 'QUARTERLY_LIST') return selfMonthlyData.list.length;
             if (selfMonthlySubTab === 'EX_DIV_DATA') return selfMonthlyData.div.length;
+        } else if (mainTab === 'PRE_MARKET') {
+            if (preMarketType === 'GLOBAL_MARKET') return preMarketReports.market.length;
+            if (preMarketType === 'ETF_PRICE') return preMarketReports.etf.rows.length;
         }
         return 0;
     };
@@ -382,6 +463,28 @@ const TabAdvancedSearch: React.FC = () => {
                     '除息日期': d['除息日期'],
                     '除息金額': fmtDiv(d['除息金額'])
                 })));
+            }
+            return;
+        }
+
+        if (mainTab === 'PRE_MARKET') {
+            if (preMarketType === 'GLOBAL_MARKET') {
+                const headers = ['日期', '指數名稱', '昨日收盤', '開盤', '高價', '低價', '現價', '漲跌點數', '漲跌幅度'];
+                const data = preMarketReports.market.map(d => ({
+                     '日期': d.date, '指數名稱': d.indexName, '昨日收盤': d.prevClose, '開盤': d.open, '高價': d.high, '低價': d.low, '現價': d.price, '漲跌點數': d.change, '漲跌幅度': `${d.changePercent}%`
+                }));
+                exportToCSV(`每日盤前_國際大盤_${timestamp}`, headers, data);
+            } else {
+                 const { headers: dateHeaders, rows } = preMarketReports.etf;
+                 // Pre Market CSV Headers: Code, Name, Type, Dates...
+                 const fixedHeaders = ['ETF代碼', 'ETF名稱', 'ETF類型'];
+                 const allHeaders = [...fixedHeaders, ...dateHeaders];
+                 const exportRows = rows.map((r:any) => {
+                     const obj:any = { 'ETF代碼': r['ETF代碼'], 'ETF名稱': r['ETF名稱'], 'ETF類型': r['ETF類型'] };
+                     dateHeaders.forEach(d => obj[d] = r[d]);
+                     return obj;
+                 });
+                 exportToCSV(`每日盤前_ETF股價_${timestamp}`, allHeaders, exportRows);
             }
             return;
         }
@@ -447,13 +550,34 @@ const TabAdvancedSearch: React.FC = () => {
             ]);
             payload['除息資料'] = [divHeaders, ...divRows];
 
+        } else if (mainTab === 'PRE_MARKET') {
+            titleMode = "每日盤前 (國際大盤+ETF股價)";
+
+            // 1. 國際大盤
+            const marketHeaders = ['日期', '指數名稱', '昨日收盤', '開盤', '高價', '低價', '現價', '漲跌點數', '漲跌幅度'];
+            const marketRows = preMarketReports.market.map(d => [d.date, d.indexName, d.prevClose, d.open, d.high, d.low, d.price, d.change, d.changePercent]);
+            payload['國際大盤'] = [marketHeaders, ...marketRows];
+
+            // 2. ETF 股價
+            const { headers: dateHeaders, rows: etfRows } = preMarketReports.etf;
+            // Removed Category & Freq from header
+            const fixedHeaders = ['ETF 代碼', 'ETF 名稱', 'ETF類型'];
+            const fullHeaders = [...fixedHeaders, ...dateHeaders];
+            const pivotRows = etfRows.map((row: any) => {
+                const base = [`'${row['ETF代碼']}`, row['ETF名稱'], row['ETF類型']];
+                const dynamic = dateHeaders.map(dateKey => row[dateKey] || '');
+                return [...base, ...dynamic];
+            });
+            payload['ETF 股價'] = [fullHeaders, ...pivotRows];
+
         } else if (mainTab === 'WEEKLY') {
             titleMode = "每週報告 (4表合一)";
 
             // 1. 國際大盤
             const marketHeaders = ['日期', '指數名稱', '昨日收盤', '開盤', '高價', '低價', '現價', '漲跌點數', '漲跌幅度'];
             const marketRows = reportMarket.map(d => [d.date, d.indexName, d.prevClose, d.open, d.high, d.low, d.price, d.change, d.changePercent]);
-            payload['週報_國際大盤'] = [marketHeaders, ...marketRows];
+            // UPDATED SHEET NAME: 國際大盤
+            payload['國際大盤'] = [marketHeaders, ...marketRows];
 
             // 2. ETF 股價 (Pivot)
             const { headers: dateHeaders, rows: pricePivotRows } = reportPrice;
@@ -464,17 +588,20 @@ const TabAdvancedSearch: React.FC = () => {
                 const dynamic = dateHeaders.map(dateKey => row[dateKey] || '');
                 return [...base, ...dynamic];
             });
-            payload['週報_ETF股價'] = [priceFullHeaders, ...priceRows];
+            // UPDATED SHEET NAME: ETF 股價
+            payload['ETF 股價'] = [priceFullHeaders, ...priceRows];
 
             // 3. 除息
             const divHeaders = ['ETF代碼', 'ETF名稱', '除息日期', '除息金額', '股利發放'];
             const divRows = reportDividend.map(d => [`'${d.etfCode}`, d.etfName, d.exDate, fmtDiv(d.amount), d.paymentDate || '-']);
-            payload['週報_除息'] = [divHeaders, ...divRows];
+            // UPDATED SHEET NAME: 本週除息
+            payload['本週除息'] = [divHeaders, ...divRows];
 
             // 4. 填息
             const fillHeaders = ['ETF代碼', 'ETF名稱', '除息日期', '除息金額', '除息前一天股價', '分析比對日期', '分析比對價格', '分析是否填息成功', '幾天填息'];
             const fillRows = reportFill.map(d => [`'${d.etfCode}`, d.etfName, d.exDate, fmtDiv(d.amount), d.pricePreEx, d.fillDate, d.fillPrice, '是', d.daysToFill]);
-            payload['週報_填息'] = [fillHeaders, ...fillRows];
+            // UPDATED SHEET NAME: 本週填息
+            payload['本週填息'] = [fillHeaders, ...fillRows];
         }
 
         const jsonString = JSON.stringify(payload, null, 2);
@@ -550,6 +677,12 @@ function importAllData() {
         { id: 'EX_DIV_DATA', label: '除息資料', icon: PieChart, color: 'text-rose-500', theme: 'rose' }
     ];
 
+    // 4. Pre Market Sub-Tabs
+    const PRE_MARKET_SUB = [
+        { id: 'GLOBAL_MARKET', label: '國際大盤', icon: TrendingUp, color: 'text-amber-600', theme: 'amber' },
+        { id: 'ETF_PRICE', label: 'ETF 股價', icon: TableIcon, color: 'text-amber-600', theme: 'amber' }
+    ];
+
     let activeTheme = 'blue';
     const mainConfig = MAIN_TABS.find(t => t.id === mainTab);
     if (mainConfig) activeTheme = mainConfig.theme;
@@ -560,6 +693,9 @@ function importAllData() {
     } else if (mainTab === 'SELF_MONTHLY') {
         const found = MONTHLY_SUB.find(t => t.id === selfMonthlySubTab);
         if (found) activeTheme = found.theme;
+    } else if (mainTab === 'PRE_MARKET') {
+        // Force amber for pre-market
+        activeTheme = 'amber';
     }
 
     const getTableHeadClass = () => `bg-${activeTheme}-50 text-${activeTheme}-800 sticky top-0 font-bold z-10 text-base`;
@@ -619,7 +755,7 @@ function importAllData() {
                             <div className="flex items-center gap-2">
                                 <span className="text-base font-bold text-gray-500 mr-2">(共 {getCurrentCount()} 筆)</span>
                                 <button onClick={handleCopyScript} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 transition-colors shadow-sm text-base">
-                                    <Code className="w-4 h-4" /> 複製自動化腳本(全)
+                                    <Code className="w-4 h-4" /> 自動化腳本
                                 </button>
                                 <button onClick={handleExport} className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg font-bold hover:bg-emerald-700 transition-colors shadow-sm text-base">
                                     <Download className="w-4 h-4" /> 匯出 CSV
@@ -801,7 +937,7 @@ function importAllData() {
                             <div className="flex items-center gap-2">
                                 <span className="text-base font-bold text-gray-500 mr-2">(共 {getCurrentCount()} 筆)</span>
                                 <button onClick={handleCopyScript} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 transition-colors shadow-sm text-base">
-                                    <Code className="w-4 h-4" /> 複製自動化腳本(全)
+                                    <Code className="w-4 h-4" /> 自動化腳本
                                 </button>
                                 <button onClick={handleExport} className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg font-bold hover:bg-emerald-700 transition-colors shadow-sm text-base">
                                     <Download className="w-4 h-4" /> 匯出 CSV
@@ -900,6 +1036,114 @@ function importAllData() {
                             )}
                         </div>
                     </div>
+                ) : mainTab === 'PRE_MARKET' ? (
+                     <div className={`h-full flex flex-col bg-white rounded-xl shadow-sm border border-${activeTheme}-200 overflow-hidden`}>
+                        {/* PRE MARKET HEADER */}
+                        <div className="p-4 border-b border-gray-200 bg-gray-50 flex flex-wrap gap-4 items-center justify-between flex-none">
+                            <div className="flex items-center gap-4">
+                                <div className="text-base font-bold text-gray-500 flex items-center gap-2">
+                                     <Zap className="w-5 h-5 text-amber-500" />
+                                     每日盤前數據中心 (Recent 10 Days)
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <span className="text-base font-bold text-gray-500 mr-2">(共 {getCurrentCount()} 筆)</span>
+                                <button onClick={handleCopyScript} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 transition-colors shadow-sm text-base">
+                                    <Code className="w-4 h-4" /> 自動化腳本
+                                </button>
+                                <button onClick={handleExport} className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg font-bold hover:bg-emerald-700 transition-colors shadow-sm text-base">
+                                    <Download className="w-4 h-4" /> 匯出 CSV
+                                </button>
+                            </div>
+                        </div>
+
+                         {/* PRE MARKET SUB-TABS */}
+                        <div className="p-2 border-b border-gray-200 bg-white flex gap-2 flex-none">
+                            {PRE_MARKET_SUB.map(btn => (
+                                <button
+                                    key={btn.id}
+                                    onClick={() => setPreMarketType(btn.id as any)}
+                                    className={`
+                                        flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-base border transition-all 
+                                        ${preMarketType === btn.id 
+                                            ? `bg-gray-700 text-white border-gray-700 shadow-md` 
+                                            : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'
+                                        }
+                                    `}
+                                >
+                                    <btn.icon className={`w-4 h-4 ${preMarketType === btn.id ? 'text-white' : btn.color}`} />
+                                    {btn.label}
+                                </button>
+                            ))}
+                        </div>
+
+                        {/* PRE MARKET CONTENT */}
+                        <div className="flex-1 overflow-auto bg-white p-0">
+                            {preMarketType === 'GLOBAL_MARKET' && (
+                                <table className="w-full text-left border-collapse">
+                                    <thead className={getTableHeadClass()}>
+                                        <tr>
+                                            <th className="p-3">日期</th>
+                                            <th className="p-3">指數名稱</th>
+                                            <th className="p-3 text-right">昨日收盤</th>
+                                            <th className="p-3 text-right">開盤</th>
+                                            <th className="p-3 text-right">高價</th>
+                                            <th className="p-3 text-right">低價</th>
+                                            <th className="p-3 text-right">現價</th>
+                                            <th className="p-3 text-right">漲跌點數</th>
+                                            <th className="p-3 text-right">漲跌幅度</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className={getTableBodyClass()}>
+                                        {preMarketReports.market.length === 0 ? <tr><td colSpan={9} className="p-8 text-center text-gray-400 text-lg">無資料</td></tr> :
+                                        preMarketReports.market.map((d, i) => (
+                                            <tr key={i} className={getRowHoverClass()}>
+                                                <td className="p-3 font-mono">{d.date}</td>
+                                                <td className="p-3 font-bold">{d.indexName}</td>
+                                                <td className="p-3 text-right font-mono text-gray-400">{fmtNum(d.prevClose)}</td>
+                                                <td className="p-3 text-right font-mono">{fmtNum(d.open)}</td>
+                                                <td className="p-3 text-right font-mono text-red-500">{fmtNum(d.high)}</td>
+                                                <td className="p-3 text-right font-mono text-green-500">{fmtNum(d.low)}</td>
+                                                <td className="p-3 text-right font-mono font-bold text-blue-700">{fmtNum(d.price)}</td>
+                                                <td className={`p-3 text-right font-mono font-bold ${d.change >= 0 ? 'text-red-600' : 'text-green-600'}`}>{d.change >= 0 ? '+' : ''}{fmtNum(d.change)}</td>
+                                                <td className={`p-3 text-right font-mono font-bold ${d.changePercent >= 0 ? 'text-red-600' : 'text-green-600'}`}>{fmtNum(d.changePercent)}%</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            )}
+
+                            {preMarketType === 'ETF_PRICE' && (
+                                <table className="w-full text-left border-collapse">
+                                    <thead className={getTableHeadClass()}>
+                                        <tr>
+                                            <th className={`p-3 whitespace-nowrap bg-${activeTheme}-50 sticky left-0 z-20`}>ETF代碼</th>
+                                            <th className={`p-3 whitespace-nowrap bg-${activeTheme}-50 sticky left-[90px] z-20`}>ETF名稱</th>
+                                            <th className="p-3 whitespace-nowrap">ETF類型</th>
+                                            {preMarketReports.etf.headers.map(d => (
+                                                <th key={d} className="p-3 whitespace-nowrap text-right font-mono">{d}</th>
+                                            ))}
+                                        </tr>
+                                    </thead>
+                                    <tbody className={getTableBodyClass()}>
+                                        {preMarketReports.etf.rows.length === 0 ? <tr><td colSpan={3 + preMarketReports.etf.headers.length} className="p-8 text-center text-gray-400 text-lg">無資料 (或全部被排除)</td></tr> :
+                                        preMarketReports.etf.rows.map((row: any, i: number) => (
+                                            <tr key={i} className={getRowHoverClass()}>
+                                                <td className={`p-3 font-mono font-bold text-indigo-600 bg-white sticky left-0 z-10 group-hover:bg-${activeTheme}-50 transition-colors`}>{row['ETF代碼']}</td>
+                                                <td className={`p-3 font-bold text-gray-600 bg-white sticky left-[90px] z-10 group-hover:bg-${activeTheme}-50 transition-colors`}>{row['ETF名稱']}</td>
+                                                <td className="p-3">{row['ETF類型']}</td>
+                                                {preMarketReports.etf.headers.map(d => (
+                                                    <td key={d} className="p-3 text-right font-mono font-medium text-gray-600 bg-gray-50/30">
+                                                        {row[d] !== '' ? fmtNum(row[d]) : '-'}
+                                                    </td>
+                                                ))}
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            )}
+                        </div>
+                     </div>
                 ) : (
                     <div className={`h-full flex flex-col items-center justify-center bg-white rounded-xl shadow-sm border border-${activeTheme}-200 text-gray-400`}>
                         <AlertCircle className={`w-16 h-16 mb-4 opacity-50 text-${activeTheme}-400`} />
