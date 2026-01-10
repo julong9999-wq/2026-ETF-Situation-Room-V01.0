@@ -102,25 +102,25 @@ const TabAdvancedSearch: React.FC = () => {
     };
 
     const getSelfMonthlySortScore = (category: string, freq: string, code: string) => {
-        // 1. 商品分類: 季配商品 > 月配商品 > 債券商品
-        let catScore = 3;
+        // 排序規則:
+        // 1. 商品分類 (季配 > 月配 > 債券)
+        let catScore = 4;
         const c = String(category || '');
         const f = String(freq || '');
         
-        // Logic check: User wants "季配名單" filtered by "季配" and "季配(主動)". 
-        // But for sorting logic generally:
-        if (c.includes('債')) { catScore = 3; }
-        else if (f.includes('月')) { catScore = 2; }
-        else if (f.includes('季')) { catScore = 1; }
+        if (c.includes('季配')) { catScore = 1; }
+        else if (c.includes('月配')) { catScore = 2; }
+        else if (c.includes('債')) { catScore = 3; }
+        else { catScore = 4; } // 其他
 
-        // 2. 配息週期: 月配 > 季一 > 季二 > 季三
+        // 2. 配息週期 (月配 > 季一 > 季二 > 季三)
         let freqScore = 5;
         if (f.includes('月')) freqScore = 1;
         else if (f.includes('季一') || f.includes('1,4') || f.includes('01,04')) freqScore = 2;
         else if (f.includes('季二') || f.includes('2,5') || f.includes('02,05')) freqScore = 3;
         else if (f.includes('季三') || f.includes('3,6') || f.includes('03,06')) freqScore = 4;
 
-        // 3. 股號由小至大 (Handled by caller usually, but returning tuple helps)
+        // 3. 股號由小至大
         return { catScore, freqScore, code };
     };
 
@@ -224,7 +224,7 @@ const TabAdvancedSearch: React.FC = () => {
             .sort((a,b) => a.fillDate.localeCompare(b.fillDate));
     }, [fillData, mainTab, reportType, dateRange]);
 
-    // --- SELF MONTHLY LOGIC (CORE UPDATE) ---
+    // --- SELF MONTHLY LOGIC (CORE UPDATE REVISED) ---
     const selfMonthlyData = useMemo(() => {
         if (mainTab !== 'SELF_MONTHLY') return { list: [], div: [] };
 
@@ -244,13 +244,14 @@ const TabAdvancedSearch: React.FC = () => {
             }
         });
 
-        // 2. Filter Targets: "季配商品" and "季配(主動)商品" (Exclude Bonds for now based on prompt implication, or include?)
-        // Prompt says: "名單過濾條件 為 "季配商品" and "季配(主動)商品""
+        // 2. Filter Targets: "季配商品" and "季配(主動)商品" (Exclude Bonds based on user implication in sort)
         const targets = basicInfo.filter(b => {
             const freq = (b.dividendFreq || '').trim();
             const cat = (b.category || '').trim();
-            // Assuming "季配" includes all quarterly, but usually excluding Bonds in this context unless specified
-            return freq.includes('季') && !cat.includes('債');
+            const isQuarterly = freq.includes('季');
+            const isBond = cat.includes('債');
+            // Strict filter based on prompt: 季配商品 and 季配(主動)商品. Usually implies Excluding Bonds.
+            return isQuarterly && !isBond;
         });
 
         // 3. Date Calculation
@@ -271,25 +272,22 @@ const TabAdvancedSearch: React.FC = () => {
             const latestPrices = priceData.filter(p => p.etfCode === etf.etfCode).sort((a,b) => b.date.localeCompare(a.date));
             const latest = latestPrices.length > 0 ? latestPrices[0] : null;
 
-            // B. Start Price Logic
+            // B. Start Price Logic (The Split Logic)
             let startPrice = 0;
             let startDate = '-';
 
-            if (targetYear <= 2025) {
-                // Use History Data (Monthly snapshots)
-                // historyData format date usually 'YYYY-MM-DD' where DD is 01 or end of month. 
-                // We look for matches starting with targetYearMonth
+            if (targetYear === 2025) {
+                // Rule: 2025 -> Use History Data (Monthly)
                 const hist = historyData.find(h => h.etfCode === etf.etfCode && h.date.startsWith(targetYearMonth));
                 if (hist) {
                     startPrice = hist.price;
                     startDate = hist.date;
                 }
             } else {
-                // Use Price Data (Daily) - Find the FIRST trading day of that month
-                // Filter prices starting with targetYearMonth, then sort ASCENDING
+                // Rule: 2026 onwards -> Use Price Data (Daily), find FIRST record of that month
                 const dailyMatches = priceData
                     .filter(p => p.etfCode === etf.etfCode && p.date.startsWith(targetYearMonth))
-                    .sort((a,b) => a.date.localeCompare(b.date)); // Oldest first
+                    .sort((a,b) => a.date.localeCompare(b.date)); // Sort Ascending to get first day
                 
                 if (dailyMatches.length > 0) {
                     startPrice = dailyMatches[0].price;
@@ -327,30 +325,30 @@ const TabAdvancedSearch: React.FC = () => {
         });
 
         // 6. Build Dividend Data
-        // Requirement: Show ALL targets, even if no dividend data for that month.
-        const divList = targets.map(etf => {
-            // Find dividend record for the displayed YearMonth (e.g. 2026-01)
-            // Assuming the dividend data 'yearMonth' matches 'YYYY-MM' format?
-            // If divData format uses YYYYMM or similar, might need normalization. 
-            // Based on import logic, yearMonth is usually just a string label, but let's try to match loosely or by exDate month.
-            // Actually user said "Reference Date Year Month".
-            
-            // Let's try finding by matching 'yearMonth' string OR exDate starting with YYYY-MM
-            const foundDiv = divData.find(d => 
-                d.etfCode === etf.etfCode && 
-                (d.yearMonth === displayYearMonth.replace('-','') || d.yearMonth === displayYearMonth || (d.exDate && d.exDate.startsWith(displayYearMonth)))
-            );
+        // Requirement: Generate records for BOTH the current reference month AND the same month last year.
+        // Also show "No Dividend" if no record exists for that month.
+        const monthsToGen = [displayYearMonth, targetYearMonth]; // e.g. ['2026-01', '2025-01']
 
-            return {
-                '商品分類': etf.category, // for sorting
-                '配息週期': etf.dividendFreq, // for sorting
-                'ETF代碼': etf.etfCode,
-                'ETF名稱': etf.etfName,
-                '年月': foundDiv ? foundDiv.yearMonth : displayYearMonth.replace('-',''),
-                '除息日期': foundDiv ? foundDiv.exDate : '無除息',
-                '除息金額': foundDiv ? foundDiv.amount : 0,
-                'hasDiv': !!foundDiv
-            };
+        const divList = targets.flatMap(etf => {
+            return monthsToGen.map(ym => {
+                // Find dividend record matching the Year-Month
+                const targetYMNoDash = ym.replace('-','');
+                const foundDiv = divData.find(d => 
+                    d.etfCode === etf.etfCode && 
+                    (d.yearMonth === targetYMNoDash || d.yearMonth === ym || (d.exDate && d.exDate.startsWith(ym)))
+                );
+
+                return {
+                    '商品分類': etf.category, // for sorting
+                    '配息週期': etf.dividendFreq, // for sorting
+                    'ETF代碼': etf.etfCode,
+                    'ETF名稱': etf.etfName,
+                    '年月': ym, // Explicitly set the Year-Month (e.g., 2026-01 or 2025-01)
+                    '除息日期': foundDiv ? foundDiv.exDate : '無除息',
+                    '除息金額': foundDiv ? foundDiv.amount : '無除息',
+                    'hasDiv': !!foundDiv
+                };
+            });
         });
 
         // 7. Sort Dividend List
@@ -360,7 +358,12 @@ const TabAdvancedSearch: React.FC = () => {
             
             if (scoreA.catScore !== scoreB.catScore) return scoreA.catScore - scoreB.catScore;
             if (scoreA.freqScore !== scoreB.freqScore) return scoreA.freqScore - scoreB.freqScore;
-            return scoreA.code.localeCompare(scoreB.code);
+            
+            // Primary Sort: ETF Code (Small to Large)
+            if (scoreA.code !== scoreB.code) return scoreA.code.localeCompare(scoreB.code);
+            
+            // Secondary Sort: YearMonth (Recent to Old) - e.g. 2026-01 before 2025-01
+            return b['年月'].localeCompare(a['年月']);
         });
 
         return { list, div: divList };
@@ -390,7 +393,6 @@ const TabAdvancedSearch: React.FC = () => {
                 exportToCSV(`自主月配_季配名單_${timestamp}`, headers, selfMonthlyData.list);
             } else {
                 const headers = ['ETF代碼', 'ETF名稱', '年月', '除息日期', '除息金額'];
-                // Format Dividend Amount to 3 decimals in export
                 exportToCSV(`自主月配_除息資料_${timestamp}`, headers, selfMonthlyData.div.map(d => ({
                     ...d,
                     '除息日期': d['除息日期'],
@@ -400,6 +402,7 @@ const TabAdvancedSearch: React.FC = () => {
             return;
         }
 
+        // ... (Existing export logic for WEEKLY tabs) ...
         if (reportType === 'MARKET') {
             const headers = ['日期', '指數名稱', '昨日收盤', '開盤', '高價', '低價', '現價', '漲跌點數', '漲跌幅度'];
             const data = reportMarket.map(d => ({
@@ -429,19 +432,17 @@ const TabAdvancedSearch: React.FC = () => {
     };
 
     const handleCopyScript = () => {
-        // Dynamic Script Generation Logic based on User Request
-        // 3." 自主月配" 幫我寫 程式 , 我可以 GOOGLE 表單 , 自動寫入相同資料的 程式 , 把程式寫好 , 我按 "複製自動化腳本"按鈕 , 可以複製到貼到 Apps Script
-        
+        // Dynamic Script Generation
         let scriptData: any[][] = [];
         let sheetName = "";
 
         if (mainTab === 'SELF_MONTHLY') {
             if (selfMonthlySubTab === 'QUARTERLY_LIST') {
-                const headers = ['商品分類', '配息週期', 'ETF代碼', 'ETF名稱', 'ETF類型', '規模大小', '起始日期', '起始股價', '最近日期', '最近股價'];
+                const headers = ['商品分類', '配息週期', 'ETF 代碼', 'ETF 名稱', 'ETF類型', '規模大小', '起始日期', '起始股價', '最近日期', '最近股價'];
                 const rows = selfMonthlyData.list.map((row: any) => [
                     row['商品分類'], 
                     row['配息週期'], 
-                    `'${row['ETF代碼']}`, // Add apostrophe to force text in Google Sheets
+                    `'${row['ETF代碼']}`, // Use apostrophe for text format in GAS
                     row['ETF名稱'], 
                     row['ETF類型'], 
                     row['規模大小'], 
@@ -453,9 +454,9 @@ const TabAdvancedSearch: React.FC = () => {
                 scriptData = [headers, ...rows];
                 sheetName = "季配名單";
             } else {
-                const headers = ['ETF代碼', 'ETF名稱', '年月', '除息日期', '除息金額'];
+                const headers = ['ETF 代碼', 'ETF 名稱', '年月', '除息日期', '除息金額'];
                 const rows = selfMonthlyData.div.map((d: any) => [
-                    `'${d['ETF代碼']}`, // Add apostrophe to force text in Google Sheets
+                    `'${d['ETF代碼']}`, // Use apostrophe for text format in GAS
                     d['ETF名稱'], 
                     d['年月'], 
                     d['除息日期'], 
@@ -472,7 +473,6 @@ const TabAdvancedSearch: React.FC = () => {
                 scriptData = [headers, ...rows];
                 sheetName = "週報_國際大盤";
             }
-            // ... add others if needed, but Self Monthly is the priority
         }
 
         const jsonString = JSON.stringify(scriptData, null, 2);
@@ -514,7 +514,7 @@ function importDataToSheet() {
         `;
         
         navigator.clipboard.writeText(scriptContent).then(() => {
-            alert(`✅ Google Apps Script 已複製！\n\n目標: [${sheetName}]\n筆數: ${scriptData.length-1} 筆\n\n已針對「股號」格式進行優化 ('0056)。\n請至 Google Sheet -> 擴充功能 -> Apps Script 貼上並執行 importDataToSheet 函式。`);
+            alert(`✅ Google Apps Script 已複製！\n\n目標分頁: [${sheetName}]\n資料筆數: ${scriptData.length-1} 筆\n\n※ 已修正股號格式 ('0056) 與起始價格抓取邏輯。\n請至 Google Sheet -> 擴充功能 -> Apps Script 貼上並執行 importDataToSheet 函式。`);
         }).catch(err => {
             console.error('Failed to copy: ', err);
             alert("複製失敗");
@@ -522,8 +522,6 @@ function importDataToSheet() {
     };
 
     // --- RENDER ---
-    // (Existing render code below, mostly unchanged except formatted values)
-    
     // 1. Top Level Tabs (Main)
     const MAIN_TABS = [
         { id: 'PRE_MARKET', label: '每日盤前', icon: Zap, color: 'text-amber-500', theme: 'amber' },
@@ -645,6 +643,7 @@ function importDataToSheet() {
 
                         {/* Data Display */}
                         <div className="flex-1 overflow-auto bg-white p-0">
+                            {/* ... (Market, Price, Dividend, Fill tables remain unchanged) ... */}
                             {reportType === 'MARKET' && (
                                 <table className="w-full text-left border-collapse">
                                     <thead className={getTableHeadClass()}>
@@ -880,7 +879,7 @@ function importDataToSheet() {
                                                 <td className="p-3 font-mono font-bold text-blue-600">{d['ETF代碼']}</td>
                                                 <td className="p-3 font-bold text-gray-600">{d['ETF名稱']}</td>
                                                 <td className="p-3 font-mono">{d['年月']}</td>
-                                                <td className="p-3 font-mono">{d['除息日期'] || '-'}</td>
+                                                <td className="p-3 font-mono">{d['hasDiv'] ? d['除息日期'] : '無除息'}</td>
                                                 {/* 3 decimals */}
                                                 <td className={`p-3 text-right font-bold ${d['hasDiv'] ? 'text-emerald-600' : 'text-gray-400 italic'}`}>
                                                     {d['hasDiv'] ? fmtDiv(d['除息金額']) : '無除息'}
