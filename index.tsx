@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { Component } from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 
@@ -19,8 +19,8 @@ interface ErrorBoundaryState {
   errorInfo: any;
 }
 
-class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
-  public state: ErrorBoundaryState;
+class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  // Removed explicit public state declaration to avoid shadowing React.Component's state
 
   constructor(props: ErrorBoundaryProps) {
     super(props);

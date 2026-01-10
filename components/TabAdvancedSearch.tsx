@@ -134,7 +134,8 @@ const TabAdvancedSearch: React.FC = () => {
 
     // --- REPORT DATA PROCESSING ---
     const reportMarket = useMemo(() => {
-        if (mainTab !== 'WEEKLY' || reportType !== 'MARKET') return [];
+        // Always generate this, don't depend on reportType for existence, just mainTab for relevance
+        if (mainTab !== 'WEEKLY') return [];
         const start = dateRange.lastFriday;
         const end = dateRange.thisFriday;
         return marketData
@@ -145,10 +146,10 @@ const TabAdvancedSearch: React.FC = () => {
                 if (wA !== wB) return wA - wB;
                 return a.date.localeCompare(b.date);
             });
-    }, [marketData, mainTab, reportType, dateRange]);
+    }, [marketData, mainTab, dateRange]);
 
     const reportPrice = useMemo(() => {
-        if (mainTab !== 'WEEKLY' || reportType !== 'PRICE') return { headers: [], rows: [] };
+        if (mainTab !== 'WEEKLY') return { headers: [], rows: [] };
         const start = dateRange.lastFriday;
         const end = dateRange.thisFriday;
 
@@ -200,19 +201,19 @@ const TabAdvancedSearch: React.FC = () => {
         });
 
         return { headers: uniqueDates, rows: pivotRows };
-    }, [basicInfo, priceData, mainTab, reportType, dateRange]);
+    }, [basicInfo, priceData, mainTab, dateRange]);
 
     const reportDividend = useMemo(() => {
-        if (mainTab !== 'WEEKLY' || reportType !== 'DIVIDEND') return [];
+        if (mainTab !== 'WEEKLY') return [];
         const start = dateRange.thisMonday;
         const end = dateRange.thisFriday;
         return divData
             .filter(d => d.exDate >= start && d.exDate <= end)
             .sort((a,b) => a.exDate.localeCompare(b.exDate));
-    }, [divData, mainTab, reportType, dateRange]);
+    }, [divData, mainTab, dateRange]);
 
     const reportFill = useMemo(() => {
-        if (mainTab !== 'WEEKLY' || reportType !== 'FILL') return [];
+        if (mainTab !== 'WEEKLY') return [];
         const start = dateRange.thisMonday;
         const end = dateRange.thisFriday;
         return fillData
@@ -222,7 +223,7 @@ const TabAdvancedSearch: React.FC = () => {
                 return d.isFilled && d.fillDate >= start && d.fillDate <= end && exYear >= 2026;
             })
             .sort((a,b) => a.fillDate.localeCompare(b.fillDate));
-    }, [fillData, mainTab, reportType, dateRange]);
+    }, [fillData, mainTab, dateRange]);
 
     // --- SELF MONTHLY LOGIC (FIXED) ---
     const selfMonthlyData = useMemo(() => {
@@ -324,10 +325,7 @@ const TabAdvancedSearch: React.FC = () => {
         });
 
         // 6. Build Dividend Data (FIXED: NO MONTH FILTERING, SHOW ALL ACTUAL DATA)
-        // Identify all target codes
         const targetCodes = new Set(targets.map(t => t.etfCode));
-
-        // Filter divData to only include records for our target ETFs
         const divList = divData
             .filter(d => targetCodes.has(d.etfCode))
             .map(d => ({
@@ -338,7 +336,7 @@ const TabAdvancedSearch: React.FC = () => {
                 '年月': d.yearMonth,
                 '除息日期': d.exDate,
                 '除息金額': d.amount,
-                'hasDiv': true // Always true because we are showing actual records
+                'hasDiv': true 
             }));
 
         // 7. Sort Dividend List
@@ -348,11 +346,7 @@ const TabAdvancedSearch: React.FC = () => {
             
             if (scoreA.catScore !== scoreB.catScore) return scoreA.catScore - scoreB.catScore;
             if (scoreA.freqScore !== scoreB.freqScore) return scoreA.freqScore - scoreB.freqScore;
-            
-            // Primary Sort: ETF Code
             if (scoreA.code !== scoreB.code) return scoreA.code.localeCompare(scoreB.code);
-            
-            // Secondary Sort: ExDate Descending (Newest first)
             return b['除息日期'].localeCompare(a['除息日期']);
         });
 
@@ -392,7 +386,6 @@ const TabAdvancedSearch: React.FC = () => {
             return;
         }
 
-        // ... (Existing export logic for WEEKLY tabs) ...
         if (reportType === 'MARKET') {
             const headers = ['日期', '指數名稱', '昨日收盤', '開盤', '高價', '低價', '現價', '漲跌點數', '漲跌幅度'];
             const data = reportMarket.map(d => ({
@@ -406,14 +399,12 @@ const TabAdvancedSearch: React.FC = () => {
             exportToCSV(`周報_ETF股價_${timestamp}`, allHeaders, rows);
         } else if (reportType === 'DIVIDEND') {
             const headers = ['ETF代碼', 'ETF名稱', '除息日期', '除息金額', '股利發放'];
-            // Format Dividend Amount to 3 decimals
             const data = reportDividend.map(d => ({
                 'ETF代碼': d.etfCode, 'ETF名稱': d.etfName, '除息日期': d.exDate, '除息金額': fmtDiv(d.amount), '股利發放': d.paymentDate || '-'
             }));
             exportToCSV(`周報_除息_${timestamp}`, headers, data);
         } else if (reportType === 'FILL') {
             const headers = ['ETF代碼', 'ETF名稱', '除息日期', '除息金額', '除息前一天股價', '分析比對日期', '分析比對價格', '分析是否填息成功', '幾天填息'];
-            // Format Dividend Amount to 3 decimals
             const data = reportFill.map(d => ({
                 'ETF代碼': d.etfCode, 'ETF名稱': d.etfName, '除息日期': d.exDate, '除息金額': fmtDiv(d.amount), '除息前一天股價': d.pricePreEx, '分析比對日期': d.fillDate, '分析比對價格': d.fillPrice, '分析是否填息成功': '是', '幾天填息': d.daysToFill
             }));
@@ -421,90 +412,115 @@ const TabAdvancedSearch: React.FC = () => {
         }
     };
 
+    // --- REVISED COPY SCRIPT HANDLER (Consolidated) ---
     const handleCopyScript = () => {
-        // Dynamic Script Generation
-        let scriptData: any[][] = [];
-        let sheetName = "";
+        const payload: Record<string, any[][]> = {};
+        let titleMode = "";
 
         if (mainTab === 'SELF_MONTHLY') {
-            if (selfMonthlySubTab === 'QUARTERLY_LIST') {
-                const headers = ['商品分類', '配息週期', 'ETF 代碼', 'ETF 名稱', 'ETF類型', '規模大小', '起始日期', '起始股價', '最近日期', '最近股價'];
-                const rows = selfMonthlyData.list.map((row: any) => [
-                    row['商品分類'], 
-                    row['配息週期'], 
-                    `'${row['ETF代碼']}`, // Use apostrophe for text format in GAS
-                    row['ETF名稱'], 
-                    row['ETF類型'], 
-                    row['規模大小'], 
-                    row['起始日期'], 
-                    row['起始股價'], 
-                    row['最近日期'], 
-                    row['最近股價']
-                ]);
-                scriptData = [headers, ...rows];
-                sheetName = "季配名單";
-            } else {
-                const headers = ['ETF 代碼', 'ETF 名稱', '年月', '除息日期', '除息金額'];
-                const rows = selfMonthlyData.div.map((d: any) => [
-                    `'${d['ETF代碼']}`, // Use apostrophe for text format in GAS
-                    d['ETF名稱'], 
-                    d['年月'], 
-                    d['除息日期'], 
-                    fmtDiv(d['除息金額'])
-                ]);
-                scriptData = [headers, ...rows];
-                sheetName = "除息資料";
-            }
-        } else {
-            // Fallback for Weekly Report
-            if (reportType === 'MARKET') {
-                const headers = ['日期', '指數名稱', '昨日收盤', '開盤', '高價', '低價', '現價', '漲跌點數', '漲跌幅度'];
-                const rows = reportMarket.map(d => [d.date, d.indexName, d.prevClose, d.open, d.high, d.low, d.price, d.change, d.changePercent]);
-                scriptData = [headers, ...rows];
-                sheetName = "週報_國際大盤";
-            }
+            titleMode = "自主月配 (名單+除息)";
+
+            // 1. 季配名單
+            const listHeaders = ['商品分類', '配息週期', 'ETF 代碼', 'ETF 名稱', 'ETF類型', '規模大小', '起始日期', '起始股價', '最近日期', '最近股價'];
+            const listRows = selfMonthlyData.list.map((row: any) => [
+                row['商品分類'], 
+                row['配息週期'], 
+                `'${row['ETF代碼']}`, 
+                row['ETF名稱'], 
+                row['ETF類型'], 
+                row['規模大小'], 
+                row['起始日期'], 
+                row['起始股價'], 
+                row['最近日期'], 
+                row['最近股價']
+            ]);
+            payload['季配名單'] = [listHeaders, ...listRows];
+
+            // 2. 除息資料
+            const divHeaders = ['ETF 代碼', 'ETF 名稱', '年月', '除息日期', '除息金額'];
+            const divRows = selfMonthlyData.div.map((d: any) => [
+                `'${d['ETF代碼']}`, 
+                d['ETF名稱'], 
+                d['年月'], 
+                d['除息日期'], 
+                fmtDiv(d['除息金額'])
+            ]);
+            payload['除息資料'] = [divHeaders, ...divRows];
+
+        } else if (mainTab === 'WEEKLY') {
+            titleMode = "每週報告 (4表合一)";
+
+            // 1. 國際大盤
+            const marketHeaders = ['日期', '指數名稱', '昨日收盤', '開盤', '高價', '低價', '現價', '漲跌點數', '漲跌幅度'];
+            const marketRows = reportMarket.map(d => [d.date, d.indexName, d.prevClose, d.open, d.high, d.low, d.price, d.change, d.changePercent]);
+            payload['週報_國際大盤'] = [marketHeaders, ...marketRows];
+
+            // 2. ETF 股價 (Pivot)
+            const { headers: dateHeaders, rows: pricePivotRows } = reportPrice;
+            const priceFixedHeaders = ['商品分類', '配息週期', 'ETF代碼', 'ETF名稱', 'ETF類型'];
+            const priceFullHeaders = [...priceFixedHeaders, ...dateHeaders];
+            const priceRows = pricePivotRows.map((row: any) => {
+                const base = [row['商品分類'], row['配息週期'], `'${row['ETF代碼']}`, row['ETF名稱'], row['ETF類型']];
+                const dynamic = dateHeaders.map(dateKey => row[dateKey] || '');
+                return [...base, ...dynamic];
+            });
+            payload['週報_ETF股價'] = [priceFullHeaders, ...priceRows];
+
+            // 3. 除息
+            const divHeaders = ['ETF代碼', 'ETF名稱', '除息日期', '除息金額', '股利發放'];
+            const divRows = reportDividend.map(d => [`'${d.etfCode}`, d.etfName, d.exDate, fmtDiv(d.amount), d.paymentDate || '-']);
+            payload['週報_除息'] = [divHeaders, ...divRows];
+
+            // 4. 填息
+            const fillHeaders = ['ETF代碼', 'ETF名稱', '除息日期', '除息金額', '除息前一天股價', '分析比對日期', '分析比對價格', '分析是否填息成功', '幾天填息'];
+            const fillRows = reportFill.map(d => [`'${d.etfCode}`, d.etfName, d.exDate, fmtDiv(d.amount), d.pricePreEx, d.fillDate, d.fillPrice, '是', d.daysToFill]);
+            payload['週報_填息'] = [fillHeaders, ...fillRows];
         }
 
-        const jsonString = JSON.stringify(scriptData, null, 2);
+        const jsonString = JSON.stringify(payload, null, 2);
 
         const scriptContent = `
 /**
- * ETF 戰情室 - 自動寫入 Google Sheet 腳本
- * 目標工作表: ${sheetName}
- * 資料筆數: ${scriptData.length - 1}
+ * ETF 戰情室 - 一鍵寫入多個分頁腳本
+ * 模式: ${titleMode}
+ * 產生時間: ${new Date().toLocaleString()}
  */
-function importDataToSheet() {
+function importAllData() {
   var spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
-  // 嘗試取得目標工作表，若無則建立
-  var sheetName = "${sheetName}";
-  var sheet = spreadsheet.getSheetByName(sheetName);
-  
-  if (!sheet) {
-    sheet = spreadsheet.insertSheet(sheetName);
-  } else {
-    sheet.clear();
+  var payload = ${jsonString};
+
+  // 遍歷所有需要寫入的分頁
+  for (var sheetName in payload) {
+    if (payload.hasOwnProperty(sheetName)) {
+      var data = payload[sheetName];
+      var sheet = spreadsheet.getSheetByName(sheetName);
+      
+      // 若分頁不存在則建立
+      if (!sheet) {
+        sheet = spreadsheet.insertSheet(sheetName);
+      } else {
+        sheet.clear(); // 清除舊資料
+      }
+      
+      if (data.length > 0) {
+        // 批量寫入
+        var range = sheet.getRange(1, 1, data.length, data[0].length);
+        range.setValues(data);
+        
+        // 美化標題列
+        sheet.getRange(1, 1, 1, data[0].length).setFontWeight("bold").setBackground("#e6f7ff");
+        Logger.log("已寫入: " + sheetName + " (" + data.length + " 筆)");
+      } else {
+        Logger.log("無資料: " + sheetName);
+      }
+    }
   }
-  
-  // 準備資料
-  var data = ${jsonString};
-  
-  if (data.length > 0) {
-    // 寫入資料
-    var range = sheet.getRange(1, 1, data.length, data[0].length);
-    range.setValues(data);
-    
-    // 選用: 調整第一列格式
-    sheet.getRange(1, 1, 1, data[0].length).setFontWeight("bold").setBackground("#e6f7ff");
-    
-    Logger.log("成功寫入 " + data.length + " 列資料至 " + sheetName);
-  } else {
-    Logger.log("無資料可寫入");
-  }
+  SpreadsheetApp.getUi().alert("✅ 資料匯入完成！");
 }
         `;
         
         navigator.clipboard.writeText(scriptContent).then(() => {
-            alert(`✅ Google Apps Script 已複製！\n\n目標分頁: [${sheetName}]\n資料筆數: ${scriptData.length-1} 筆\n\n※ 已修正股號格式 ('0056) 與起始價格抓取邏輯。\n請至 Google Sheet -> 擴充功能 -> Apps Script 貼上並執行 importDataToSheet 函式。`);
+            alert(`✅ Google Apps Script 已複製！\n\n模式: [${titleMode}]\n\n現在只需執行一次 importAllData 函式，即可同時更新所有相關分頁。\n\n請至 Google Sheet -> 擴充功能 -> Apps Script 貼上並執行。`);
         }).catch(err => {
             console.error('Failed to copy: ', err);
             alert("複製失敗");
@@ -603,7 +619,7 @@ function importDataToSheet() {
                             <div className="flex items-center gap-2">
                                 <span className="text-base font-bold text-gray-500 mr-2">(共 {getCurrentCount()} 筆)</span>
                                 <button onClick={handleCopyScript} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 transition-colors shadow-sm text-base">
-                                    <Code className="w-4 h-4" /> 複製自動化腳本
+                                    <Code className="w-4 h-4" /> 複製自動化腳本(全)
                                 </button>
                                 <button onClick={handleExport} className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg font-bold hover:bg-emerald-700 transition-colors shadow-sm text-base">
                                     <Download className="w-4 h-4" /> 匯出 CSV
@@ -785,7 +801,7 @@ function importDataToSheet() {
                             <div className="flex items-center gap-2">
                                 <span className="text-base font-bold text-gray-500 mr-2">(共 {getCurrentCount()} 筆)</span>
                                 <button onClick={handleCopyScript} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 transition-colors shadow-sm text-base">
-                                    <Code className="w-4 h-4" /> 複製自動化腳本
+                                    <Code className="w-4 h-4" /> 複製自動化腳本(全)
                                 </button>
                                 <button onClick={handleExport} className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg font-bold hover:bg-emerald-700 transition-colors shadow-sm text-base">
                                     <Download className="w-4 h-4" /> 匯出 CSV
