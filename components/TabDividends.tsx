@@ -234,6 +234,7 @@ const TabDividends: React.FC<TabDividendsProps> = ({
   };
 
   const fmtP = (n: number | string) => { if (typeof n === 'string') return n; return n === 0 ? '-' : n.toFixed(2); };
+  const fmtDiv = (n: number | string) => { if (typeof n === 'string') return n; return n === 0 ? '-' : n.toFixed(3); };
   const fmtPct = (n: number) => n === 0 ? '0.00%' : `${n.toFixed(2)}%`;
   const fmtCol = (n: number) => n > 0 ? 'text-red-600' : n < 0 ? 'text-green-600' : 'text-gray-800';
 
@@ -256,7 +257,8 @@ const TabDividends: React.FC<TabDividendsProps> = ({
       const dataForExport = detailData.map(d => {
           let yieldStr = '-';
           if (latestPrice > 0) { yieldStr = ((d.amount / latestPrice) * 100).toFixed(2) + '%'; }
-          return { '代碼': d.etfCode, '名稱': d.etfName, '年月': d.yearMonth, '除息日': d.exDate, '除息金額': fmtP(d.amount), '單次殖利率': yieldStr, '發放日': d.paymentDate };
+          // Use fmtDiv for 3 decimals
+          return { '代碼': d.etfCode, '名稱': d.etfName, '年月': d.yearMonth, '除息日': d.exDate, '除息金額': fmtDiv(d.amount), '單次殖利率': yieldStr, '發放日': d.paymentDate };
       });
       exportToCSV(`${selectedEtf}_Dividends`, headers, dataForExport);
   }
@@ -399,7 +401,7 @@ const TabDividends: React.FC<TabDividendsProps> = ({
                                             <tr key={i} className={`hover:bg-purple-50/50 transition-colors ${isFuture ? 'bg-red-50' : ''}`}>
                                                 <td className="p-2.5 pl-4 font-bold text-gray-800">{d.yearMonth}</td>
                                                 <td className="p-2.5 text-purple-700 font-mono font-medium"><div className="flex items-center gap-2"><Calendar className="w-4 h-4"/>{d.exDate}</div></td>
-                                                <td className="p-2.5 text-right font-bold text-emerald-600 text-lg">{fmtP(d.amount)}</td>
+                                                <td className="p-2.5 text-right font-bold text-emerald-600 text-lg">{fmtDiv(d.amount)}</td>
                                                 <td className="p-2.5 text-right font-bold text-amber-600 font-mono text-lg">{yieldStr}</td>
                                                 <td className="p-2.5 pr-6 text-right text-gray-600 font-medium">{d.paymentDate}</td>
                                             </tr>
@@ -440,7 +442,7 @@ const TabDividends: React.FC<TabDividendsProps> = ({
                                        <td className="p-4 font-mono text-purple-700 font-medium">{d.exDate}</td>
                                        <td className="p-4"><div className="font-bold text-lg">{d.etfCode}</div><div className="text-sm text-gray-500">{d.etfName}</div></td>
                                        <td className="p-4"><span className="bg-gray-100 px-2 py-1 rounded text-sm font-bold">{d.category}</span></td>
-                                       <td className="p-4 text-right font-bold text-emerald-600 text-lg">{fmtP(d.amount)}</td>
+                                       <td className="p-4 text-right font-bold text-emerald-600 text-lg">{fmtDiv(d.amount)}</td>
                                        <td className="p-4 text-center text-orange-500 text-base font-bold">{d.status}</td>
                                    </tr>
                                ))}

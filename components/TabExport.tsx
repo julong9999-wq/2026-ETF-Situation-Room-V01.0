@@ -27,6 +27,8 @@ const TabExport: React.FC = () => {
         setLoadingState(prev => ({ ...prev, [type]: true }));
         try {
             const dateStr = new Date().toISOString().split('T')[0];
+            const fmtDiv = (n: number) => n !== undefined && n !== null ? n.toFixed(3) : '0.000';
+
             if (type === 'market') {
                 const data = await getMarketData();
                 const headers = ['指數名稱', '日期', '昨日收盤', '開盤', '高價', '低價', '現價', '成交量', '漲跌', '漲跌幅'];
@@ -48,7 +50,8 @@ const TabExport: React.FC = () => {
             else if (type === 'dividend') {
                 const data = await getDividendData();
                 const headers = ['ETF代碼', 'ETF名稱', '年月', '除息日期', '除息金額', '發放日'];
-                const rows = data.map(d => ({ 'ETF代碼': d.etfCode, 'ETF名稱': d.etfName, '年月': d.yearMonth, '除息日期': d.exDate, '除息金額': d.amount, '發放日': d.paymentDate }));
+                // 3 decimals
+                const rows = data.map(d => ({ 'ETF代碼': d.etfCode, 'ETF名稱': d.etfName, '年月': d.yearMonth, '除息日期': d.exDate, '除息金額': fmtDiv(d.amount), '發放日': d.paymentDate }));
                 exportToCSV(`DB_除息資料_${dateStr}`, headers, rows);
             }
             else if (type === 'size') {
@@ -66,7 +69,8 @@ const TabExport: React.FC = () => {
             else if (type === 'fill') {
                 const data = await getFillAnalysisData();
                 const headers = ['ETF代碼', 'ETF名稱', '除息日期', '除息金額', '除息前股價', '參考價', '填息日期', '填息價', '是否填息', '填息天數'];
-                const rows = data.map(d => ({ 'ETF代碼': d.etfCode, 'ETF名稱': d.etfName, '除息日期': d.exDate, '除息金額': d.amount, '除息前股價': d.pricePreEx, '參考價': d.priceReference, '填息日期': d.fillDate, '填息價': d.fillPrice, '是否填息': d.isFilled ? '是' : '否', '填息天數': d.daysToFill }));
+                // 3 decimals
+                const rows = data.map(d => ({ 'ETF代碼': d.etfCode, 'ETF名稱': d.etfName, '除息日期': d.exDate, '除息金額': fmtDiv(d.amount), '除息前股價': d.pricePreEx, '參考價': d.priceReference, '填息日期': d.fillDate, '填息價': d.fillPrice, '是否填息': d.isFilled ? '是' : '否', '填息天數': d.daysToFill }));
                 exportToCSV(`REPORT_全市場填息分析_${dateStr}`, headers, rows);
             }
         } catch (e) { alert("匯出失敗，請檢查資料完整性。"); console.error(e); } finally { setTimeout(() => setLoadingState(prev => ({ ...prev, [type]: false })), 500); }

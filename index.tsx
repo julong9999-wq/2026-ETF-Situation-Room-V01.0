@@ -19,8 +19,8 @@ interface ErrorBoundaryState {
   errorInfo: any;
 }
 
-class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
-  override state: ErrorBoundaryState = {
+class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  state: ErrorBoundaryState = {
     hasError: false,
     error: null,
     errorInfo: null

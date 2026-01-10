@@ -89,7 +89,7 @@ const InfoListModal = ({ title, columns, data, onClose, type = 'NORMAL' }: any) 
                 <div className="flex-1 overflow-auto p-0 min-h-0">
                     <table className="w-full text-left text-base">
                         <thead className="bg-gray-100 sticky top-0 border-b z-10"><tr>{columns.map((c:string) => <th key={c} className="p-4 font-bold">{c}</th>)}</tr></thead>
-                        <tbody className="divide-y">{data.map((row: any, i: number) => { let rowClass = "hover:bg-gray-50"; if (type === 'DIV') { const exDate = row['除息日']; if (exDate > today) rowClass = "bg-red-50 hover:bg-red-100 text-red-900"; } return ( <tr key={i} className={rowClass}> {Object.entries(row).map(([key, val]: [string, any], j) => ( <td key={j} className="p-4 font-mono"><span className={key === '金額' || key === '現價' || key === '單次殖利率' ? 'font-bold' : ''}>{val}</span></td> ))} </tr> ); })} {data.length === 0 && <tr><td colSpan={columns.length} className="p-8 text-center text-gray-400">無資料</td></tr>}</tbody>
+                        <tbody className="divide-y">{data.map((row: any, i: number) => { let rowClass = "hover:bg-gray-50"; if (type === 'DIV') { const exDate = row['除息日']; if (exDate > today) rowClass = "bg-red-50 hover:bg-red-100 text-red-900"; } return ( <tr key={i} className={rowClass}> {Object.entries(row).map(([key, val]: [string, any], j) => ( <td key={j} className="p-4 font-mono"><span className={key === '金額' ? 'font-bold' : ''}>{val}</span></td> ))} </tr> ); })} {data.length === 0 && <tr><td colSpan={columns.length} className="p-8 text-center text-gray-400">無資料</td></tr>}</tbody>
                     </table>
                 </div>
             </div>
@@ -245,6 +245,7 @@ const TabFillAnalysis: React.FC<TabFillAnalysisProps> = ({
   };
 
   const fmtP = (n: number | string) => { if (typeof n === 'string') return n; return n === 0 ? '-' : n.toFixed(2); };
+  const fmtDiv = (n: number | string) => { if (typeof n === 'string') return n; return n === 0 ? '-' : n.toFixed(3); };
   const fmtPct = (n: number) => n === 0 ? '0.00%' : `${n.toFixed(2)}%`;
   const fmtCol = (n: number) => n > 0 ? 'text-red-600' : n < 0 ? 'text-green-600' : 'text-gray-800';
 
@@ -264,7 +265,8 @@ const TabFillAnalysis: React.FC<TabFillAnalysisProps> = ({
       if (!selectedEtf) return alert("請先選擇一檔 ETF");
       if (detailData.length === 0) return alert("無資料可匯出");
       const headers = ['代碼', '名稱', '所屬年月', '除息日期', '除息金額', '除息前一天', '除息前一天股價', '除息參考價', '分析比對日期', '分析比對價格', '分析是否填息成功', '幾天填息'];
-      const csvData = detailData.map(d => ({ '代碼': d.etfCode, '名稱': d.etfName, '所屬年月': d.yearMonth, '除息日期': d.exDate, '除息金額': d.amount, '除息前一天': d.preExDate, '除息前一天股價': d.pricePreEx, '除息參考價': d.priceReference, '分析比對日期': d.fillDate, '分析比對價格': d.fillPrice, '分析是否填息成功': d.isFilled ? '是' : '否', '幾天填息': d.daysToFill }));
+      // Format Dividend Amount to 3 decimals
+      const csvData = detailData.map(d => ({ '代碼': d.etfCode, '名稱': d.etfName, '所屬年月': d.yearMonth, '除息日期': d.exDate, '除息金額': fmtDiv(d.amount), '除息前一天': d.preExDate, '除息前一天股價': d.pricePreEx, '除息參考價': d.priceReference, '分析比對日期': d.fillDate, '分析比對價格': d.fillPrice, '分析是否填息成功': d.isFilled ? '是' : '否', '幾天填息': d.daysToFill }));
       exportToCSV(`${selectedEtf}_FillAnalysis`, headers, csvData);
   };
 
@@ -420,7 +422,8 @@ const TabFillAnalysis: React.FC<TabFillAnalysisProps> = ({
                                         return (
                                             <tr key={i} className="hover:bg-blue-50 transition-colors">
                                                 <td className="p-2.5 pl-4 font-mono text-gray-700 font-bold">{d.exDate}</td>
-                                                <td className="p-2.5 text-right font-bold text-emerald-600">{fmtP(d.amount)}</td>
+                                                {/* 3 decimals */}
+                                                <td className="p-2.5 text-right font-bold text-emerald-600">{fmtDiv(d.amount)}</td>
                                                 <td className="p-2.5 text-right font-mono text-gray-500">{fmtP(d.pricePreEx)}</td>
                                                 <td className="p-2.5 text-right font-mono text-gray-500">{fmtP(d.priceReference)}</td>
                                                 <td className="p-2.5 text-right font-mono text-gray-500">{d.fillDate || '-'}</td>

@@ -391,6 +391,7 @@ const TabPrices: React.FC<TabPricesProps> = ({
   };
 
   const fmtP = (n: number | string) => { if (typeof n === 'string') return n; return n === 0 ? '-' : n.toFixed(2); };
+  const fmtDiv = (n: number | string) => { if (typeof n === 'string') return n; return n === 0 ? '-' : n.toFixed(3); };
   const fmtPct = (n: number) => n === 0 ? '0.00%' : `${n.toFixed(2)}%`;
   const fmtCol = (n: number) => n > 0 ? 'text-red-600' : n < 0 ? 'text-green-600' : 'text-gray-800';
 
@@ -417,7 +418,8 @@ const TabPrices: React.FC<TabPricesProps> = ({
           const exInfo = fillData.find(f => f.etfCode === selectedEtf && f.exDate === d.date);
           const fillInfo = fillData.find(f => f.etfCode === selectedEtf && f.fillDate === d.date);
           let note = '';
-          if (exInfo) note = `除息: 配息${exInfo.amount}`;
+          // 3 decimals in export note
+          if (exInfo) note = `除息: 配息${fmtDiv(exInfo.amount)}`;
           else if (fillInfo) note = `填息: ${fillInfo.daysToFill}天`;
           let calcPrev = d.prevClose;
           if (exInfo) calcPrev = d.prevClose - exInfo.amount;
@@ -441,11 +443,13 @@ const TabPrices: React.FC<TabPricesProps> = ({
           return divData.filter(d => d.etfCode === selectedEtf).sort((a,b) => b.exDate.localeCompare(a.exDate)).map(d => {
               let yieldStr = '-';
               if (latestPrice > 0) yieldStr = ((d.amount / latestPrice) * 100).toFixed(2) + '%';
-              return { '年月': d.yearMonth, '除息日': d.exDate, '金額': d.amount, '單次殖利率': yieldStr, '發放日': d.paymentDate || '-' };
+              // 3 decimals in modal
+              return { '年月': d.yearMonth, '除息日': d.exDate, '金額': fmtDiv(d.amount), '單次殖利率': yieldStr, '發放日': d.paymentDate || '-' };
           });
       }
       if (activeModal === 'FILL') {
-          return fillData.filter(d => d.etfCode === selectedEtf).sort((a,b) => b.exDate.localeCompare(a.exDate)).map(d => ({ '除息日': d.exDate, '金額': d.amount, '前日股價': d.pricePreEx, '參考價': d.priceReference, '填息日': d.fillDate || '-', '填息天數': d.daysToFill }));
+          // 3 decimals in modal
+          return fillData.filter(d => d.etfCode === selectedEtf).sort((a,b) => b.exDate.localeCompare(a.exDate)).map(d => ({ '除息日': d.exDate, '金額': fmtDiv(d.amount), '前日股價': d.pricePreEx, '參考價': d.priceReference, '填息日': d.fillDate || '-', '填息天數': d.daysToFill }));
       }
       return [];
   };
@@ -491,7 +495,7 @@ const TabPrices: React.FC<TabPricesProps> = ({
       {/* Main Content: Fixed Scroll Logic */}
       <div className="flex-1 flex gap-2 overflow-hidden min-h-0">
           
-          {/* Left List - UPDATED TEXT SIZES */}
+          {/* Left List */}
           <div className="w-[340px] flex-none bg-white rounded-lg shadow-sm border border-blue-200 flex flex-col overflow-hidden min-h-0">
               <div className="p-3 bg-blue-50 border-b border-blue-100 font-bold text-blue-900 flex justify-between items-center text-base flex-none">
                   <div className="flex gap-2 text-sm"><span>起始: <span className="font-mono">{systemDates.start}</span></span><span>現值: <span className="font-mono">{systemDates.end}</span></span></div>
@@ -521,7 +525,7 @@ const TabPrices: React.FC<TabPricesProps> = ({
               </div>
           </div>
 
-          {/* Right Detail Panel - UPDATED TABLE SIZES */}
+          {/* Right Detail Panel */}
           <div className="flex-1 bg-white rounded-lg shadow-sm border border-blue-200 flex flex-col overflow-hidden min-h-0">
                 {!selectedEtf ? (
                     <div className="h-full flex flex-col items-center justify-center text-gray-400">
@@ -570,7 +574,6 @@ const TabPrices: React.FC<TabPricesProps> = ({
                                         const exInfo = fillData.find(f => f.etfCode === selectedEtf && f.exDate === d.date);
                                         const fillInfo = fillData.find(f => f.etfCode === selectedEtf && f.fillDate === d.date);
                                         
-                                        // --- LOGIC UPDATE: Calculate Change based on Ref Price if Ex-Date ---
                                         let displayChange = d.price - d.prevClose;
                                         let displayPct = 0;
                                         
@@ -582,7 +585,6 @@ const TabPrices: React.FC<TabPricesProps> = ({
                                             displayPct = d.prevClose > 0 ? (displayChange / d.prevClose) * 100 : 0;
                                         }
                                         
-                                        // Visual Styling
                                         let rowClass = 'hover:bg-blue-50 transition-colors';
                                         if (exInfo) rowClass = 'bg-red-50 hover:bg-red-100'; 
                                         else if (fillInfo) rowClass = 'bg-green-50 hover:bg-green-100'; 
@@ -599,18 +601,17 @@ const TabPrices: React.FC<TabPricesProps> = ({
                                                     <td className={`p-2.5 text-right font-mono font-bold ${fmtCol(displayChange)}`}>{displayChange > 0 ? '+' : ''}{fmtP(displayChange)}</td>
                                                     <td className={`p-2.5 text-right font-mono font-bold pr-4 ${fmtCol(displayChange)}`}>{fmtPct(displayPct)}</td>
                                                 </tr>
-                                                {/* Ex-Dividend Note */}
+                                                {/* Ex-Dividend Note with 3 decimals */}
                                                 {exInfo && (
                                                     <tr className="bg-red-50/50 border-b border-red-100">
                                                         <td colSpan={8} className="p-2 text-center text-sm font-bold tracking-wide animate-in fade-in">
                                                             <span className="text-red-700 flex items-center justify-center gap-2">
                                                                 <AlertCircle className="w-4 h-4" />
-                                                                {`*** 除息前一日股價: ${fmtP(d.prevClose)}, (除息金額: ${fmtP(exInfo.amount)}), 除息參考價: ${fmtP(d.prevClose - exInfo.amount)} ***`}
+                                                                {`*** 除息前一日股價: ${fmtP(d.prevClose)}, (除息金額: ${fmtDiv(exInfo.amount)}), 除息參考價: ${fmtP(d.prevClose - exInfo.amount)} ***`}
                                                             </span>
                                                         </td>
                                                     </tr>
                                                 )}
-                                                {/* Fill Note (Updated to User Spec) */}
                                                 {fillInfo && (
                                                     <tr className="bg-green-50/50 border-b border-green-100">
                                                         <td colSpan={8} className="p-2 text-center text-sm font-bold tracking-wide animate-in fade-in">

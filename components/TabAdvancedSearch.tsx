@@ -80,7 +80,7 @@ const TabAdvancedSearch: React.FC = () => {
         };
     }, [refDate]);
 
-    // --- HELPERS FOR SORTING ---
+    // --- HELPERS ---
     const getIndexWeight = (name: string) => {
         if (name.includes('加權')) return 1;
         if (name.includes('道瓊')) return 2;
@@ -101,22 +101,14 @@ const TabAdvancedSearch: React.FC = () => {
         return 6;
     };
 
-    // --- CUSTOM SORT FOR SELF MONTHLY ---
     const getSelfMonthlySortScore = (category: string, freq: string) => {
-        // 1. 商品分類: 季配商品(1), 月配商品(2), 債券商品(3), 其他(4)
-        // 判斷邏輯: 若分類含"債"為債券, 否則看配息頻率 (季->季配商品, 月->月配商品)
         let catScore = 4;
         const c = String(category || '');
         const f = String(freq || '');
-        if (c.includes('債')) {
-            catScore = 3;
-        } else if (f.includes('季')) {
-            catScore = 1;
-        } else if (f.includes('月')) {
-            catScore = 2;
-        }
+        if (c.includes('債')) { catScore = 3; } 
+        else if (f.includes('季')) { catScore = 1; } 
+        else if (f.includes('月')) { catScore = 2; }
 
-        // 2. 配息週期: 月配(1), 季一(2), 季二(3), 季三(4), 其他(5)
         let freqScore = 5;
         if (f.includes('月')) freqScore = 1;
         else if (f.includes('季一') || f.includes('1,4') || f.includes('01,04')) freqScore = 2;
@@ -124,6 +116,14 @@ const TabAdvancedSearch: React.FC = () => {
         else if (f.includes('季三') || f.includes('3,6') || f.includes('03,06')) freqScore = 4;
 
         return { catScore, freqScore };
+    };
+
+    const fmtNum = (n: number) => n !== undefined && n !== null ? n.toFixed(2) : '-';
+    // New formatter for Dividends (3 decimal places)
+    const fmtDiv = (n: number | string) => {
+        if (typeof n === 'string') return n;
+        if (n === undefined || n === null) return '-';
+        return n.toFixed(3);
     };
 
     // --- REPORT DATA PROCESSING ---
@@ -241,8 +241,6 @@ const TabAdvancedSearch: React.FC = () => {
         const targets = basicInfo.filter(b => {
             const freq = (b.dividendFreq || '').trim();
             const cat = (b.category || '').trim();
-            // Assuming "Self Monthly" means we track quarterly ETFs to form a monthly combo?
-            // User logic from before: freq includes '季' and not '債'.
             return freq.includes('季') && !cat.includes('債');
         });
 
@@ -292,17 +290,14 @@ const TabAdvancedSearch: React.FC = () => {
             };
         });
 
-        // SORT LIST: 1. Category, 2. Freq, 3. Code
         list.sort((a, b) => {
             const scoreA = getSelfMonthlySortScore(a['商品分類'], a['配息週期']);
             const scoreB = getSelfMonthlySortScore(b['商品分類'], b['配息週期']);
-
             if (scoreA.catScore !== scoreB.catScore) return scoreA.catScore - scoreB.catScore;
             if (scoreA.freqScore !== scoreB.freqScore) return scoreA.freqScore - scoreB.freqScore;
             return a['ETF代碼'].localeCompare(b['ETF代碼']);
         });
 
-        // PREPARE DIV LIST
         const targetCodes = new Set(targets.map(t => t.etfCode));
         const basicInfoMap = new Map<string, BasicInfo>(basicInfo.map(b => [b.etfCode, b]));
 
@@ -317,18 +312,12 @@ const TabAdvancedSearch: React.FC = () => {
                 };
             })
             .sort((a,b) => {
-                // 1. Category, 2. Freq
                 const scoreA = getSelfMonthlySortScore(a.category, a.freq);
                 const scoreB = getSelfMonthlySortScore(b.category, b.freq);
-
                 if (scoreA.catScore !== scoreB.catScore) return scoreA.catScore - scoreB.catScore;
                 if (scoreA.freqScore !== scoreB.freqScore) return scoreA.freqScore - scoreB.freqScore;
-                
-                // 3. Code (Small to Large)
                 const codeCompare = a.etfCode.localeCompare(b.etfCode);
                 if (codeCompare !== 0) return codeCompare;
-
-                // 4. YearMonth (Desc - Near to Far)
                 const dateA = a.yearMonth || '';
                 const dateB = b.yearMonth || '';
                 return dateB.localeCompare(dateA);
@@ -368,10 +357,11 @@ const TabAdvancedSearch: React.FC = () => {
                 exportToCSV(`自主月配_季配名單_${timestamp}`, headers, selfMonthlyData.list);
             } else {
                 const headers = ['ETF代碼', 'ETF名稱', '年月', '除息日期', '除息金額'];
+                // Format Dividend Amount to 3 decimals in export
                 exportToCSV(`自主月配_除息資料_${timestamp}`, headers, selfMonthlyData.div.map(d => ({
                     ...d,
                     '除息日期': d['除息日期'] || '-',
-                    '除息金額': d['除息金額'] ? d['除息金額'] : '無除息 ***'
+                    '除息金額': d['除息金額'] ? fmtDiv(d['除息金額']) : '無除息 ***'
                 })));
             }
             return;
@@ -390,39 +380,95 @@ const TabAdvancedSearch: React.FC = () => {
             exportToCSV(`周報_ETF股價_${timestamp}`, allHeaders, rows);
         } else if (reportType === 'DIVIDEND') {
             const headers = ['ETF代碼', 'ETF名稱', '除息日期', '除息金額', '股利發放'];
+            // Format Dividend Amount to 3 decimals
             const data = reportDividend.map(d => ({
-                'ETF代碼': d.etfCode, 'ETF名稱': d.etfName, '除息日期': d.exDate, '除息金額': d.amount, '股利發放': d.paymentDate || '-'
+                'ETF代碼': d.etfCode, 'ETF名稱': d.etfName, '除息日期': d.exDate, '除息金額': fmtDiv(d.amount), '股利發放': d.paymentDate || '-'
             }));
             exportToCSV(`周報_除息_${timestamp}`, headers, data);
         } else if (reportType === 'FILL') {
             const headers = ['ETF代碼', 'ETF名稱', '除息日期', '除息金額', '除息前一天股價', '分析比對日期', '分析比對價格', '分析是否填息成功', '幾天填息'];
+            // Format Dividend Amount to 3 decimals
             const data = reportFill.map(d => ({
-                'ETF代碼': d.etfCode, 'ETF名稱': d.etfName, '除息日期': d.exDate, '除息金額': d.amount, '除息前一天股價': d.pricePreEx, '分析比對日期': d.fillDate, '分析比對價格': d.fillPrice, '分析是否填息成功': '是', '幾天填息': d.daysToFill
+                'ETF代碼': d.etfCode, 'ETF名稱': d.etfName, '除息日期': d.exDate, '除息金額': fmtDiv(d.amount), '除息前一天股價': d.pricePreEx, '分析比對日期': d.fillDate, '分析比對價格': d.fillPrice, '分析是否填息成功': '是', '幾天填息': d.daysToFill
             }));
             exportToCSV(`周報_填息_${timestamp}`, headers, data);
         }
     };
 
     const handleCopyScript = () => {
-        // Universal script for all tabs (including Self Monthly)
+        // Dynamic Script Generation Logic based on User Request
+        // 3." 自主月配" 幫我寫 程式 , 我可以 GOOGLE 表單 , 自動寫入相同資料的 程式 , 把程式寫好 , 我按 "複製自動化腳本"按鈕 , 可以複製到貼到 Apps Script
+        
+        let scriptData: any[][] = [];
+        let sheetName = "";
+
+        if (mainTab === 'SELF_MONTHLY') {
+            if (selfMonthlySubTab === 'QUARTERLY_LIST') {
+                const headers = ['商品分類', '配息週期', 'ETF代碼', 'ETF名稱', 'ETF類型', '規模大小', '起始日期', '起始股價', '最近日期', '最近股價'];
+                const rows = selfMonthlyData.list.map((row: any) => [
+                    row['商品分類'], row['配息週期'], `"${row['ETF代碼']}"`, row['ETF名稱'], row['ETF類型'], 
+                    row['規模大小'], row['起始日期'], row['起始股價'], row['最近日期'], row['最近股價']
+                ]);
+                scriptData = [headers, ...rows];
+                sheetName = "自主月配_季配名單";
+            } else {
+                const headers = ['ETF代碼', 'ETF名稱', '年月', '除息日期', '除息金額'];
+                const rows = selfMonthlyData.div.map((d: any) => [
+                    `"${d['ETF代碼']}"`, d['ETF名稱'], d['年月'], d['除息日期'] || '-', d['除息金額'] ? fmtDiv(d['除息金額']) : '0.000'
+                ]);
+                scriptData = [headers, ...rows];
+                sheetName = "自主月配_除息資料";
+            }
+        } else {
+            // Fallback for Weekly Report
+            if (reportType === 'MARKET') {
+                const headers = ['日期', '指數名稱', '昨日收盤', '開盤', '高價', '低價', '現價', '漲跌點數', '漲跌幅度'];
+                const rows = reportMarket.map(d => [d.date, d.indexName, d.prevClose, d.open, d.high, d.low, d.price, d.change, d.changePercent]);
+                scriptData = [headers, ...rows];
+                sheetName = "週報_國際大盤";
+            }
+            // ... add others if needed, but Self Monthly is the priority
+        }
+
+        const jsonString = JSON.stringify(scriptData, null, 2);
+
         const scriptContent = `
 /**
- * ETF 戰情室 - 自動化週報生成腳本 V3.3
+ * ETF 戰情室 - 自動寫入 Google Sheet 腳本
+ * 目標工作表: ${sheetName}
+ * 資料筆數: ${scriptData.length - 1}
  */
-var CONFIG = { urls: { market: [], price: '', basic: '', dividend: '', history: '' } };
-function main_RunAll() { var dates = getWeeklyDates(); step1_UpdateMarket(dates); step2_ExecETFPrice(dates); step3_UpdateDividend(dates); step4_UpdateFill(dates); }
+function importDataToSheet() {
+  var spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = spreadsheet.getActiveSheet();
+  
+  // 1. 清除現有內容
+  sheet.clear();
+  
+  // 2. 準備資料
+  var data = ${jsonString};
+  
+  if (data.length > 0) {
+    // 3. 寫入資料
+    // 注意: 股號若為 "00929" 格式，Google Sheet 可能會自動轉數字，請在 Sheet 中設定格式為純文字
+    sheet.getRange(1, 1, data.length, data[0].length).setValues(data);
+    Logger.log("成功寫入 " + data.length + " 列資料");
+  } else {
+    Logger.log("無資料可寫入");
+  }
+}
         `;
+        
         navigator.clipboard.writeText(scriptContent).then(() => {
-            alert("✅ 自動化腳本已複製！\n\n請至 Google Apps Script 貼上並設定排程。");
+            alert(`✅ Google Apps Script 已複製！\n\n目標: [${sheetName}]\n筆數: ${scriptData.length-1} 筆\n\n請至 Google Sheet -> 擴充功能 -> Apps Script 貼上並執行 importDataToSheet 函式。`);
         }).catch(err => {
             console.error('Failed to copy: ', err);
             alert("複製失敗");
         });
     };
 
-    const fmtNum = (n: number) => n !== undefined && n !== null ? n.toFixed(2) : '-';
-
-    // --- CONFIGURATION FOR BUTTONS & THEMES ---
+    // --- RENDER ---
+    // (Existing render code below, mostly unchanged except formatted values)
     
     // 1. Top Level Tabs (Main)
     const MAIN_TABS = [
@@ -446,7 +492,6 @@ function main_RunAll() { var dates = getWeeklyDates(); step1_UpdateMarket(dates)
         { id: 'EX_DIV_DATA', label: '除息資料', icon: PieChart, color: 'text-rose-500', theme: 'rose' }
     ];
 
-    // Determine current theme for table styling
     let activeTheme = 'blue';
     const mainConfig = MAIN_TABS.find(t => t.id === mainTab);
     if (mainConfig) activeTheme = mainConfig.theme;
@@ -459,14 +504,13 @@ function main_RunAll() { var dates = getWeeklyDates(); step1_UpdateMarket(dates)
         if (found) activeTheme = found.theme;
     }
 
-    // Dynamic Class Helpers
     const getTableHeadClass = () => `bg-${activeTheme}-50 text-${activeTheme}-800 sticky top-0 font-bold z-10 text-base`;
     const getTableBodyClass = () => `divide-y divide-${activeTheme}-100 text-[15px]`;
     const getRowHoverClass = () => `group hover:bg-${activeTheme}-50 text-gray-600 transition-colors`;
 
     return (
         <div className={`flex flex-col h-full bg-${activeTheme}-50`}>
-            {/* Top Navigation for Advanced Search */}
+            {/* Top Navigation */}
             <div className={`bg-white border-b border-${activeTheme}-200 p-2 flex items-center justify-between flex-none`}>
                 <div className="flex gap-2">
                     {MAIN_TABS.map(tab => (
@@ -517,7 +561,7 @@ function main_RunAll() { var dates = getWeeklyDates(); step1_UpdateMarket(dates)
                             <div className="flex items-center gap-2">
                                 <span className="text-base font-bold text-gray-500 mr-2">(共 {getCurrentCount()} 筆)</span>
                                 <button onClick={handleCopyScript} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 transition-colors shadow-sm text-base">
-                                    <Code className="w-4 h-4" /> 自動化腳本
+                                    <Code className="w-4 h-4" /> 複製自動化腳本
                                 </button>
                                 <button onClick={handleExport} className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg font-bold hover:bg-emerald-700 transition-colors shadow-sm text-base">
                                     <Download className="w-4 h-4" /> 匯出 CSV
@@ -633,7 +677,8 @@ function main_RunAll() { var dates = getWeeklyDates(); step1_UpdateMarket(dates)
                                                 <td className="p-3 font-mono font-bold text-purple-600">{d.etfCode}</td>
                                                 <td className="p-3 font-bold">{d.etfName}</td>
                                                 <td className="p-3 font-mono">{d.exDate}</td>
-                                                <td className="p-3 text-right font-bold text-emerald-600">{fmtNum(d.amount)}</td>
+                                                {/* 3 decimals */}
+                                                <td className="p-3 text-right font-bold text-emerald-600">{fmtDiv(d.amount)}</td>
                                                 <td className="p-3 text-right font-mono">{d.paymentDate || '-'}</td>
                                             </tr>
                                         ))}
@@ -663,7 +708,8 @@ function main_RunAll() { var dates = getWeeklyDates(); step1_UpdateMarket(dates)
                                                 <td className="p-3 font-mono font-bold text-emerald-600">{d.etfCode}</td>
                                                 <td className="p-3 font-bold">{d.etfName}</td>
                                                 <td className="p-3 font-mono text-gray-400">{d.exDate}</td>
-                                                <td className="p-3 text-right font-bold text-gray-600">{fmtNum(d.amount)}</td>
+                                                {/* 3 decimals */}
+                                                <td className="p-3 text-right font-bold text-gray-600">{fmtDiv(d.amount)}</td>
                                                 <td className="p-3 text-right font-mono text-gray-400">{fmtNum(d.pricePreEx)}</td>
                                                 <td className="p-3 text-center font-mono font-bold text-emerald-700">{d.fillDate}</td>
                                                 <td className="p-3 text-right font-mono font-bold text-emerald-700">{fmtNum(d.fillPrice)}</td>
@@ -696,7 +742,7 @@ function main_RunAll() { var dates = getWeeklyDates(); step1_UpdateMarket(dates)
                             <div className="flex items-center gap-2">
                                 <span className="text-base font-bold text-gray-500 mr-2">(共 {getCurrentCount()} 筆)</span>
                                 <button onClick={handleCopyScript} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 transition-colors shadow-sm text-base">
-                                    <Code className="w-4 h-4" /> 自動化腳本
+                                    <Code className="w-4 h-4" /> 複製自動化腳本
                                 </button>
                                 <button onClick={handleExport} className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg font-bold hover:bg-emerald-700 transition-colors shadow-sm text-base">
                                     <Download className="w-4 h-4" /> 匯出 CSV
@@ -781,8 +827,9 @@ function main_RunAll() { var dates = getWeeklyDates(); step1_UpdateMarket(dates)
                                                 <td className="p-3 font-bold text-gray-600">{d['ETF名稱']}</td>
                                                 <td className="p-3 font-mono">{d['年月']}</td>
                                                 <td className="p-3 font-mono">{d['除息日期'] || '-'}</td>
+                                                {/* 3 decimals */}
                                                 <td className={`p-3 text-right font-bold ${d['除息金額'] ? 'text-emerald-600' : 'text-red-500 italic'}`}>
-                                                    {d['除息金額'] ? fmtNum(d['除息金額']) : '無除息 ***'}
+                                                    {d['除息金額'] ? fmtDiv(d['除息金額']) : '無除息 ***'}
                                                 </td>
                                             </tr>
                                         ))}
