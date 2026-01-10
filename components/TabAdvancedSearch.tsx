@@ -6,14 +6,14 @@ import {
     MarketData, BasicInfo, PriceData, DividendData, FillAnalysisData, HistoryData, SizeData 
 } from '../types';
 import { 
-    Calendar, Search, FileText, Download, TrendingUp, Filter, Code, AlertCircle, PieChart, Table as TableIcon, Zap, Moon, Check, AlertTriangle
+    Calendar, FileText, Download, TrendingUp, Filter, Code, AlertCircle, PieChart, Table as TableIcon, Zap, Moon, Check, AlertTriangle, Search
 } from 'lucide-react';
 
 const TabAdvancedSearch: React.FC = () => {
     // --- STATE ---
     const [mainTab, setMainTab] = useState<'PRE_MARKET' | 'POST_MARKET' | 'WEEKLY' | 'SELF_MONTHLY'>('WEEKLY');
     
-    // Sub-tab states for different modules
+    // Sub-tab states
     const [reportType, setReportType] = useState<'MARKET' | 'PRICE' | 'DIVIDEND' | 'FILL'>('MARKET'); // For WEEKLY
     const [selfMonthlySubTab, setSelfMonthlySubTab] = useState<'QUARTERLY_LIST' | 'EX_DIV_DATA'>('QUARTERLY_LIST'); // For SELF_MONTHLY
     const [preMarketType, setPreMarketType] = useState<'GLOBAL_MARKET' | 'ETF_PRICE'>('GLOBAL_MARKET'); // For PRE_MARKET
@@ -64,7 +64,6 @@ const TabAdvancedSearch: React.FC = () => {
     const dateRange = useMemo(() => {
         const base = new Date(refDate);
         const day = base.getDay(); // 0 (Sun) - 6 (Sat)
-        // Calculate "This Monday"
         const diffToMon = base.getDate() - day + (day === 0 ? -6 : 1);
         
         const thisMondayObj = new Date(base);
@@ -133,18 +132,14 @@ const TabAdvancedSearch: React.FC = () => {
         return false;
     };
 
-    // FIX: Enhanced fmtNum to handle string inputs safely
     const fmtNum = (n: any) => {
         if (n === undefined || n === null || n === '') return '-';
-        // Check for number
         const num = parseFloat(String(n).replace(/,/g, ''));
         if (!isNaN(num)) return num.toFixed(2);
-        // Return string if not number, but prevent [object Object]
         if (typeof n === 'object') return '-';
         return String(n);
     };
 
-    // New formatter for Dividends (3 decimal places)
     const fmtDiv = (n: any) => {
         if (n === undefined || n === null) return '-';
         const num = parseFloat(String(n).replace(/,/g, ''));
@@ -153,11 +148,47 @@ const TabAdvancedSearch: React.FC = () => {
         return String(n);
     };
 
+    // --- FILTER HELPERS ---
+    const getStr = (val: string | undefined) => String(val || '').trim();
+    
+    // Logic A: Exclude Half-Year & International
+    // Used for: Weekly Price, Post-Market Basic
+    const filterExcludeHalfYearAndIntl = (b: BasicInfo) => {
+        const cat = getStr(b.category);
+        const freq = getStr(b.dividendFreq);
+        const type = getStr(b.etfType);
+        const market = getStr(b.marketType);
+        const code = getStr(b.etfCode);
+
+        // Exclude Half Year
+        if (cat.includes('半年') || freq.includes('半年')) return false;
+        
+        // Exclude International (Special case 00911 usually excluded if intl excluded)
+        if (code === '00911' || cat.includes('國際') || type.includes('國際') || market.includes('國外') || cat.includes('國外')) return false;
+
+        return true;
+    };
+
+    // Logic B: Pre-Market Specific
+    // Exclude: HalfYear, Intl, Monthly, Bond
+    // Effectively keeping: Quarterly, Active, Quarterly(Active)
+    const filterPreMarket = (b: BasicInfo) => {
+        if (!filterExcludeHalfYearAndIntl(b)) return false; // Already excludes HalfYear & Intl
+        
+        const cat = getStr(b.category);
+        const freq = getStr(b.dividendFreq);
+
+        if (freq.includes('月')) return false; // Exclude Monthly
+        if (cat.includes('債')) return false;   // Exclude Bond
+
+        return true;
+    };
+
     // --- PRE MARKET DATA PROCESSING ---
     const preMarketReports = useMemo(() => {
         if (mainTab !== 'PRE_MARKET') return { market: [], etf: { headers: [], rows: [] } };
 
-        // 1. GLOBAL MARKET (Last 10 days)
+        // 1. GLOBAL MARKET
         const allMarketDates = Array.from<string>(new Set(marketData.map(d => d.date))).sort().reverse().slice(0, 10);
         const marketDateSet = new Set(allMarketDates);
         const market = marketData
@@ -166,17 +197,15 @@ const TabAdvancedSearch: React.FC = () => {
                 const wA = getIndexWeight(a.indexName);
                 const wB = getIndexWeight(b.indexName);
                 if (wA !== wB) return wA - wB;
-                return b.date.localeCompare(a.date); // Date Descending
+                return b.date.localeCompare(a.date);
             });
 
-        // 2. ETF PRICE (Last 10 days, Pivot)
-        // SHOW ALL: No filtering by bond/foreign/monthly as requested
-        const targets = basicInfo; 
+        // 2. ETF PRICE
+        // Filter: Exclude HalfYear, Intl, Monthly, Bond
+        const targets = basicInfo.filter(filterPreMarket); 
 
-        // Get last 10 unique dates from ALL price data
         const allEtfDates: string[] = Array.from<string>(new Set(priceData.map(p => p.date))).sort().reverse().slice(0, 10);
         
-        // Build Rows
         const etfRows = targets.map(etf => {
             const row: any = {
                 'ETF代碼': etf.etfCode,
@@ -190,7 +219,6 @@ const TabAdvancedSearch: React.FC = () => {
             return row;
         });
 
-        // Sort: Code Ascending
         etfRows.sort((a, b) => a['ETF代碼'].localeCompare(b['ETF代碼']));
 
         return { market, etf: { headers: allEtfDates, rows: etfRows } };
@@ -202,14 +230,14 @@ const TabAdvancedSearch: React.FC = () => {
         if (mainTab !== 'POST_MARKET') return { basic: [], todayEx: [], filled: [], unfilled: [] };
 
         // 1. BASIC INFO
-        // SHOW ALL: No filtering
-        const basicList = basicInfo.map(etf => {
-            // Find Month Start Price
-            const currentMonthPrefix = refDate.substring(0, 7); // YYYY-MM
+        // Filter: Exclude HalfYear, Intl
+        const filteredBasic = basicInfo.filter(filterExcludeHalfYearAndIntl);
+
+        const basicList = filteredBasic.map(etf => {
+            const currentMonthPrefix = refDate.substring(0, 7); 
             const monthPrices = priceData.filter(p => p.etfCode === etf.etfCode && p.date.startsWith(currentMonthPrefix)).sort((a,b) => a.date.localeCompare(b.date));
             const startPriceObj = monthPrices.length > 0 ? monthPrices[0] : null;
             
-            // Get Size
             const sList = sizeData.filter(s => s.etfCode === etf.etfCode).sort((a,b) => (b.date||'').localeCompare(a.date||''));
             const size = sList.length > 0 ? sList[0].size : 0;
 
@@ -225,7 +253,6 @@ const TabAdvancedSearch: React.FC = () => {
             };
         });
 
-        // Sort Basic Info
         basicList.sort((a, b) => {
             const getScore = (row: any) => {
                 let cScore = 4;
@@ -265,7 +292,7 @@ const TabAdvancedSearch: React.FC = () => {
             };
         }).sort((a,b) => a['ETF代碼'].localeCompare(b['ETF代碼']));
 
-        // 3. FILLED LIST (Within 3 Trading Days)
+        // 3. FILLED LIST
         const uniqueDates = Array.from<string>(new Set(priceData.map(p => p.date))).sort().reverse();
         const refIndex = uniqueDates.indexOf(refDate);
         let validDates: string[] = [];
@@ -296,11 +323,10 @@ const TabAdvancedSearch: React.FC = () => {
             return a['ETF代碼'].localeCompare(b['ETF代碼']);
         });
 
-        // 4. UNFILLED SINCE 2025/01/02
-        // REVISED: Strictly filter exDate <= refDate to avoid future un-fills
+        // 4. UNFILLED
         const unfilledList = fillData.filter(f => {
             const isAfter2025 = f.exDate >= '2025-01-02';
-            const isPastExDate = f.exDate <= refDate; // Has already ex-dividended
+            const isPastExDate = f.exDate <= refDate; 
             return isAfter2025 && isPastExDate && !f.isFilled;
         }).map(f => ({
             'ETF代碼': f.etfCode,
@@ -340,28 +366,8 @@ const TabAdvancedSearch: React.FC = () => {
         const start = dateRange.lastFriday;
         const end = dateRange.thisFriday;
 
-        // WEEKLY still keeps basic filters to avoid noise, as per original spec?
-        // User asked to fix "Pre/Post" market filters specifically.
-        // I will keep Weekly logic slightly filtered but less aggressive if needed.
-        // For safety, I will keep Weekly as is unless user complains, focusing on Pre/Post fix.
-        const validEtfs = basicInfo.filter(b => {
-            const cat = (b.category || '').trim();
-            const type = (b.etfType || '').trim();
-            const freq = (b.dividendFreq || '').trim();
-            const market = (b.marketType || '').trim();
-            const name = (b.etfName || '').trim();
-            const code = (b.etfCode || '').trim();
-
-            if (code === '00911') return false; 
-            if (freq.includes('半年') || cat.includes('半年')) return false;
-            
-            const isForeign = cat.includes('國外') || type.includes('國外') || market.includes('國外') || cat.includes('國際') || type.includes('國際') || name.includes('國際');
-            if (isForeign) {
-                if (freq.includes('季')) return true; 
-                return false; 
-            }
-            return true;
-        });
+        // Filter: Exclude HalfYear, Intl (Same as Post-Market Basic)
+        const validEtfs = basicInfo.filter(filterExcludeHalfYearAndIntl);
 
         const validCodes = new Set(validEtfs.map(e => e.etfCode));
         const pricesInRange = priceData.filter(p => validCodes.has(p.etfCode) && p.date >= start && p.date <= end);
@@ -433,9 +439,10 @@ const TabAdvancedSearch: React.FC = () => {
             }
         });
 
+        // Filter: Quarterly & Active Quarterly. (Exclude Bond)
         const targets = basicInfo.filter(b => {
-            const freq = (b.dividendFreq || '').trim();
-            const cat = (b.category || '').trim();
+            const freq = getStr(b.dividendFreq);
+            const cat = getStr(b.category);
             const isQuarterly = freq.includes('季');
             const isBond = cat.includes('債');
             return isQuarterly && !isBond;
