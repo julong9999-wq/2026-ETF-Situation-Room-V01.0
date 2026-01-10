@@ -137,7 +137,17 @@ const TabAdvancedSearch: React.FC = () => {
         return false;
     };
 
-    const fmtNum = (n: number) => n !== undefined && n !== null ? n.toFixed(2) : '-';
+    // FIX: Enhanced fmtNum to handle string inputs safely
+    const fmtNum = (n: number | string | undefined | null) => {
+        if (n === undefined || n === null || n === '') return '-';
+        if (typeof n === 'string') {
+            const parsed = parseFloat(n.replace(/,/g, ''));
+            if (isNaN(parsed)) return n; // Return original string (e.g., "待除息")
+            return parsed.toFixed(2);
+        }
+        return n.toFixed(2);
+    };
+
     // New formatter for Dividends (3 decimal places)
     const fmtDiv = (n: number | string) => {
         if (typeof n === 'string') return n;
@@ -194,7 +204,7 @@ const TabAdvancedSearch: React.FC = () => {
 
         const targetCodes = new Set(targets.map(t => t.etfCode));
         // Get last 10 unique dates from ALL price data (assuming data sync)
-        const allEtfDates: string[] = Array.from(new Set(priceData.map(p => p.date))).sort().reverse().slice(0, 10) as string[];
+        const allEtfDates: string[] = (Array.from(new Set(priceData.map(p => p.date))) as string[]).sort().reverse().slice(0, 10);
         
         // Build Rows
         const etfRows = targets.map(etf => {
@@ -324,6 +334,7 @@ const TabAdvancedSearch: React.FC = () => {
             '除息日期': f.exDate,
             '除息金額': f.amount,
             '除息前一天股價': f.pricePreEx,
+            '除息參考價': f.priceReference, // Added
             '分析比對日期': f.fillDate,
             '分析比對價格': f.fillPrice,
             '分析是否填息成功': '是',
@@ -334,12 +345,14 @@ const TabAdvancedSearch: React.FC = () => {
         });
 
         // 4. UNFILLED SINCE 2026/01/02
-        const unfilledList = fillData.filter(f => f.exDate >= '2026-01-02' && !f.isFilled).map(f => ({
+        // UPDATED: Use 2025 to ensure data visibility if 2026 is future
+        const unfilledList = fillData.filter(f => f.exDate >= '2025-01-02' && !f.isFilled).map(f => ({
             'ETF代碼': f.etfCode,
             'ETF名稱': f.etfName,
             '除息日期': f.exDate,
             '除息金額': f.amount,
-            '除息前一天股價': f.pricePreEx
+            '除息前一天股價': f.pricePreEx,
+            '除息參考價': f.priceReference // Added
         })).sort((a,b) => {
             const codeDiff = a['ETF代碼'].localeCompare(b['ETF代碼']);
             if (codeDiff !== 0) return codeDiff;
@@ -644,11 +657,11 @@ const TabAdvancedSearch: React.FC = () => {
                 exportToCSV(`每日盤後_本日除息_${timestamp}`, headers, data.map(d => ({...d, '除息金額': fmtDiv(d['除息金額'])})));
             } else if (postMarketType === 'FILLED_3DAYS') {
                 const data = postMarketReports.filled.length > 0 ? postMarketReports.filled : [{'ETF名稱': '本日無填息資料'}];
-                const headers = ['ETF代碼', 'ETF名稱', '除息日期', '除息金額', '除息前一天股價', '分析比對日期', '分析比對價格', '分析是否填息成功', '幾天填息'];
+                const headers = ['ETF代碼', 'ETF名稱', '除息日期', '除息金額', '除息前一天股價', '除息參考價', '分析比對日期', '分析比對價格', '分析是否填息成功', '幾天填息'];
                 exportToCSV(`每日盤後_填息名單_${timestamp}`, headers, data.map(d => ({...d, '除息金額': fmtDiv(d['除息金額'])})));
             } else if (postMarketType === 'UNFILLED_2026') {
                 const data = postMarketReports.unfilled.length > 0 ? postMarketReports.unfilled : [{'ETF名稱': '本日無比對資料'}];
-                const headers = ['ETF代碼', 'ETF名稱', '除息日期', '除息金額', '除息前一天股價'];
+                const headers = ['ETF代碼', 'ETF名稱', '除息日期', '除息金額', '除息前一天股價', '除息參考價'];
                 exportToCSV(`每日盤後_是否填息_${timestamp}`, headers, data.map(d => ({...d, '除息金額': fmtDiv(d['除息金額'])})));
             }
             return;
@@ -750,17 +763,17 @@ const TabAdvancedSearch: React.FC = () => {
             payload['本日除息'] = [exHeaders, ...exRows];
 
             // 3. 填息名單
-            const fillHeaders = ['ETF 代碼', 'ETF 名稱', '除息日期', '除息金額', '除息前一天股價', '分析比對日期', '分析比對價格', '分析是否填息成功', '幾天填息'];
+            const fillHeaders = ['ETF 代碼', 'ETF 名稱', '除息日期', '除息金額', '除息前一天股價', '除息參考價', '分析比對日期', '分析比對價格', '分析是否填息成功', '幾天填息'];
             const fillRows = postMarketReports.filled.length > 0
-                ? postMarketReports.filled.map((d:any) => [`'${d['ETF代碼']}`, d['ETF名稱'], d['除息日期'], fmtDiv(d['除息金額']), d['除息前一天股價'], d['分析比對日期'], d['分析比對價格'], d['分析是否填息成功'], d['幾天填息']])
-                : [['', '本日無填息資料', '', '', '', '', '', '', '']];
+                ? postMarketReports.filled.map((d:any) => [`'${d['ETF代碼']}`, d['ETF名稱'], d['除息日期'], fmtDiv(d['除息金額']), d['除息前一天股價'], d['除息參考價'], d['分析比對日期'], d['分析比對價格'], d['分析是否填息成功'], d['幾天填息']])
+                : [['', '本日無填息資料', '', '', '', '', '', '', '', '']];
             payload['填息名單'] = [fillHeaders, ...fillRows];
 
             // 4. 是否填息 (未填)
-            const unfillHeaders = ['ETF 代碼', 'ETF 名稱', '除息日期', '除息金額', '除息前一天股價'];
+            const unfillHeaders = ['ETF 代碼', 'ETF 名稱', '除息日期', '除息金額', '除息前一天股價', '除息參考價'];
             const unfillRows = postMarketReports.unfilled.length > 0
-                ? postMarketReports.unfilled.map((d:any) => [`'${d['ETF代碼']}`, d['ETF名稱'], d['除息日期'], fmtDiv(d['除息金額']), d['除息前一天股價']])
-                : [['', '本日無比對資料', '', '', '']];
+                ? postMarketReports.unfilled.map((d:any) => [`'${d['ETF代碼']}`, d['ETF名稱'], d['除息日期'], fmtDiv(d['除息金額']), d['除息前一天股價'], d['除息參考價']])
+                : [['', '本日無比對資料', '', '', '', '']];
             payload['是否填息'] = [unfillHeaders, ...unfillRows];
 
         } else if (mainTab === 'WEEKLY') {
@@ -1465,6 +1478,7 @@ function importAllData() {
                                             <th className="p-3">除息日期</th>
                                             <th className="p-3 text-right">除息金額</th>
                                             <th className="p-3 text-right">除息前一天股價</th>
+                                            <th className="p-3 text-right">除息參考價</th>
                                             <th className="p-3 text-center">分析比對日期</th>
                                             <th className="p-3 text-right">分析比對價格</th>
                                             <th className="p-3 text-center">分析是否填息成功</th>
@@ -1474,7 +1488,7 @@ function importAllData() {
                                     <tbody className={getTableBodyClass()}>
                                         {postMarketReports.filled.length === 0 ? 
                                             <tr>
-                                                <td colSpan={9} className="p-4 text-center font-bold text-gray-500 bg-gray-50">
+                                                <td colSpan={10} className="p-4 text-center font-bold text-gray-500 bg-gray-50">
                                                     本日無填息資料 (近3日無填息紀錄)
                                                 </td>
                                             </tr> 
@@ -1485,6 +1499,7 @@ function importAllData() {
                                                 <td className="p-3 font-mono">{d['除息日期']}</td>
                                                 <td className="p-3 text-right font-bold text-emerald-600">{fmtDiv(d['除息金額'])}</td>
                                                 <td className="p-3 text-right font-mono text-gray-500">{fmtNum(d['除息前一天股價'])}</td>
+                                                <td className="p-3 text-right font-mono text-gray-500">{fmtNum(d['除息參考價'])}</td>
                                                 <td className="p-3 text-center font-mono text-green-600 font-bold">{d['分析比對日期']}</td>
                                                 <td className="p-3 text-right font-mono font-bold text-green-600">{fmtNum(d['分析比對價格'])}</td>
                                                 <td className="p-3 text-center font-bold text-green-600">{d['分析是否填息成功']}</td>
@@ -1504,12 +1519,13 @@ function importAllData() {
                                             <th className="p-3">除息日期</th>
                                             <th className="p-3 text-right">除息金額</th>
                                             <th className="p-3 text-right">除息前一天股價</th>
+                                            <th className="p-3 text-right">除息參考價</th>
                                         </tr>
                                     </thead>
                                     <tbody className={getTableBodyClass()}>
                                         {postMarketReports.unfilled.length === 0 ? 
                                             <tr>
-                                                <td colSpan={5} className="p-4 text-center font-bold text-gray-500 bg-gray-50">
+                                                <td colSpan={6} className="p-4 text-center font-bold text-gray-500 bg-gray-50">
                                                     本日無比對資料 (2026/01/02 起皆已填息或無資料)
                                                 </td>
                                             </tr> 
@@ -1520,6 +1536,7 @@ function importAllData() {
                                                 <td className="p-3 font-mono">{d['除息日期']}</td>
                                                 <td className="p-3 text-right font-bold text-gray-600">{fmtDiv(d['除息金額'])}</td>
                                                 <td className="p-3 text-right font-mono text-gray-500">{fmtNum(d['除息前一天股價'])}</td>
+                                                <td className="p-3 text-right font-mono text-gray-500">{fmtNum(d['除息參考價'])}</td>
                                             </tr>
                                         ))}
                                     </tbody>
