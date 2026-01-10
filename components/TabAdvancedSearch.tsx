@@ -9,9 +9,6 @@ import {
     Calendar, Search, FileText, Download, TrendingUp, Filter, Code, AlertCircle, PieChart, Table as TableIcon, Zap, Moon, Check, AlertTriangle
 } from 'lucide-react';
 
-// Specific ETFs requested by user to always include regardless of category filters
-const WHITE_LIST = ['00712', '00771', '00903', '00908', '00956', '00960', '00972'];
-
 const TabAdvancedSearch: React.FC = () => {
     // --- STATE ---
     const [mainTab, setMainTab] = useState<'PRE_MARKET' | 'POST_MARKET' | 'WEEKLY' | 'SELF_MONTHLY'>('WEEKLY');
@@ -140,22 +137,30 @@ const TabAdvancedSearch: React.FC = () => {
         return false;
     };
 
-    // FIX: Enhanced fmtNum to handle string inputs safely
-    const fmtNum = (n: number | string | undefined | null) => {
+    // FIX: Enhanced fmtNum to handle string inputs/objects safely without crashing
+    const fmtNum = (n: any) => {
         if (n === undefined || n === null || n === '') return '-';
-        if (typeof n === 'string') {
-            const parsed = parseFloat(n.replace(/,/g, ''));
-            if (isNaN(parsed)) return n; // Return original string (e.g., "待除息")
-            return parsed.toFixed(2);
+        
+        // Try to parse number first
+        const num = Number(n);
+        if (!isNaN(num)) {
+            return num.toFixed(2);
         }
-        return n.toFixed(2);
+        
+        // If parsing fails (e.g. "待除息", or object), handle gracefully
+        if (typeof n === 'string') return n;
+        if (typeof n === 'object') return '-'; // Prevent [object Object] crash
+        
+        return String(n);
     };
 
     // New formatter for Dividends (3 decimal places)
-    const fmtDiv = (n: number | string) => {
-        if (typeof n === 'string') return n;
+    const fmtDiv = (n: any) => {
         if (n === undefined || n === null) return '-';
-        return n.toFixed(3);
+        const num = Number(n);
+        if (!isNaN(num)) return num.toFixed(3);
+        if (typeof n === 'string') return n;
+        return '-';
     };
 
     // --- PRE MARKET DATA PROCESSING ---
@@ -175,45 +180,15 @@ const TabAdvancedSearch: React.FC = () => {
             });
 
         // 2. ETF PRICE (Last 10 days, Pivot)
-        // Filter Targets
-        const targets = basicInfo.filter(b => {
-            const cat = (b.category || '').trim();
-            const type = (b.etfType || '').trim();
-            const freq = (b.dividendFreq || '').trim();
-            const name = (b.etfName || '').trim();
-            const market = (b.marketType || '').trim();
-            const code = (b.etfCode || '').trim();
+        // REVISED: SHOW ALL ETFs. Removed filtering by Bond/Monthly/Foreign.
+        const targets = basicInfo; 
 
-            // WHITELIST: Always include user specified codes regardless of category
-            if (WHITE_LIST.includes(code)) return true;
-
-            if (code === '00911') return false; 
-            
-            // Exclude Half-Year
-            if (freq.includes('半年') || cat.includes('半年')) return false;
-            
-            // Exclude International
-            const isForeign = cat.includes('國外') || type.includes('國外') || market.includes('國外') || cat.includes('國際') || type.includes('國際') || name.includes('國際');
-            if (isForeign) return false;
-
-            // NEW: Exclude Monthly
-            if (freq.includes('月')) return false;
-
-            // NEW: Exclude Bond
-            if (cat.includes('債')) return false;
-
-            return true;
-        });
-
-        const targetCodes = new Set(targets.map(t => t.etfCode));
         // Get last 10 unique dates from ALL price data (assuming data sync)
         const allEtfDates: string[] = Array.from<string>(new Set(priceData.map(p => p.date))).sort().reverse().slice(0, 10);
         
         // Build Rows
         const etfRows = targets.map(etf => {
             const row: any = {
-                // '商品分類': etf.category, // Removed from requirement
-                // '配息週期': etf.dividendFreq, // Removed from requirement
                 'ETF代碼': etf.etfCode,
                 'ETF名稱': etf.etfName,
                 'ETF類型': etf.etfType
@@ -239,22 +214,8 @@ const TabAdvancedSearch: React.FC = () => {
         if (mainTab !== 'POST_MARKET') return { basic: [], todayEx: [], filled: [], unfilled: [] };
 
         // 1. BASIC INFO
-        const basicList = basicInfo.filter(b => {
-            const cat = (b.category || '').trim();
-            const freq = (b.dividendFreq || '').trim();
-            const type = (b.etfType || '').trim();
-            const market = (b.marketType || '').trim();
-            const name = (b.etfName || '').trim();
-            const code = (b.etfCode || '').trim();
-            
-            // WHITELIST: Always include user specified codes
-            if (WHITE_LIST.includes(code)) return true;
-
-            // Exclude Half-Year and International
-            const isHalfYear = freq.includes('半年') || cat.includes('半年');
-            const isForeign = cat.includes('國外') || type.includes('國外') || market.includes('國外') || cat.includes('國際') || type.includes('國際') || name.includes('國際');
-            return !isHalfYear && !isForeign;
-        }).map(etf => {
+        // REVISED: SHOW ALL ETFs. Removed filtering by Bond/Monthly/Foreign.
+        const basicList = basicInfo.map(etf => {
             // Find Month Start Price
             const currentMonthPrefix = refDate.substring(0, 7); // YYYY-MM
             const monthPrices = priceData.filter(p => p.etfCode === etf.etfCode && p.date.startsWith(currentMonthPrefix)).sort((a,b) => a.date.localeCompare(b.date));
@@ -318,15 +279,12 @@ const TabAdvancedSearch: React.FC = () => {
         }).sort((a,b) => a['ETF代碼'].localeCompare(b['ETF代碼']));
 
         // 3. FILLED LIST (Within 3 Trading Days)
-        // Identify "Recent 3 Trading Days" including refDate
         const uniqueDates = Array.from<string>(new Set(priceData.map(p => p.date))).sort().reverse();
         const refIndex = uniqueDates.indexOf(refDate);
-        // If refDate not in data (e.g. holiday), find closest past date
         let validDates: string[] = [];
         if (refIndex !== -1) {
             validDates = uniqueDates.slice(refIndex, refIndex + 3);
         } else {
-            // Ref date might be future or no data yet, try finding first date <= refDate
             const validStart = uniqueDates.find(d => d <= refDate);
             if (validStart) {
                 const idx = uniqueDates.indexOf(validStart);
@@ -341,7 +299,7 @@ const TabAdvancedSearch: React.FC = () => {
             '除息日期': f.exDate,
             '除息金額': f.amount,
             '除息前一天股價': f.pricePreEx,
-            '除息參考價': f.priceReference, // Added
+            '除息參考價': f.priceReference, 
             '分析比對日期': f.fillDate,
             '分析比對價格': f.fillPrice,
             '分析是否填息成功': '是',
@@ -352,10 +310,10 @@ const TabAdvancedSearch: React.FC = () => {
         });
 
         // 4. UNFILLED SINCE 2025/01/02
-        // EXCLUDE FUTURE DIVIDENDS (Already ex-dividended BUT not filled)
+        // REVISED: Ensure strict check for "Unfilled but Ex-Dividended"
         const unfilledList = fillData.filter(f => {
             const isAfter2025 = f.exDate >= '2025-01-02';
-            const isAlreadyEx = f.exDate <= refDate; // Ensure we only show items that HAVE ex-dividended by refDate
+            const isAlreadyEx = f.exDate <= refDate; // MUST have ex-dividended in the past
             return isAfter2025 && isAlreadyEx && !f.isFilled;
         }).map(f => ({
             'ETF代碼': f.etfCode,
@@ -363,7 +321,7 @@ const TabAdvancedSearch: React.FC = () => {
             '除息日期': f.exDate,
             '除息金額': f.amount,
             '除息前一天股價': f.pricePreEx,
-            '除息參考價': f.priceReference // Added
+            '除息參考價': f.priceReference
         })).sort((a,b) => {
             const codeDiff = a['ETF代碼'].localeCompare(b['ETF代碼']);
             if (codeDiff !== 0) return codeDiff;
@@ -468,7 +426,7 @@ const TabAdvancedSearch: React.FC = () => {
             .sort((a,b) => a.fillDate.localeCompare(b.fillDate));
     }, [fillData, mainTab, dateRange]);
 
-    // --- SELF MONTHLY LOGIC (FIXED) ---
+    // --- SELF MONTHLY LOGIC ---
     const selfMonthlyData = useMemo(() => {
         if (mainTab !== 'SELF_MONTHLY') return { list: [], div: [] };
 
@@ -567,7 +525,7 @@ const TabAdvancedSearch: React.FC = () => {
             return scoreA.code.localeCompare(scoreB.code);
         });
 
-        // 6. Build Dividend Data (FIXED: NO MONTH FILTERING, SHOW ALL ACTUAL DATA)
+        // 6. Build Dividend Data
         const targetCodes = new Set(targets.map(t => t.etfCode));
         const divList = divData
             .filter(d => targetCodes.has(d.etfCode))
