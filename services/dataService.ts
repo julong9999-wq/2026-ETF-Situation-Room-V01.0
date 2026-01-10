@@ -233,8 +233,10 @@ export const getFillAnalysisData = async (): Promise<FillAnalysisData[]> => {
             if (isFuture) {
                  pricePreEx = "待除息資訊"; priceReference = "待除息資訊"; fillDate = ""; fillPrice = "待除息資訊"; daysToFill = "待除息資訊"; isFilled = false; if(!preExDate) preExDate = "待除息資訊"; 
             } 
-            else if (exYear < 2026 && !pricePreEx) { 
-                 pricePreEx = "無資料"; priceReference = "無資料"; fillDate = ""; fillPrice = "無資料"; daysToFill = "無資料"; isFilled = false; if(!preExDate) preExDate = "無資料";
+            else if (div.exDate < '2026-01-02') { 
+                 // Strict cutoff for 2026 analysis. 
+                 // 2025 data lacks daily precision, leading to wrong calculations (e.g. 00944).
+                 pricePreEx = "無資料(2025)"; priceReference = "無資料(2025)"; fillDate = ""; fillPrice = ""; daysToFill = "無資料"; isFilled = false; if(!preExDate) preExDate = "-";
             } 
             else {
                 if (pricePreEx === 0 || typeof pricePreEx !== 'number') {

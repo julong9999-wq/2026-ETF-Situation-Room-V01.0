@@ -307,7 +307,8 @@ const TabAdvancedSearch: React.FC = () => {
         }
         const validDateSet = new Set(validDates);
 
-        const filledList = fillData.filter(f => f.isFilled && validDateSet.has(f.fillDate)).map(f => ({
+        // Strict Filter: 2026-01-02 onwards
+        const filledList = fillData.filter(f => f.isFilled && validDateSet.has(f.fillDate) && f.exDate >= '2026-01-02').map(f => ({
             'ETF代碼': f.etfCode,
             'ETF名稱': f.etfName,
             '除息日期': f.exDate,
@@ -324,10 +325,11 @@ const TabAdvancedSearch: React.FC = () => {
         });
 
         // 4. UNFILLED
+        // Strict Filter: 2026-01-02 onwards
         const unfilledList = fillData.filter(f => {
-            const isAfter2025 = f.exDate >= '2025-01-02';
+            const isAfter2026 = f.exDate >= '2026-01-02'; // Enforce 2026+ check
             const isPastExDate = f.exDate <= refDate; 
-            return isAfter2025 && isPastExDate && !f.isFilled;
+            return isAfter2026 && isPastExDate && !f.isFilled;
         }).map(f => ({
             'ETF代碼': f.etfCode,
             'ETF名稱': f.etfName,
@@ -416,8 +418,8 @@ const TabAdvancedSearch: React.FC = () => {
         return fillData
             .filter(d => {
                 if (!d.exDate) return false;
-                const exYear = parseInt(d.exDate.split('-')[0]);
-                return d.isFilled && d.fillDate >= start && d.fillDate <= end && exYear >= 2026;
+                // Strict check 2026-01-02
+                return d.isFilled && d.fillDate >= start && d.fillDate <= end && d.exDate >= '2026-01-02';
             })
             .sort((a,b) => a.fillDate.localeCompare(b.fillDate));
     }, [fillData, mainTab, dateRange]);
@@ -1058,7 +1060,7 @@ function importAllData() {
                                                     <td className="p-3 font-mono font-bold text-blue-600">{d['ETF代碼']}</td><td className="p-3 font-bold text-gray-600">{d['ETF名稱']}</td><td className="p-3 font-mono">{d['除息日期']}</td><td className="p-3 text-right font-bold text-emerald-600">{fmtDiv(d['除息金額'])}</td><td className="p-3 text-right font-mono">{fmtNum(d['除息前一天股價'])}</td><td className="p-3 text-right font-mono">{fmtNum(d['除息參考價'])}</td><td className="p-3 text-center font-mono">{d['分析比對日期']}</td><td className="p-3 text-right font-mono">{fmtNum(d['分析比對價格'])}</td><td className="p-3 text-center font-bold text-green-600">是</td><td className="p-3 text-right font-mono">{d['幾天填息']}</td>
                                                 </tr>
                                             ))}
-                                            {postMarketReports.filled.length === 0 && <tr><td colSpan={10} className="p-8 text-center text-gray-400">最近 3 日無填息資料</td></tr>}
+                                            {postMarketReports.filled.length === 0 && <tr><td colSpan={10} className="p-8 text-center text-gray-400">本日無填息資料</td></tr>}
                                         </tbody>
                                     </table>
                                 )}
@@ -1071,7 +1073,7 @@ function importAllData() {
                                                     <td className="p-3 font-mono font-bold text-red-600">{d['ETF代碼']}</td><td className="p-3 font-bold text-gray-600">{d['ETF名稱']}</td><td className="p-3 font-mono">{d['除息日期']}</td><td className="p-3 text-right font-bold text-emerald-600">{fmtDiv(d['除息金額'])}</td><td className="p-3 text-right font-mono">{fmtNum(d['除息前一天股價'])}</td><td className="p-3 text-right font-mono font-bold text-orange-600">{fmtNum(d['除息參考價'])}</td>
                                                 </tr>
                                             ))}
-                                            {postMarketReports.unfilled.length === 0 && <tr><td colSpan={6} className="p-8 text-center text-gray-400">無符合條件之未填息資料</td></tr>}
+                                            {postMarketReports.unfilled.length === 0 && <tr><td colSpan={6} className="p-8 text-center text-gray-400">本日無比對資料</td></tr>}
                                         </tbody>
                                     </table>
                                 )}
