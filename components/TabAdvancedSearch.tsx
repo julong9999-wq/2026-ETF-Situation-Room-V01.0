@@ -224,7 +224,7 @@ const TabAdvancedSearch: React.FC = () => {
             .sort((a,b) => a.fillDate.localeCompare(b.fillDate));
     }, [fillData, mainTab, reportType, dateRange]);
 
-    // --- SELF MONTHLY LOGIC (CORE UPDATE REVISED) ---
+    // --- SELF MONTHLY LOGIC (FIXED) ---
     const selfMonthlyData = useMemo(() => {
         if (mainTab !== 'SELF_MONTHLY') return { list: [], div: [] };
 
@@ -244,13 +244,12 @@ const TabAdvancedSearch: React.FC = () => {
             }
         });
 
-        // 2. Filter Targets: "季配商品" and "季配(主動)商品" (Exclude Bonds based on user implication in sort)
+        // 2. Filter Targets: "季配商品" and "季配(主動)商品" (Exclude Bonds)
         const targets = basicInfo.filter(b => {
             const freq = (b.dividendFreq || '').trim();
             const cat = (b.category || '').trim();
             const isQuarterly = freq.includes('季');
             const isBond = cat.includes('債');
-            // Strict filter based on prompt: 季配商品 and 季配(主動)商品. Usually implies Excluding Bonds.
             return isQuarterly && !isBond;
         });
 
@@ -262,40 +261,33 @@ const TabAdvancedSearch: React.FC = () => {
         const targetYear = currentYear - 1;
         const targetMonth = currentMonth;
         const targetMonthStr = String(targetMonth).padStart(2, '0');
-        const targetYearMonth = `${targetYear}-${targetMonthStr}`; // e.g., 2025-01
+        const targetYearMonth = `${targetYear}-${targetMonthStr}`; 
 
-        const displayYearMonth = `${currentYear}-${String(currentMonth).padStart(2, '0')}`; // e.g., 2026-01
-
-        // 4. Build List Data
+        // 4. Build List Data (For "Quarterly List" Tab)
         const list = targets.map(etf => {
-            // A. Recent Price (Latest available)
+            // A. Recent Price
             const latestPrices = priceData.filter(p => p.etfCode === etf.etfCode).sort((a,b) => b.date.localeCompare(a.date));
             const latest = latestPrices.length > 0 ? latestPrices[0] : null;
 
-            // B. Start Price Logic (The Split Logic)
+            // B. Start Price Logic
             let startPrice = 0;
             let startDate = '-';
             let dateWarning = false;
 
-            // Revised Logic: Use History for 2025 and BEFORE. Use Daily for 2026 and AFTER.
-            // This ensures robustness if user imports older data.
             if (targetYear <= 2025) {
-                // Rule: <= 2025 -> Use History Data (Monthly)
                 const hist = historyData.find(h => h.etfCode === etf.etfCode && h.date.startsWith(targetYearMonth));
                 if (hist) {
                     startPrice = hist.price;
                     startDate = hist.date;
                 }
             } else {
-                // Rule: >= 2026 -> Use Price Data (Daily), find FIRST record of that month
                 const dailyMatches = priceData
                     .filter(p => p.etfCode === etf.etfCode && p.date.startsWith(targetYearMonth))
-                    .sort((a,b) => a.date.localeCompare(b.date)); // Sort Ascending to get first day
+                    .sort((a,b) => a.date.localeCompare(b.date));
                 
                 if (dailyMatches.length > 0) {
                     startPrice = dailyMatches[0].price;
                     startDate = dailyMatches[0].date;
-                    // Check if start date is "late" in the month (e.g. > 10th), implying missing data
                     const dayNum = parseInt(startDate.split('-')[2] || '1');
                     if (dayNum > 10) dateWarning = true;
                 }
@@ -331,32 +323,23 @@ const TabAdvancedSearch: React.FC = () => {
             return scoreA.code.localeCompare(scoreB.code);
         });
 
-        // 6. Build Dividend Data
-        // Requirement: Generate records for BOTH the current reference month AND the same month last year.
-        // Also show "No Dividend" if no record exists for that month.
-        const monthsToGen = [displayYearMonth, targetYearMonth]; // e.g. ['2026-01', '2025-01']
+        // 6. Build Dividend Data (FIXED: NO MONTH FILTERING, SHOW ALL ACTUAL DATA)
+        // Identify all target codes
+        const targetCodes = new Set(targets.map(t => t.etfCode));
 
-        const divList = targets.flatMap(etf => {
-            return monthsToGen.map(ym => {
-                // Find dividend record matching the Year-Month
-                const targetYMNoDash = ym.replace('-','');
-                const foundDiv = divData.find(d => 
-                    d.etfCode === etf.etfCode && 
-                    (d.yearMonth === targetYMNoDash || d.yearMonth === ym || (d.exDate && d.exDate.startsWith(ym)))
-                );
-
-                return {
-                    '商品分類': etf.category, // for sorting
-                    '配息週期': etf.dividendFreq, // for sorting
-                    'ETF代碼': etf.etfCode,
-                    'ETF名稱': etf.etfName,
-                    '年月': ym, // Explicitly set the Year-Month (e.g., 2026-01 or 2025-01)
-                    '除息日期': foundDiv ? foundDiv.exDate : '無除息',
-                    '除息金額': foundDiv ? foundDiv.amount : '無除息',
-                    'hasDiv': !!foundDiv
-                };
-            });
-        });
+        // Filter divData to only include records for our target ETFs
+        const divList = divData
+            .filter(d => targetCodes.has(d.etfCode))
+            .map(d => ({
+                '商品分類': basicInfo.find(b => b.etfCode === d.etfCode)?.category || '',
+                '配息週期': basicInfo.find(b => b.etfCode === d.etfCode)?.dividendFreq || '',
+                'ETF代碼': d.etfCode,
+                'ETF名稱': d.etfName,
+                '年月': d.yearMonth,
+                '除息日期': d.exDate,
+                '除息金額': d.amount,
+                'hasDiv': true // Always true because we are showing actual records
+            }));
 
         // 7. Sort Dividend List
         divList.sort((a, b) => {
@@ -366,11 +349,11 @@ const TabAdvancedSearch: React.FC = () => {
             if (scoreA.catScore !== scoreB.catScore) return scoreA.catScore - scoreB.catScore;
             if (scoreA.freqScore !== scoreB.freqScore) return scoreA.freqScore - scoreB.freqScore;
             
-            // Primary Sort: ETF Code (Small to Large)
+            // Primary Sort: ETF Code
             if (scoreA.code !== scoreB.code) return scoreA.code.localeCompare(scoreB.code);
             
-            // Secondary Sort: YearMonth (Recent to Old) - e.g. 2026-01 before 2025-01
-            return b['年月'].localeCompare(a['年月']);
+            // Secondary Sort: ExDate Descending (Newest first)
+            return b['除息日期'].localeCompare(a['除息日期']);
         });
 
         return { list, div: divList };
@@ -403,7 +386,7 @@ const TabAdvancedSearch: React.FC = () => {
                 exportToCSV(`自主月配_除息資料_${timestamp}`, headers, selfMonthlyData.div.map(d => ({
                     ...d,
                     '除息日期': d['除息日期'],
-                    '除息金額': d['hasDiv'] ? fmtDiv(d['除息金額']) : '無除息'
+                    '除息金額': fmtDiv(d['除息金額'])
                 })));
             }
             return;
@@ -466,8 +449,8 @@ const TabAdvancedSearch: React.FC = () => {
                     `'${d['ETF代碼']}`, // Use apostrophe for text format in GAS
                     d['ETF名稱'], 
                     d['年月'], 
-                    d['hasDiv'] ? d['除息日期'] : '無除息', 
-                    d['hasDiv'] ? fmtDiv(d['除息金額']) : '無除息'
+                    d['除息日期'], 
+                    fmtDiv(d['除息金額'])
                 ]);
                 scriptData = [headers, ...rows];
                 sheetName = "除息資料";
