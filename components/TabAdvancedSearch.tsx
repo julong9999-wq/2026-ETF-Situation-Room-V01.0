@@ -6,7 +6,7 @@ import {
     MarketData, BasicInfo, PriceData, DividendData, FillAnalysisData, HistoryData, SizeData 
 } from '../types';
 import { 
-    Calendar, Search, FileText, Download, TrendingUp, Filter, Code, AlertCircle, PieChart, Table as TableIcon, Zap, Moon
+    Calendar, Search, FileText, Download, TrendingUp, Filter, Code, AlertCircle, PieChart, Table as TableIcon, Zap, Moon, Check
 } from 'lucide-react';
 
 const TabAdvancedSearch: React.FC = () => {
@@ -101,21 +101,27 @@ const TabAdvancedSearch: React.FC = () => {
         return 6;
     };
 
-    const getSelfMonthlySortScore = (category: string, freq: string) => {
-        let catScore = 4;
+    const getSelfMonthlySortScore = (category: string, freq: string, code: string) => {
+        // 1. 商品分類: 季配商品 > 月配商品 > 債券商品
+        let catScore = 3;
         const c = String(category || '');
         const f = String(freq || '');
-        if (c.includes('債')) { catScore = 3; } 
-        else if (f.includes('季')) { catScore = 1; } 
+        
+        // Logic check: User wants "季配名單" filtered by "季配" and "季配(主動)". 
+        // But for sorting logic generally:
+        if (c.includes('債')) { catScore = 3; }
         else if (f.includes('月')) { catScore = 2; }
+        else if (f.includes('季')) { catScore = 1; }
 
+        // 2. 配息週期: 月配 > 季一 > 季二 > 季三
         let freqScore = 5;
         if (f.includes('月')) freqScore = 1;
         else if (f.includes('季一') || f.includes('1,4') || f.includes('01,04')) freqScore = 2;
         else if (f.includes('季二') || f.includes('2,5') || f.includes('02,05')) freqScore = 3;
         else if (f.includes('季三') || f.includes('3,6') || f.includes('03,06')) freqScore = 4;
 
-        return { catScore, freqScore };
+        // 3. 股號由小至大 (Handled by caller usually, but returning tuple helps)
+        return { catScore, freqScore, code };
     };
 
     const fmtNum = (n: number) => n !== undefined && n !== null ? n.toFixed(2) : '-';
@@ -218,13 +224,13 @@ const TabAdvancedSearch: React.FC = () => {
             .sort((a,b) => a.fillDate.localeCompare(b.fillDate));
     }, [fillData, mainTab, reportType, dateRange]);
 
-    // --- SELF MONTHLY LOGIC ---
+    // --- SELF MONTHLY LOGIC (CORE UPDATE) ---
     const selfMonthlyData = useMemo(() => {
         if (mainTab !== 'SELF_MONTHLY') return { list: [], div: [] };
 
+        // 1. Prepare Size Data
         const sizeMap = new Map<string, number>();
         const sizeGroups = new Map<string, SizeData[]>();
-        
         sizeData.forEach(s => {
             if (s && s.etfCode) {
                 const code = s.etfCode.trim();
@@ -238,40 +244,60 @@ const TabAdvancedSearch: React.FC = () => {
             }
         });
 
+        // 2. Filter Targets: "季配商品" and "季配(主動)商品" (Exclude Bonds for now based on prompt implication, or include?)
+        // Prompt says: "名單過濾條件 為 "季配商品" and "季配(主動)商品""
         const targets = basicInfo.filter(b => {
             const freq = (b.dividendFreq || '').trim();
             const cat = (b.category || '').trim();
+            // Assuming "季配" includes all quarterly, but usually excluding Bonds in this context unless specified
             return freq.includes('季') && !cat.includes('債');
         });
 
+        // 3. Date Calculation
         const refDateObj = new Date(refDate); 
-        const targetYear = refDateObj.getFullYear() - 1;
-        const targetMonth = refDateObj.getMonth() + 1;
-        const targetPrefix = `${targetYear}-${String(targetMonth).padStart(2, '0')}`; 
+        const currentYear = refDateObj.getFullYear();
+        const currentMonth = refDateObj.getMonth() + 1;
+        
+        const targetYear = currentYear - 1;
+        const targetMonth = currentMonth;
+        const targetMonthStr = String(targetMonth).padStart(2, '0');
+        const targetYearMonth = `${targetYear}-${targetMonthStr}`; // e.g., 2025-01
 
+        const displayYearMonth = `${currentYear}-${String(currentMonth).padStart(2, '0')}`; // e.g., 2026-01
+
+        // 4. Build List Data
         const list = targets.map(etf => {
+            // A. Recent Price (Latest available)
             const latestPrices = priceData.filter(p => p.etfCode === etf.etfCode).sort((a,b) => b.date.localeCompare(a.date));
             const latest = latestPrices.length > 0 ? latestPrices[0] : null;
 
+            // B. Start Price Logic
             let startPrice = 0;
             let startDate = '-';
 
             if (targetYear <= 2025) {
-                const hist = historyData.find(h => h.etfCode === etf.etfCode && h.date.startsWith(targetPrefix));
+                // Use History Data (Monthly snapshots)
+                // historyData format date usually 'YYYY-MM-DD' where DD is 01 or end of month. 
+                // We look for matches starting with targetYearMonth
+                const hist = historyData.find(h => h.etfCode === etf.etfCode && h.date.startsWith(targetYearMonth));
                 if (hist) {
                     startPrice = hist.price;
                     startDate = hist.date;
                 }
             } else {
+                // Use Price Data (Daily) - Find the FIRST trading day of that month
+                // Filter prices starting with targetYearMonth, then sort ASCENDING
                 const dailyMatches = priceData
-                    .filter(p => p.etfCode === etf.etfCode && p.date.startsWith(targetPrefix))
-                    .sort((a,b) => a.date.localeCompare(b.date));
+                    .filter(p => p.etfCode === etf.etfCode && p.date.startsWith(targetYearMonth))
+                    .sort((a,b) => a.date.localeCompare(b.date)); // Oldest first
+                
                 if (dailyMatches.length > 0) {
                     startPrice = dailyMatches[0].price;
                     startDate = dailyMatches[0].date;
                 }
             }
 
+            // C. Size
             const etfSizes = sizeGroups.get(etf.etfCode) || [];
             etfSizes.sort((a,b) => (b.date || '').localeCompare(a.date || ''));
             const latestSize = etfSizes.length > 0 ? etfSizes[0].size : 0;
@@ -290,45 +316,52 @@ const TabAdvancedSearch: React.FC = () => {
             };
         });
 
+        // 5. Sort List
         list.sort((a, b) => {
-            const scoreA = getSelfMonthlySortScore(a['商品分類'], a['配息週期']);
-            const scoreB = getSelfMonthlySortScore(b['商品分類'], b['配息週期']);
+            const scoreA = getSelfMonthlySortScore(a['商品分類'], a['配息週期'], a['ETF代碼']);
+            const scoreB = getSelfMonthlySortScore(b['商品分類'], b['配息週期'], b['ETF代碼']);
+            
             if (scoreA.catScore !== scoreB.catScore) return scoreA.catScore - scoreB.catScore;
             if (scoreA.freqScore !== scoreB.freqScore) return scoreA.freqScore - scoreB.freqScore;
-            return a['ETF代碼'].localeCompare(b['ETF代碼']);
+            return scoreA.code.localeCompare(scoreB.code);
         });
 
-        const targetCodes = new Set(targets.map(t => t.etfCode));
-        const basicInfoMap = new Map<string, BasicInfo>(basicInfo.map(b => [b.etfCode, b]));
+        // 6. Build Dividend Data
+        // Requirement: Show ALL targets, even if no dividend data for that month.
+        const divList = targets.map(etf => {
+            // Find dividend record for the displayed YearMonth (e.g. 2026-01)
+            // Assuming the dividend data 'yearMonth' matches 'YYYY-MM' format?
+            // If divData format uses YYYYMM or similar, might need normalization. 
+            // Based on import logic, yearMonth is usually just a string label, but let's try to match loosely or by exDate month.
+            // Actually user said "Reference Date Year Month".
+            
+            // Let's try finding by matching 'yearMonth' string OR exDate starting with YYYY-MM
+            const foundDiv = divData.find(d => 
+                d.etfCode === etf.etfCode && 
+                (d.yearMonth === displayYearMonth.replace('-','') || d.yearMonth === displayYearMonth || (d.exDate && d.exDate.startsWith(displayYearMonth)))
+            );
 
-        const divList = divData
-            .filter(d => targetCodes.has(d.etfCode))
-            .map(d => {
-                const info = basicInfoMap.get(d.etfCode);
-                return {
-                    ...d,
-                    category: info?.category || '',
-                    freq: info?.dividendFreq || ''
-                };
-            })
-            .sort((a,b) => {
-                const scoreA = getSelfMonthlySortScore(a.category, a.freq);
-                const scoreB = getSelfMonthlySortScore(b.category, b.freq);
-                if (scoreA.catScore !== scoreB.catScore) return scoreA.catScore - scoreB.catScore;
-                if (scoreA.freqScore !== scoreB.freqScore) return scoreA.freqScore - scoreB.freqScore;
-                const codeCompare = a.etfCode.localeCompare(b.etfCode);
-                if (codeCompare !== 0) return codeCompare;
-                const dateA = a.yearMonth || '';
-                const dateB = b.yearMonth || '';
-                return dateB.localeCompare(dateA);
-            }) 
-            .map(d => ({
-                'ETF代碼': d.etfCode,
-                'ETF名稱': d.etfName,
-                '年月': d.yearMonth,
-                '除息日期': d.exDate,
-                '除息金額': d.amount
-            }));
+            return {
+                '商品分類': etf.category, // for sorting
+                '配息週期': etf.dividendFreq, // for sorting
+                'ETF代碼': etf.etfCode,
+                'ETF名稱': etf.etfName,
+                '年月': foundDiv ? foundDiv.yearMonth : displayYearMonth.replace('-',''),
+                '除息日期': foundDiv ? foundDiv.exDate : '無除息',
+                '除息金額': foundDiv ? foundDiv.amount : 0,
+                'hasDiv': !!foundDiv
+            };
+        });
+
+        // 7. Sort Dividend List
+        divList.sort((a, b) => {
+            const scoreA = getSelfMonthlySortScore(a['商品分類'], a['配息週期'], a['ETF代碼']);
+            const scoreB = getSelfMonthlySortScore(b['商品分類'], b['配息週期'], b['ETF代碼']);
+            
+            if (scoreA.catScore !== scoreB.catScore) return scoreA.catScore - scoreB.catScore;
+            if (scoreA.freqScore !== scoreB.freqScore) return scoreA.freqScore - scoreB.freqScore;
+            return scoreA.code.localeCompare(scoreB.code);
+        });
 
         return { list, div: divList };
     }, [basicInfo, priceData, historyData, divData, sizeData, mainTab, refDate]);
@@ -360,8 +393,8 @@ const TabAdvancedSearch: React.FC = () => {
                 // Format Dividend Amount to 3 decimals in export
                 exportToCSV(`自主月配_除息資料_${timestamp}`, headers, selfMonthlyData.div.map(d => ({
                     ...d,
-                    '除息日期': d['除息日期'] || '-',
-                    '除息金額': d['除息金額'] ? fmtDiv(d['除息金額']) : '無除息 ***'
+                    '除息日期': d['除息日期'],
+                    '除息金額': d['hasDiv'] ? fmtDiv(d['除息金額']) : '無除息'
                 })));
             }
             return;
@@ -406,18 +439,30 @@ const TabAdvancedSearch: React.FC = () => {
             if (selfMonthlySubTab === 'QUARTERLY_LIST') {
                 const headers = ['商品分類', '配息週期', 'ETF代碼', 'ETF名稱', 'ETF類型', '規模大小', '起始日期', '起始股價', '最近日期', '最近股價'];
                 const rows = selfMonthlyData.list.map((row: any) => [
-                    row['商品分類'], row['配息週期'], `"${row['ETF代碼']}"`, row['ETF名稱'], row['ETF類型'], 
-                    row['規模大小'], row['起始日期'], row['起始股價'], row['最近日期'], row['最近股價']
+                    row['商品分類'], 
+                    row['配息週期'], 
+                    `'${row['ETF代碼']}`, // Add apostrophe to force text in Google Sheets
+                    row['ETF名稱'], 
+                    row['ETF類型'], 
+                    row['規模大小'], 
+                    row['起始日期'], 
+                    row['起始股價'], 
+                    row['最近日期'], 
+                    row['最近股價']
                 ]);
                 scriptData = [headers, ...rows];
-                sheetName = "自主月配_季配名單";
+                sheetName = "季配名單";
             } else {
                 const headers = ['ETF代碼', 'ETF名稱', '年月', '除息日期', '除息金額'];
                 const rows = selfMonthlyData.div.map((d: any) => [
-                    `"${d['ETF代碼']}"`, d['ETF名稱'], d['年月'], d['除息日期'] || '-', d['除息金額'] ? fmtDiv(d['除息金額']) : '0.000'
+                    `'${d['ETF代碼']}`, // Add apostrophe to force text in Google Sheets
+                    d['ETF名稱'], 
+                    d['年月'], 
+                    d['除息日期'], 
+                    d['hasDiv'] ? fmtDiv(d['除息金額']) : '無除息'
                 ]);
                 scriptData = [headers, ...rows];
-                sheetName = "自主月配_除息資料";
+                sheetName = "除息資料";
             }
         } else {
             // Fallback for Weekly Report
@@ -440,19 +485,28 @@ const TabAdvancedSearch: React.FC = () => {
  */
 function importDataToSheet() {
   var spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
-  var sheet = spreadsheet.getActiveSheet();
+  // 嘗試取得目標工作表，若無則建立
+  var sheetName = "${sheetName}";
+  var sheet = spreadsheet.getSheetByName(sheetName);
   
-  // 1. 清除現有內容
-  sheet.clear();
+  if (!sheet) {
+    sheet = spreadsheet.insertSheet(sheetName);
+  } else {
+    sheet.clear();
+  }
   
-  // 2. 準備資料
+  // 準備資料
   var data = ${jsonString};
   
   if (data.length > 0) {
-    // 3. 寫入資料
-    // 注意: 股號若為 "00929" 格式，Google Sheet 可能會自動轉數字，請在 Sheet 中設定格式為純文字
-    sheet.getRange(1, 1, data.length, data[0].length).setValues(data);
-    Logger.log("成功寫入 " + data.length + " 列資料");
+    // 寫入資料
+    var range = sheet.getRange(1, 1, data.length, data[0].length);
+    range.setValues(data);
+    
+    // 選用: 調整第一列格式
+    sheet.getRange(1, 1, 1, data[0].length).setFontWeight("bold").setBackground("#e6f7ff");
+    
+    Logger.log("成功寫入 " + data.length + " 列資料至 " + sheetName);
   } else {
     Logger.log("無資料可寫入");
   }
@@ -460,7 +514,7 @@ function importDataToSheet() {
         `;
         
         navigator.clipboard.writeText(scriptContent).then(() => {
-            alert(`✅ Google Apps Script 已複製！\n\n目標: [${sheetName}]\n筆數: ${scriptData.length-1} 筆\n\n請至 Google Sheet -> 擴充功能 -> Apps Script 貼上並執行 importDataToSheet 函式。`);
+            alert(`✅ Google Apps Script 已複製！\n\n目標: [${sheetName}]\n筆數: ${scriptData.length-1} 筆\n\n已針對「股號」格式進行優化 ('0056)。\n請至 Google Sheet -> 擴充功能 -> Apps Script 貼上並執行 importDataToSheet 函式。`);
         }).catch(err => {
             console.error('Failed to copy: ', err);
             alert("複製失敗");
@@ -828,8 +882,8 @@ function importDataToSheet() {
                                                 <td className="p-3 font-mono">{d['年月']}</td>
                                                 <td className="p-3 font-mono">{d['除息日期'] || '-'}</td>
                                                 {/* 3 decimals */}
-                                                <td className={`p-3 text-right font-bold ${d['除息金額'] ? 'text-emerald-600' : 'text-red-500 italic'}`}>
-                                                    {d['除息金額'] ? fmtDiv(d['除息金額']) : '無除息 ***'}
+                                                <td className={`p-3 text-right font-bold ${d['hasDiv'] ? 'text-emerald-600' : 'text-gray-400 italic'}`}>
+                                                    {d['hasDiv'] ? fmtDiv(d['除息金額']) : '無除息'}
                                                 </td>
                                             </tr>
                                         ))}
