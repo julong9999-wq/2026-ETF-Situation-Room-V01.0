@@ -184,7 +184,10 @@ export const getFillAnalysisData = async (): Promise<FillAnalysisData[]> => {
     const history = await getHistoryData(); 
     const prices = await getPriceData();
 
-    if (dividends.length === 0) return [];
+    // Valid dividends must have an exDate for fill analysis
+    const validDividends = dividends.filter(d => d.exDate && d.exDate.trim() !== '');
+
+    if (validDividends.length === 0) return [];
 
     const priceMap = new Map<string, Map<string, number>>();
     const addToMap = (code: string, date: string, price: number) => {
@@ -198,7 +201,7 @@ export const getFillAnalysisData = async (): Promise<FillAnalysisData[]> => {
     const results: FillAnalysisData[] = [];
     const today = new Date().toISOString().split('T')[0];
 
-    for (const div of dividends) {
+    for (const div of validDividends) {
         let pricePreEx: number | string = 0;
         let priceReference: number | string = 0;
         let isFilled = false;
@@ -394,8 +397,32 @@ export const importDividendData = async (url: string) => {
         amount: safeFloat(getVal(row, ['除息金額', '金額', 'Amount'])),
         paymentDate: normalizeDate(getVal(row, ['股利發放', '股利發放日', '發放日', 'PaymentDate'])),
         yield: 0
-    })).filter(item => item.etfCode && item.exDate); 
-    const merged = mergeAndSave(KEYS.DIVIDEND, await getDividendData(), newItems, 'etfCode', 'exDate', 'amount');
+    })).filter(item => item.etfCode && (item.exDate || item.yearMonth)); // CHANGED: Allow items with just yearMonth
+    
+    // We only merge if we have a valid key. If exDate is missing, use yearMonth as part of key to avoid duplicates?
+    // Using etfCode + yearMonth + exDate as key might be safer if exDate is missing.
+    // However, existing logic uses 'etfCode', 'exDate', 'amount'.
+    // If exDate is empty, we must ensure we don't overwrite blindly.
+    
+    // Let's use a custom merge key strategy implicitly by calling mergeAndSave with appropriate keys.
+    // If exDate is missing, we use yearMonth as the second key.
+    
+    // Actually mergeAndSave is generic. Let's just use what we have. 
+    // If exDate is empty string, multiple entries with empty exDate for same ETF might clash if we only use 'etfCode' and 'exDate'.
+    // BUT usually YearMonth is unique per month. 
+    // Let's rely on yearMonth if exDate is missing.
+    
+    // We can't change the signature of mergeAndSave easily for conditional keys.
+    // Let's just create a composite ID in the object for merging purposes locally if needed, but mergeAndSave takes key names.
+    // Simple fix: If exDate is missing, temporarily set it to something unique like `YM-${yearMonth}` for storage? 
+    // NO, that corrupts data.
+    
+    // Let's just accept that if exDate is missing, we use yearMonth as unique identifier if possible.
+    // The current mergeAndSave uses: 'etfCode', 'exDate', 'amount'.
+    // If amount is 0 and exDate is empty, duplicates might occur if only ETF code differs.
+    // Let's add 'yearMonth' to the key list for mergeAndSave.
+    
+    const merged = mergeAndSave(KEYS.DIVIDEND, await getDividendData(), newItems, 'etfCode', 'exDate', 'yearMonth');
     return { count: merged.length, noChange: false };
 };
 

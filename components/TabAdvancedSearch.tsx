@@ -101,6 +101,31 @@ const TabAdvancedSearch: React.FC = () => {
         return 6;
     };
 
+    // --- CUSTOM SORT FOR SELF MONTHLY ---
+    const getSelfMonthlySortScore = (category: string, freq: string) => {
+        // 1. 商品分類: 季配商品(1), 月配商品(2), 債券商品(3), 其他(4)
+        // 判斷邏輯: 若分類含"債"為債券, 否則看配息頻率 (季->季配商品, 月->月配商品)
+        let catScore = 4;
+        const c = String(category || '');
+        const f = String(freq || '');
+        if (c.includes('債')) {
+            catScore = 3;
+        } else if (f.includes('季')) {
+            catScore = 1;
+        } else if (f.includes('月')) {
+            catScore = 2;
+        }
+
+        // 2. 配息週期: 月配(1), 季一(2), 季二(3), 季三(4), 其他(5)
+        let freqScore = 5;
+        if (f.includes('月')) freqScore = 1;
+        else if (f.includes('季一') || f.includes('1,4') || f.includes('01,04')) freqScore = 2;
+        else if (f.includes('季二') || f.includes('2,5') || f.includes('02,05')) freqScore = 3;
+        else if (f.includes('季三') || f.includes('3,6') || f.includes('03,06')) freqScore = 4;
+
+        return { catScore, freqScore };
+    };
+
     // --- REPORT DATA PROCESSING ---
     const reportMarket = useMemo(() => {
         if (mainTab !== 'WEEKLY' || reportType !== 'MARKET') return [];
@@ -186,6 +211,7 @@ const TabAdvancedSearch: React.FC = () => {
         const end = dateRange.thisFriday;
         return fillData
             .filter(d => {
+                if (!d.exDate) return false;
                 const exYear = parseInt(d.exDate.split('-')[0]);
                 return d.isFilled && d.fillDate >= start && d.fillDate <= end && exYear >= 2026;
             })
@@ -197,25 +223,26 @@ const TabAdvancedSearch: React.FC = () => {
         if (mainTab !== 'SELF_MONTHLY') return { list: [], div: [] };
 
         const sizeMap = new Map<string, number>();
+        const sizeGroups = new Map<string, SizeData[]>();
+        
         sizeData.forEach(s => {
             if (s && s.etfCode) {
                 const code = s.etfCode.trim();
+                // For map, keep latest
                 if (!sizeMap.has(code) || (s.date && s.date > (sizeMap.get(code + '_date') as any))) {
                      sizeMap.set(code, s.size);
                 }
+                // For groups
+                if (!sizeGroups.has(code)) sizeGroups.set(code, []);
+                sizeGroups.get(code)!.push(s);
             }
-        });
-        
-        const sizeGroups = new Map<string, SizeData[]>();
-        sizeData.forEach(s => {
-            const c = s.etfCode.trim();
-            if (!sizeGroups.has(c)) sizeGroups.set(c, []);
-            sizeGroups.get(c)!.push(s);
         });
 
         const targets = basicInfo.filter(b => {
             const freq = (b.dividendFreq || '').trim();
             const cat = (b.category || '').trim();
+            // Assuming "Self Monthly" means we track quarterly ETFs to form a monthly combo?
+            // User logic from before: freq includes '季' and not '債'.
             return freq.includes('季') && !cat.includes('債');
         });
 
@@ -263,12 +290,49 @@ const TabAdvancedSearch: React.FC = () => {
                 '最近日期': latest ? latest.date : '-',
                 '最近股價': latest ? latest.price : '-'
             };
-        }).sort((a,b) => a['ETF代碼'].localeCompare(b['ETF代碼']));
+        });
 
+        // SORT LIST: 1. Category, 2. Freq, 3. Code
+        list.sort((a, b) => {
+            const scoreA = getSelfMonthlySortScore(a['商品分類'], a['配息週期']);
+            const scoreB = getSelfMonthlySortScore(b['商品分類'], b['配息週期']);
+
+            if (scoreA.catScore !== scoreB.catScore) return scoreA.catScore - scoreB.catScore;
+            if (scoreA.freqScore !== scoreB.freqScore) return scoreA.freqScore - scoreB.freqScore;
+            return a['ETF代碼'].localeCompare(b['ETF代碼']);
+        });
+
+        // PREPARE DIV LIST
         const targetCodes = new Set(targets.map(t => t.etfCode));
+        const basicInfoMap = new Map<string, BasicInfo>(basicInfo.map(b => [b.etfCode, b]));
+
         const divList = divData
             .filter(d => targetCodes.has(d.etfCode))
-            .sort((a,b) => b.exDate.localeCompare(a.exDate)) 
+            .map(d => {
+                const info = basicInfoMap.get(d.etfCode);
+                return {
+                    ...d,
+                    category: info?.category || '',
+                    freq: info?.dividendFreq || ''
+                };
+            })
+            .sort((a,b) => {
+                // 1. Category, 2. Freq
+                const scoreA = getSelfMonthlySortScore(a.category, a.freq);
+                const scoreB = getSelfMonthlySortScore(b.category, b.freq);
+
+                if (scoreA.catScore !== scoreB.catScore) return scoreA.catScore - scoreB.catScore;
+                if (scoreA.freqScore !== scoreB.freqScore) return scoreA.freqScore - scoreB.freqScore;
+                
+                // 3. Code (Small to Large)
+                const codeCompare = a.etfCode.localeCompare(b.etfCode);
+                if (codeCompare !== 0) return codeCompare;
+
+                // 4. YearMonth (Desc - Near to Far)
+                const dateA = a.yearMonth || '';
+                const dateB = b.yearMonth || '';
+                return dateB.localeCompare(dateA);
+            }) 
             .map(d => ({
                 'ETF代碼': d.etfCode,
                 'ETF名稱': d.etfName,
@@ -280,6 +344,20 @@ const TabAdvancedSearch: React.FC = () => {
         return { list, div: divList };
     }, [basicInfo, priceData, historyData, divData, sizeData, mainTab, refDate]);
 
+    // --- HELPER TO GET CURRENT COUNT ---
+    const getCurrentCount = () => {
+        if (mainTab === 'WEEKLY') {
+            if (reportType === 'MARKET') return reportMarket.length;
+            if (reportType === 'PRICE') return reportPrice.rows.length;
+            if (reportType === 'DIVIDEND') return reportDividend.length;
+            if (reportType === 'FILL') return reportFill.length;
+        } else if (mainTab === 'SELF_MONTHLY') {
+            if (selfMonthlySubTab === 'QUARTERLY_LIST') return selfMonthlyData.list.length;
+            if (selfMonthlySubTab === 'EX_DIV_DATA') return selfMonthlyData.div.length;
+        }
+        return 0;
+    };
+
     // --- EXPORT HANDLER ---
     const handleExport = () => {
         const timestamp = new Date().toISOString().split('T')[0];
@@ -290,7 +368,11 @@ const TabAdvancedSearch: React.FC = () => {
                 exportToCSV(`自主月配_季配名單_${timestamp}`, headers, selfMonthlyData.list);
             } else {
                 const headers = ['ETF代碼', 'ETF名稱', '年月', '除息日期', '除息金額'];
-                exportToCSV(`自主月配_除息資料_${timestamp}`, headers, selfMonthlyData.div);
+                exportToCSV(`自主月配_除息資料_${timestamp}`, headers, selfMonthlyData.div.map(d => ({
+                    ...d,
+                    '除息日期': d['除息日期'] || '-',
+                    '除息金額': d['除息金額'] ? d['除息金額'] : '無除息 ***'
+                })));
             }
             return;
         }
@@ -322,20 +404,16 @@ const TabAdvancedSearch: React.FC = () => {
     };
 
     const handleCopyScript = () => {
-        let scriptContent = '';
-        if (mainTab === 'SELF_MONTHLY') {
-            scriptContent = `function runSelfMonthlyAnalysis() { Browser.msgBox("自主月配邏輯已在前端完整實作，建議直接使用網頁版匯出 CSV 功能。"); }`;
-        } else {
-            scriptContent = `
+        // Universal script for all tabs (including Self Monthly)
+        const scriptContent = `
 /**
  * ETF 戰情室 - 自動化週報生成腳本 V3.3
  */
 var CONFIG = { urls: { market: [], price: '', basic: '', dividend: '', history: '' } };
 function main_RunAll() { var dates = getWeeklyDates(); step1_UpdateMarket(dates); step2_ExecETFPrice(dates); step3_UpdateDividend(dates); step4_UpdateFill(dates); }
-            `;
-        }
+        `;
         navigator.clipboard.writeText(scriptContent).then(() => {
-            alert("✅ 腳本已複製！\n\n(自主月配功能目前主要由前端運算，若需 Apps Script 版本請參考文件)");
+            alert("✅ 自動化腳本已複製！\n\n請至 Google Apps Script 貼上並設定排程。");
         }).catch(err => {
             console.error('Failed to copy: ', err);
             alert("複製失敗");
@@ -354,7 +432,7 @@ function main_RunAll() { var dates = getWeeklyDates(); step1_UpdateMarket(dates)
         { id: 'SELF_MONTHLY', label: '自主月配', icon: Calendar, color: 'text-orange-500', theme: 'orange' }
     ];
 
-    // 2. Weekly Report Sub-Tabs (User said these are perfect)
+    // 2. Weekly Report Sub-Tabs
     const WEEKLY_SUB = [
         { id: 'MARKET', label: '國際大盤', icon: TrendingUp, color: 'text-blue-500', theme: 'blue' },
         { id: 'PRICE', label: 'ETF股價', icon: FileText, color: 'text-indigo-500', theme: 'indigo' },
@@ -362,7 +440,7 @@ function main_RunAll() { var dates = getWeeklyDates(); step1_UpdateMarket(dates)
         { id: 'FILL', label: '本週填息', icon: Search, color: 'text-emerald-500', theme: 'emerald' }
     ];
 
-    // 3. Self Monthly Sub-Tabs (Adjusted to match Perfect style)
+    // 3. Self Monthly Sub-Tabs
     const MONTHLY_SUB = [
         { id: 'QUARTERLY_LIST', label: '季配名單', icon: TableIcon, color: 'text-orange-500', theme: 'orange' },
         { id: 'EX_DIV_DATA', label: '除息資料', icon: PieChart, color: 'text-rose-500', theme: 'rose' }
@@ -384,7 +462,6 @@ function main_RunAll() { var dates = getWeeklyDates(); step1_UpdateMarket(dates)
     // Dynamic Class Helpers
     const getTableHeadClass = () => `bg-${activeTheme}-50 text-${activeTheme}-800 sticky top-0 font-bold z-10 text-base`;
     const getTableBodyClass = () => `divide-y divide-${activeTheme}-100 text-[15px]`;
-    // FIX: Add 'group' to enable group-hover on child cells
     const getRowHoverClass = () => `group hover:bg-${activeTheme}-50 text-gray-600 transition-colors`;
 
     return (
@@ -399,8 +476,8 @@ function main_RunAll() { var dates = getWeeklyDates(); step1_UpdateMarket(dates)
                             className={`
                                 flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-base transition-all 
                                 ${mainTab === tab.id 
-                                    ? `bg-gray-700 text-white shadow-md` // Active: Dark bg, white text
-                                    : 'bg-white text-gray-500 border border-gray-100 hover:bg-gray-50' // Inactive: White bg, gray text
+                                    ? `bg-gray-700 text-white shadow-md` 
+                                    : 'bg-white text-gray-500 border border-gray-100 hover:bg-gray-50' 
                                 }
                             `}
                         >
@@ -438,8 +515,9 @@ function main_RunAll() { var dates = getWeeklyDates(); step1_UpdateMarket(dates)
                                 </div>
                             </div>
                             <div className="flex items-center gap-2">
+                                <span className="text-base font-bold text-gray-500 mr-2">(共 {getCurrentCount()} 筆)</span>
                                 <button onClick={handleCopyScript} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 transition-colors shadow-sm text-base">
-                                    <Code className="w-4 h-4" /> 複製自動化腳本
+                                    <Code className="w-4 h-4" /> 自動化腳本
                                 </button>
                                 <button onClick={handleExport} className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg font-bold hover:bg-emerald-700 transition-colors shadow-sm text-base">
                                     <Download className="w-4 h-4" /> 匯出 CSV
@@ -521,7 +599,6 @@ function main_RunAll() { var dates = getWeeklyDates(); step1_UpdateMarket(dates)
                                         {reportPrice.rows.length === 0 ? <tr><td colSpan={5 + reportPrice.headers.length} className="p-8 text-center text-gray-400 text-lg">無資料 (或全部被排除)</td></tr> :
                                         reportPrice.rows.map((row: any, i: number) => (
                                             <tr key={i} className={getRowHoverClass()}>
-                                                {/* FIX: Add group-hover:bg-{activeTheme}-50 to sticky columns */}
                                                 <td className={`p-3 font-mono font-bold text-indigo-600 bg-white sticky left-0 z-10 group-hover:bg-${activeTheme}-50 transition-colors`}>{row['ETF代碼']}</td>
                                                 <td className={`p-3 font-bold text-gray-600 bg-white sticky left-[90px] z-10 group-hover:bg-${activeTheme}-50 transition-colors`}>{row['ETF名稱']}</td>
                                                 <td className="p-3">{row['商品分類']}</td>
@@ -617,8 +694,9 @@ function main_RunAll() { var dates = getWeeklyDates(); step1_UpdateMarket(dates)
                                 </div>
                             </div>
                             <div className="flex items-center gap-2">
-                                <button onClick={handleCopyScript} className="flex items-center gap-2 px-4 py-2 bg-gray-700 text-white rounded-lg font-bold hover:bg-black transition-colors shadow-sm text-base">
-                                    <Code className="w-4 h-4" /> 複製自動化腳本
+                                <span className="text-base font-bold text-gray-500 mr-2">(共 {getCurrentCount()} 筆)</span>
+                                <button onClick={handleCopyScript} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 transition-colors shadow-sm text-base">
+                                    <Code className="w-4 h-4" /> 自動化腳本
                                 </button>
                                 <button onClick={handleExport} className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg font-bold hover:bg-emerald-700 transition-colors shadow-sm text-base">
                                     <Download className="w-4 h-4" /> 匯出 CSV
@@ -626,7 +704,7 @@ function main_RunAll() { var dates = getWeeklyDates(); step1_UpdateMarket(dates)
                             </div>
                         </div>
 
-                        {/* SELF MONTHLY SUB-TABS (Updated Style) */}
+                        {/* SELF MONTHLY SUB-TABS */}
                         <div className="p-2 border-b border-gray-200 bg-white flex gap-2 flex-none">
                             {MONTHLY_SUB.map(btn => (
                                 <button
@@ -702,8 +780,10 @@ function main_RunAll() { var dates = getWeeklyDates(); step1_UpdateMarket(dates)
                                                 <td className="p-3 font-mono font-bold text-blue-600">{d['ETF代碼']}</td>
                                                 <td className="p-3 font-bold text-gray-600">{d['ETF名稱']}</td>
                                                 <td className="p-3 font-mono">{d['年月']}</td>
-                                                <td className="p-3 font-mono">{d['除息日期']}</td>
-                                                <td className="p-3 text-right font-bold text-emerald-600">{fmtNum(d['除息金額'])}</td>
+                                                <td className="p-3 font-mono">{d['除息日期'] || '-'}</td>
+                                                <td className={`p-3 text-right font-bold ${d['除息金額'] ? 'text-emerald-600' : 'text-red-500 italic'}`}>
+                                                    {d['除息金額'] ? fmtNum(d['除息金額']) : '無除息 ***'}
+                                                </td>
                                             </tr>
                                         ))}
                                     </tbody>
