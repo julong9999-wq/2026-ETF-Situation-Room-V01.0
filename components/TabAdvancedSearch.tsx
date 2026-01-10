@@ -6,7 +6,7 @@ import {
     MarketData, BasicInfo, PriceData, DividendData, FillAnalysisData, HistoryData, SizeData 
 } from '../types';
 import { 
-    Calendar, Search, FileText, Download, TrendingUp, Filter, Code, AlertCircle, PieChart, Table as TableIcon, Zap, Moon, Check
+    Calendar, Search, FileText, Download, TrendingUp, Filter, Code, AlertCircle, PieChart, Table as TableIcon, Zap, Moon, Check, AlertTriangle
 } from 'lucide-react';
 
 const TabAdvancedSearch: React.FC = () => {
@@ -275,16 +275,19 @@ const TabAdvancedSearch: React.FC = () => {
             // B. Start Price Logic (The Split Logic)
             let startPrice = 0;
             let startDate = '-';
+            let dateWarning = false;
 
-            if (targetYear === 2025) {
-                // Rule: 2025 -> Use History Data (Monthly)
+            // Revised Logic: Use History for 2025 and BEFORE. Use Daily for 2026 and AFTER.
+            // This ensures robustness if user imports older data.
+            if (targetYear <= 2025) {
+                // Rule: <= 2025 -> Use History Data (Monthly)
                 const hist = historyData.find(h => h.etfCode === etf.etfCode && h.date.startsWith(targetYearMonth));
                 if (hist) {
                     startPrice = hist.price;
                     startDate = hist.date;
                 }
             } else {
-                // Rule: 2026 onwards -> Use Price Data (Daily), find FIRST record of that month
+                // Rule: >= 2026 -> Use Price Data (Daily), find FIRST record of that month
                 const dailyMatches = priceData
                     .filter(p => p.etfCode === etf.etfCode && p.date.startsWith(targetYearMonth))
                     .sort((a,b) => a.date.localeCompare(b.date)); // Sort Ascending to get first day
@@ -292,6 +295,9 @@ const TabAdvancedSearch: React.FC = () => {
                 if (dailyMatches.length > 0) {
                     startPrice = dailyMatches[0].price;
                     startDate = dailyMatches[0].date;
+                    // Check if start date is "late" in the month (e.g. > 10th), implying missing data
+                    const dayNum = parseInt(startDate.split('-')[2] || '1');
+                    if (dayNum > 10) dateWarning = true;
                 }
             }
 
@@ -310,7 +316,8 @@ const TabAdvancedSearch: React.FC = () => {
                 '起始日期': startDate,
                 '起始股價': startPrice || '-',
                 '最近日期': latest ? latest.date : '-',
-                '最近股價': latest ? latest.price : '-'
+                '最近股價': latest ? latest.price : '-',
+                'dateWarning': dateWarning
             };
         });
 
@@ -459,7 +466,7 @@ const TabAdvancedSearch: React.FC = () => {
                     `'${d['ETF代碼']}`, // Use apostrophe for text format in GAS
                     d['ETF名稱'], 
                     d['年月'], 
-                    d['除息日期'], 
+                    d['hasDiv'] ? d['除息日期'] : '無除息', 
                     d['hasDiv'] ? fmtDiv(d['除息金額']) : '無除息'
                 ]);
                 scriptData = [headers, ...rows];
@@ -851,7 +858,10 @@ function importDataToSheet() {
                                                 <td className="p-3 font-bold text-gray-600">{row['ETF名稱']}</td>
                                                 <td className="p-3">{row['ETF類型']}</td>
                                                 <td className="p-3 text-right font-mono">{row['規模大小'] !== '-' ? Number(row['規模大小']).toLocaleString() : '-'}</td>
-                                                <td className="p-3 text-center font-mono text-orange-600 bg-orange-50/50">{row['起始日期']}</td>
+                                                <td className="p-3 text-center font-mono text-orange-600 bg-orange-50/50 flex items-center justify-center gap-1">
+                                                    {row['dateWarning'] && <AlertTriangle className="w-4 h-4 text-red-500" title="起始日期較晚，可能缺少月初資料" />}
+                                                    {row['起始日期']}
+                                                </td>
                                                 <td className="p-3 text-right font-mono font-bold text-orange-600 bg-orange-50/50">{fmtNum(row['起始股價'])}</td>
                                                 <td className="p-3 text-center font-mono text-gray-500">{row['最近日期']}</td>
                                                 <td className="p-3 text-right font-mono font-bold text-blue-600">{fmtNum(row['最近股價'])}</td>
