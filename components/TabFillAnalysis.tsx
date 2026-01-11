@@ -95,7 +95,7 @@ const TabFillAnalysis: React.FC<any> = ({
               )}
           </div>
           <div className="flex items-center gap-2 shrink-0 border-l border-gray-100 pl-2">
-            <button className="flex items-center gap-1 px-3 py-1.5 bg-white text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-50 font-bold text-sm shadow-sm transition-colors"><Download className="w-4 h-4" /> 匯出</button>
+            <button className="flex items-center gap-1 px-3 py-1.5 bg-white text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-50 font-bold text-sm shadow-sm transition-colors"><Download className="w-4 h-4" /> 匯出資料</button>
           </div>
       </div>
 

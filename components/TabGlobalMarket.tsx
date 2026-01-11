@@ -121,9 +121,9 @@ const TabGlobalMarket: React.FC = () => {
                  <span className="text-gray-400 text-xs">~</span>
                  <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="bg-transparent text-sm w-28 font-mono outline-none text-blue-900 font-bold" />
              </div>
-             <button onClick={() => setShowChartModal(true)} className="flex items-center gap-1 px-3 py-1.5 bg-white text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-50 font-bold text-sm shadow-sm transition-colors"><LineChartIcon className="w-4 h-4" /> 線圖</button>
-             <button onClick={() => setShowRecentModal(true)} className="flex items-center gap-1 px-3 py-1.5 bg-white text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-50 font-bold text-sm shadow-sm transition-colors"><Info className="w-4 h-4" /> 資訊</button>
-             <button onClick={handleExport} className="flex items-center gap-1 px-3 py-1.5 bg-white text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-50 font-bold text-sm shadow-sm transition-colors"><Download className="w-4 h-4" /> 匯出</button>
+             <button onClick={() => setShowChartModal(true)} className="flex items-center gap-1 px-3 py-1.5 bg-white text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-50 font-bold text-sm shadow-sm transition-colors"><LineChartIcon className="w-4 h-4" /> 查看線圖</button>
+             <button onClick={() => setShowRecentModal(true)} className="flex items-center gap-1 px-3 py-1.5 bg-white text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-50 font-bold text-sm shadow-sm transition-colors"><Info className="w-4 h-4" /> 近期資訊</button>
+             <button onClick={handleExport} className="flex items-center gap-1 px-3 py-1.5 bg-white text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-50 font-bold text-sm shadow-sm transition-colors"><Download className="w-4 h-4" /> 匯出資料</button>
           </div>
       </div>
 

@@ -106,7 +106,7 @@ const TabBasicInfo: React.FC<TabBasicInfoProps> = ({
         </div>
         <div className="flex items-center gap-2 shrink-0 border-l border-gray-100 pl-2">
             <span className="text-blue-900 text-sm font-bold bg-blue-50 px-2 py-1 rounded border border-blue-100">筆數: {filteredData.length}</span>
-            <button onClick={handleExport} className="flex items-center gap-1 px-3 py-1.5 bg-white text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-50 font-bold text-sm shadow-sm transition-colors"><Download className="w-4 h-4" /> 匯出</button>
+            <button onClick={handleExport} className="flex items-center gap-1 px-3 py-1.5 bg-white text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-50 font-bold text-sm shadow-sm transition-colors"><Download className="w-4 h-4" /> 匯出資料</button>
         </div>
       </div>
 
