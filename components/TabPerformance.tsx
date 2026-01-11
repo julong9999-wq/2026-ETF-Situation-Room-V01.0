@@ -111,7 +111,7 @@ const TabPerformance: React.FC = () => {
         return Array.from(new Set(source.map(t => t.category))).filter(Boolean).sort();
     }, [transactions, selectedBroker]);
 
-    // Update Category Selection if it becomes invalid
+    // Update Category Selection if it becomes invalid when Broker changes
     useEffect(() => {
         if (selectedCategory !== 'ALL' && !availableCategories.includes(selectedCategory)) {
             setSelectedCategory('ALL');
@@ -126,6 +126,7 @@ const TabPerformance: React.FC = () => {
         });
     }, [transactions, selectedBroker, selectedCategory]);
 
+    // Left Panel Aggregation
     const positions: UserPosition[] = useMemo(() => {
         const map = new Map<string, UserPosition>();
         filteredTransactions.forEach(t => {
@@ -139,7 +140,7 @@ const TabPerformance: React.FC = () => {
         });
         map.forEach(pos => { if (pos.totalQty > 0) pos.avgCost = pos.totalCost / pos.totalQty; });
         
-        // SORTING: Month > Q1 > Q2 > Q3 > Others > Code
+        // SORTING PRIORITY: Month > Q1 > Q2 > Q3 > Others > Code
         return Array.from(map.values()).sort((a,b) => {
             const getFreq = (code: string) => basicInfo.find(i => i.etfCode === code)?.dividendFreq || '';
             const getScore = (f: string) => {
@@ -147,7 +148,7 @@ const TabPerformance: React.FC = () => {
                 if (checkSeason(f, 'Q1')) return 2;
                 if (checkSeason(f, 'Q2')) return 3;
                 if (checkSeason(f, 'Q3')) return 4;
-                return 5;
+                return 5; // Others
             };
             const sA = getScore(getFreq(a.code));
             const sB = getScore(getFreq(b.code));
@@ -156,20 +157,22 @@ const TabPerformance: React.FC = () => {
         });
     }, [filteredTransactions, basicInfo]);
 
+    // Color Logic for Left Panel (Frequency Based)
     const getPositionColor = (code: string, isSelected: boolean) => {
         const info = basicInfo.find(i => i.etfCode === code);
         const f = info ? (info.dividendFreq || '') : '';
-        let baseClass = 'bg-gray-50 text-gray-700';
-        // Q1=Blue, Q2=Green, Q3=Orange, Month=Tea(Amber), Other=Gray
-        if (f.includes('月')) baseClass = 'bg-amber-50 text-amber-900 border-amber-200';
-        else if (checkSeason(f, 'Q1')) baseClass = 'bg-sky-50 text-blue-900 border-blue-200';
-        else if (checkSeason(f, 'Q2')) baseClass = 'bg-green-50 text-green-900 border-green-200';
-        else if (checkSeason(f, 'Q3')) baseClass = 'bg-orange-50 text-orange-900 border-orange-200';
+        let baseClass = 'bg-gray-50 text-gray-600 border-gray-200'; // Default Gray
+
+        if (f.includes('月')) baseClass = 'bg-amber-50 text-amber-900 border-amber-200'; // Tea/Amber
+        else if (checkSeason(f, 'Q1')) baseClass = 'bg-blue-50 text-blue-900 border-blue-200'; // Light Blue
+        else if (checkSeason(f, 'Q2')) baseClass = 'bg-green-50 text-green-900 border-green-200'; // Light Green
+        else if (checkSeason(f, 'Q3')) baseClass = 'bg-orange-50 text-orange-900 border-orange-200'; // Light Orange
         
-        if (isSelected) return `${baseClass} ring-2 ring-blue-500 shadow-md transform scale-[1.01] z-10 border`;
-        return `${baseClass} border border-gray-100 hover:brightness-95 hover:shadow-sm`;
+        if (isSelected) return `${baseClass} ring-2 ring-blue-500 shadow-md transform scale-[1.01] z-10 border-blue-500`;
+        return `${baseClass} border hover:brightness-95 hover:shadow-sm`;
     };
 
+    // Auto-select logic
     useEffect(() => {
         if (positions.length > 0) {
             const exists = positions.find(p => p.code === selectedCode);
@@ -179,7 +182,7 @@ const TabPerformance: React.FC = () => {
         }
     }, [positions, selectedCode]);
 
-    // Detail Data: Transactions
+    // Detail Data: Transactions (Filtered by Selection)
     const holdingsDetailData = useMemo(() => {
         if (!selectedCode) return [];
         return filteredTransactions.filter(t => t.code === selectedCode).sort((a, b) => b.date.localeCompare(a.date));
@@ -190,16 +193,22 @@ const TabPerformance: React.FC = () => {
         if (!selectedCode || systemDividends.length === 0) return [];
         const targetDividends = systemDividends.filter(d => d.etfCode === selectedCode).sort((a, b) => b.exDate.localeCompare(a.exDate));
         const results: any[] = [];
+        
         targetDividends.forEach(div => {
+            // Find holdings before ex-date
             const validTrans = transactions.filter(t => t.code === selectedCode && t.date < div.exDate && t.type === 'Buy');
+            
+            // Re-apply current filters to dividend calculation
             const groupMap = new Map<string, number>();
             validTrans.forEach(t => {
                 if (selectedBroker !== 'ALL' && t.broker !== selectedBroker) return;
                 if (selectedCategory !== 'ALL' && t.category !== selectedCategory) return;
+                
                 const key = `${t.broker}|${t.category}`;
                 const current = groupMap.get(key) || 0;
                 groupMap.set(key, current + t.quantity);
             });
+
             groupMap.forEach((qty, key) => {
                 if (qty > 0) {
                     const [broker, category] = key.split('|');
@@ -212,7 +221,7 @@ const TabPerformance: React.FC = () => {
         return results;
     }, [selectedCode, systemDividends, transactions, selectedBroker, selectedCategory]);
 
-    // Summary Data
+    // Summary Data (Restored Account/Detail View)
     const summaryData = useMemo(() => {
         const source = transactions.filter(t => t.type === 'Buy');
         if (summaryViewMode === 'ACCOUNT') {
@@ -314,14 +323,18 @@ const TabPerformance: React.FC = () => {
             const lines = text.split(/\r?\n/).filter(l => l.trim());
             const newTrans: UserTransaction[] = [];
             let success = 0;
+            let skipped = 0;
             
+            // Create a signature set of existing transactions to prevent duplicates
+            const existingSigs = new Set(transactions.map(t => `${t.date}-${t.code}-${t.broker}-${t.category}-${t.price}-${t.quantity}`));
+
             for (let i = 1; i < lines.length; i++) {
                 const cols = lines[i].split(',');
                 if (cols.length < 5) continue; 
-                // Flexible mapping logic could be added here
-                // For now, assuming standard export format or simple columns
-                // Expected: Date, Broker, Category, Code, Name, Price, Qty, Fee
                 try {
+                    const price = parseFloat(cols[5]);
+                    const qty = parseFloat(cols[6]);
+                    
                     const t: UserTransaction = {
                         id: crypto.randomUUID(),
                         date: cols[0].trim(),
@@ -329,30 +342,38 @@ const TabPerformance: React.FC = () => {
                         category: cols[2].trim(),
                         code: cols[3].trim(),
                         name: cols[4].trim(),
-                        price: parseFloat(cols[5]),
-                        quantity: parseFloat(cols[6]),
-                        totalAmount: parseFloat(cols[5]) * parseFloat(cols[6]),
+                        price: price,
+                        quantity: qty,
+                        totalAmount: price * qty,
                         fee: parseFloat(cols[8] || '0'),
                         tax: 0,
-                        cost: 0,
+                        cost: 0, // Recalc below
                         type: 'Buy',
                         note: cols[10]?.trim() || ''
                     };
                     t.cost = t.totalAmount + t.fee;
-                    if (t.code && t.quantity > 0) {
+                    
+                    // Duplicate Check
+                    const sig = `${t.date}-${t.code}-${t.broker}-${t.category}-${t.price}-${t.quantity}`;
+                    
+                    if (t.code && t.quantity > 0 && !existingSigs.has(sig)) {
                         newTrans.push(t);
+                        existingSigs.add(sig); // Add to local set to prevent dups within file too
                         success++;
+                    } else {
+                        skipped++;
                     }
                 } catch(e) {}
             }
+            
             if (success > 0) {
                 const combined = [...transactions, ...newTrans];
                 setTransactions(combined);
                 localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(combined));
-                setImportLog(`匯入成功：${success} 筆資料`);
-                setTimeout(() => { setShowImportModal(false); setImportLog(''); }, 1500);
+                setImportLog(`匯入成功：${success} 筆資料 (跳過重複：${skipped} 筆)`);
+                setTimeout(() => { setShowImportModal(false); setImportLog(''); }, 2000);
             } else {
-                setImportLog('匯入失敗：格式不符或無有效資料');
+                setImportLog(`匯入完成：無新資料 (跳過重複：${skipped} 筆)`);
             }
         };
         reader.readAsText(file, 'UTF-8');
@@ -422,8 +443,8 @@ const TabPerformance: React.FC = () => {
              {/* Action Bar (Filters + Buttons) */}
              <div className="bg-white p-3 rounded-lg shadow-sm border border-blue-200 flex flex-col gap-3 flex-none">
                 <div className="flex flex-wrap items-center justify-between gap-3">
-                    {/* Filters */}
-                    <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
+                    {/* Filters - Only enabled if data exists */}
+                    <div className={`flex items-center gap-2 overflow-x-auto no-scrollbar ${transactions.length === 0 ? 'opacity-50 pointer-events-none' : ''}`}>
                          <div className="flex items-center gap-1 bg-blue-50 p-1 rounded border border-blue-200 shrink-0">
                              <span className="text-blue-400 px-2"><Filter className="w-4 h-4" /></span>
                              <select value={selectedBroker} onChange={(e) => setSelectedBroker(e.target.value)} className="bg-transparent text-sm font-bold text-blue-900 outline-none">
@@ -440,14 +461,14 @@ const TabPerformance: React.FC = () => {
                          </div>
                     </div>
                     
-                    {/* Actions */}
+                    {/* Actions - Grouped to Right */}
                     {topTab === 'HOLDINGS' && (
-                        <div className="flex items-center gap-2 shrink-0">
-                            <button onClick={() => setShowSummaryModal(true)} className="flex items-center gap-2 px-3 py-1.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-bold text-sm shadow-sm transition-colors"><LayoutDashboard className="w-4 h-4" /> 總表</button>
-                            <button onClick={() => { setEditingId(null); setFormData({ ...formData, broker: brokerOptions[0]||'', category: categoryOptions[0]||'' }); setShowAddModal(true); }} className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-bold text-sm shadow-sm transition-colors"><Plus className="w-4 h-4" /> 新增</button>
-                            <button onClick={() => setShowImportModal(true)} className="flex items-center gap-2 px-3 py-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg hover:bg-emerald-100 font-bold text-sm shadow-sm transition-colors"><Upload className="w-4 h-4" /> 匯入</button>
-                            <button onClick={handleExport} className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-100 font-bold text-sm shadow-sm transition-colors"><Download className="w-4 h-4" /> 匯出</button>
-                            <button onClick={handleClearAll} className="flex items-center gap-2 px-3 py-1.5 bg-red-50 text-red-600 border border-red-200 rounded-lg hover:bg-red-100 font-bold text-sm shadow-sm transition-colors"><Eraser className="w-4 h-4" /> 清除</button>
+                        <div className="flex items-center gap-2 shrink-0 ml-auto">
+                            <button onClick={() => setShowSummaryModal(true)} disabled={transactions.length===0} className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-100 font-bold text-sm shadow-sm transition-colors disabled:opacity-50"><LayoutDashboard className="w-4 h-4" /> 總表</button>
+                            <button onClick={() => { setEditingId(null); setFormData({ ...formData, broker: brokerOptions[0]||'', category: categoryOptions[0]||'' }); setShowAddModal(true); }} className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-100 font-bold text-sm shadow-sm transition-colors"><Plus className="w-4 h-4" /> 新增</button>
+                            <button onClick={() => setShowImportModal(true)} className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-100 font-bold text-sm shadow-sm transition-colors"><Upload className="w-4 h-4" /> 匯入</button>
+                            <button onClick={handleExport} disabled={transactions.length===0} className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-100 font-bold text-sm shadow-sm transition-colors disabled:opacity-50"><Download className="w-4 h-4" /> 匯出</button>
+                            <button onClick={handleClearAll} disabled={transactions.length===0} className="flex items-center gap-2 px-3 py-1.5 bg-red-50 text-red-600 border border-red-200 rounded-lg hover:bg-red-100 font-bold text-sm shadow-sm transition-colors disabled:opacity-50"><Eraser className="w-4 h-4" /> 清除</button>
                         </div>
                     )}
                 </div>
@@ -472,10 +493,9 @@ const TabPerformance: React.FC = () => {
                                         <span className="text-base font-bold truncate leading-none opacity-90">{pos.name}</span>
                                     </div>
                                 </div>
-                                <div className="grid grid-cols-3 gap-1 text-center">
-                                    <div className="font-mono font-bold text-sm">{fmtMoney(pos.totalQty)}</div>
-                                    <div className="font-mono font-bold text-sm">{fmtPrice(Math.round(pos.avgCost * 100) / 100)}</div>
-                                    <div className="font-mono font-bold text-sm">{fmtMoney(pos.totalCost)}</div>
+                                <div className="grid grid-cols-2 gap-1 text-center">
+                                    <div className="text-sm"><span className="text-xs text-gray-500 mr-1">持有</span><span className="font-mono font-bold">{fmtMoney(pos.totalQty)}</span></div>
+                                    <div className="text-sm"><span className="text-xs text-gray-500 mr-1">金額</span><span className="font-mono font-bold">{fmtMoney(pos.totalCost)}</span></div>
                                 </div>
                             </div>
                         ))}
@@ -489,15 +509,15 @@ const TabPerformance: React.FC = () => {
                             <>
                                 {topTab === 'HOLDINGS' && (
                                     <table className="w-full text-left border-collapse">
-                                        <thead className="bg-gray-50 sticky top-0 border-b border-gray-200 text-sm font-bold text-gray-700">
+                                        <thead className="bg-gray-50 sticky top-0 border-b border-gray-200 text-sm font-bold text-gray-700 z-10">
                                             <tr>
-                                                <th className="p-3 whitespace-nowrap">證券戶</th><th className="p-3 whitespace-nowrap">分類</th><th className="p-3 whitespace-nowrap">日期</th><th className="p-3 whitespace-nowrap">股號</th><th className="p-3 whitespace-nowrap">股名</th><th className="p-3 whitespace-nowrap text-right">成交單價</th><th className="p-3 whitespace-nowrap text-right">成交股數</th><th className="p-3 whitespace-nowrap text-right">成交價金</th><th className="p-3 whitespace-nowrap text-right">手續費</th><th className="p-3 whitespace-nowrap text-right">購買成本</th><th className="p-3 whitespace-nowrap text-center">操作</th>
+                                                <th className="p-3 whitespace-nowrap">日期</th><th className="p-3 whitespace-nowrap">證券戶</th><th className="p-3 whitespace-nowrap">分類</th><th className="p-3 whitespace-nowrap">股號</th><th className="p-3 whitespace-nowrap">股名</th><th className="p-3 whitespace-nowrap text-right">成交單價</th><th className="p-3 whitespace-nowrap text-right">成交股數</th><th className="p-3 whitespace-nowrap text-right">成交價金</th><th className="p-3 whitespace-nowrap text-right">手續費</th><th className="p-3 whitespace-nowrap text-right">購買成本</th><th className="p-3 whitespace-nowrap text-center">操作</th>
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-gray-100 text-sm font-bold">
                                             {holdingsDetailData.map(t => (
                                                 <tr key={t.id} className="hover:bg-blue-50 transition-colors">
-                                                    <td className="p-3 text-blue-800">{t.broker}</td><td className="p-3 text-gray-600">{t.category}</td><td className="p-3 font-mono text-gray-600">{t.date}</td><td className="p-3 font-mono text-blue-700">{t.code}</td><td className="p-3 text-gray-800">{t.name}</td>
+                                                    <td className="p-3 font-mono text-gray-600">{t.date}</td><td className="p-3 text-blue-800">{t.broker}</td><td className="p-3 text-gray-600">{t.category}</td><td className="p-3 font-mono text-blue-700">{t.code}</td><td className="p-3 text-gray-800">{t.name}</td>
                                                     <td className="p-3 text-right font-mono">{t.price}</td><td className="p-3 text-right font-mono text-blue-700">{t.quantity.toLocaleString()}</td><td className="p-3 text-right font-mono text-gray-600">{fmtMoney(t.totalAmount)}</td><td className="p-3 text-right font-mono text-gray-500">{t.fee}</td><td className="p-3 text-right font-mono text-gray-900">{fmtMoney(t.cost)}</td>
                                                     <td className="p-3 text-center flex items-center justify-center gap-2"><button onClick={() => handleEditTransaction(t)} className="p-1 hover:bg-gray-200 rounded text-blue-600"><Edit className="w-4 h-4" /></button><button onClick={() => handleDeleteTransaction(t.id)} className="p-1 hover:bg-gray-200 rounded text-red-500"><Trash2 className="w-4 h-4" /></button></td>
                                                 </tr>
@@ -507,7 +527,7 @@ const TabPerformance: React.FC = () => {
                                 )}
                                 {topTab === 'DIVIDEND' && (
                                     <table className="w-full text-left border-collapse">
-                                        <thead className="bg-purple-50 sticky top-0 border-b border-purple-200 text-sm font-bold text-purple-900">
+                                        <thead className="bg-purple-50 sticky top-0 border-b border-purple-200 text-sm font-bold text-purple-900 z-10">
                                             <tr><th className="p-3 whitespace-nowrap">證券戶</th><th className="p-3 whitespace-nowrap">分類</th><th className="p-3 whitespace-nowrap">年月</th><th className="p-3 whitespace-nowrap text-right">除息金額</th><th className="p-3 whitespace-nowrap text-right">持有張數</th><th className="p-3 whitespace-nowrap text-right">股息金額</th><th className="p-3 whitespace-nowrap text-right">除息日期</th></tr>
                                         </thead>
                                         <tbody className="divide-y divide-purple-50 text-sm font-bold">
@@ -520,7 +540,12 @@ const TabPerformance: React.FC = () => {
                                     </table>
                                 )}
                                 {topTab === 'PERFORMANCE' && (
-                                    <div className="p-8 text-center text-gray-400 font-bold text-lg">績效分析模組開發中...</div>
+                                    <div className="p-12 text-center text-gray-400 font-bold text-lg flex flex-col items-center gap-4">
+                                        <TrendingUp className="w-12 h-12 opacity-50" />
+                                        開發 "績效分析" 重點說明<br/>
+                                        "資料分析" 資料來源, 為 "系統規畫者" , 建立 GOOGLE 表單, 長期持續更新, 資料來源為公開資訊<br/>
+                                        "績效分析" 資料來源, 為 "使用者" 單筆單筆建立, 或用 EXCEL 匯入資料 , 屬於 個人裝置或PC 內部管理, 資料不上傳網路
+                                    </div>
                                 )}
                             </>
                         )}
@@ -532,17 +557,17 @@ const TabPerformance: React.FC = () => {
              {showSummaryModal && (
                 <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
                     <div className="bg-white rounded-xl w-full max-w-5xl h-[85vh] shadow-2xl animate-in zoom-in-95 flex flex-col overflow-hidden">
-                        <div className="bg-indigo-50 p-4 border-b border-indigo-100 flex justify-between items-center shrink-0">
-                            <h3 className="font-bold text-xl text-indigo-900 flex items-center gap-2"><LayoutDashboard className="w-6 h-6" /> 持有明細 - 總表分析</h3>
+                        <div className="bg-blue-600 p-4 border-b border-blue-700 flex justify-between items-center shrink-0 text-white">
+                            <h3 className="font-bold text-xl flex items-center gap-2"><LayoutDashboard className="w-6 h-6" /> 持有明細 - 總表分析</h3>
                             <div className="flex gap-2">
-                                <button onClick={() => setSummaryViewMode('ACCOUNT')} className={`px-4 py-2 rounded-lg font-bold text-base transition-colors ${summaryViewMode === 'ACCOUNT' ? 'bg-indigo-600 text-white' : 'bg-white text-indigo-600 border border-indigo-200'}`}>帳戶</button>
-                                <button onClick={() => setSummaryViewMode('DETAIL')} className={`px-4 py-2 rounded-lg font-bold text-base transition-colors ${summaryViewMode === 'DETAIL' ? 'bg-indigo-600 text-white' : 'bg-white text-indigo-600 border border-indigo-200'}`}>明細</button>
-                                <button onClick={() => setShowSummaryModal(false)} className="ml-2 p-2 hover:bg-white rounded-full text-gray-500"><X className="w-6 h-6" /></button>
+                                <button onClick={() => setSummaryViewMode('ACCOUNT')} className={`px-4 py-2 rounded-lg font-bold text-base transition-colors ${summaryViewMode === 'ACCOUNT' ? 'bg-white text-blue-600 shadow' : 'bg-blue-700 text-white border border-blue-500'}`}>帳戶</button>
+                                <button onClick={() => setSummaryViewMode('DETAIL')} className={`px-4 py-2 rounded-lg font-bold text-base transition-colors ${summaryViewMode === 'DETAIL' ? 'bg-white text-blue-600 shadow' : 'bg-blue-700 text-white border border-blue-500'}`}>明細</button>
+                                <button onClick={() => setShowSummaryModal(false)} className="ml-4 p-2 hover:bg-white/20 rounded-full transition-colors"><X className="w-6 h-6" /></button>
                             </div>
                         </div>
                         <div className="flex-1 overflow-auto bg-white p-0">
                             <table className="w-full text-left border-collapse">
-                                <thead className="bg-blue-50 sticky top-0 z-10 border-b border-blue-200 text-base font-bold text-blue-900">
+                                <thead className="bg-gray-100 sticky top-0 z-10 border-b border-gray-200 text-base font-bold text-gray-700">
                                     <tr><th className="p-3 w-12 text-center">#</th><th className="p-3">{summaryViewMode === 'ACCOUNT' ? '證券戶' : '股號'}</th><th className="p-3">{summaryViewMode === 'ACCOUNT' ? '' : '股名'}</th><th className="p-3 text-right">持有張數 (總計)</th><th className="p-3 text-right">持有金額 (總計)</th></tr>
                                 </thead>
                                 <tbody className="text-base">
@@ -550,7 +575,7 @@ const TabPerformance: React.FC = () => {
                                         const isExpanded = expandedSummaryRows.has(group.id);
                                         return (
                                             <React.Fragment key={group.id}>
-                                                <tr className={`cursor-pointer transition-colors border-b border-gray-100 hover:bg-gray-50 ${isExpanded ? 'bg-blue-50/50' : 'bg-white'}`} onClick={() => { const s = new Set(expandedSummaryRows); if(s.has(group.id)) s.delete(group.id); else s.add(group.id); setExpandedSummaryRows(s); }}>
+                                                <tr className={`cursor-pointer transition-colors border-b border-gray-100 hover:bg-gray-50 ${isExpanded ? 'bg-blue-50/30' : 'bg-white'}`} onClick={() => { const s = new Set(expandedSummaryRows); if(s.has(group.id)) s.delete(group.id); else s.add(group.id); setExpandedSummaryRows(s); }}>
                                                     <td className="p-3 text-center text-gray-400">{isExpanded ? <ChevronDown className="w-5 h-5 mx-auto" /> : <ChevronRight className="w-5 h-5 mx-auto" />}</td>
                                                     {summaryViewMode === 'ACCOUNT' ? (
                                                         <><td className="p-3 font-bold text-[18px] text-blue-900">{group.label}</td><td></td><td className="p-3 text-right font-mono font-bold text-[18px] text-blue-900">{(group.totalQty/1000).toFixed(2)}張</td><td className="p-3 text-right font-mono font-bold text-[18px] text-blue-900">{fmtMoney(group.totalCost)}</td></>
@@ -564,7 +589,7 @@ const TabPerformance: React.FC = () => {
                                                         return (
                                                             <React.Fragment key={child.id}>
                                                                 <tr className="cursor-pointer hover:bg-gray-50 border-b border-gray-100" onClick={() => { const s = new Set(expandedSummaryRows); if(s.has(child.id)) s.delete(child.id); else s.add(child.id); setExpandedSummaryRows(s); }}>
-                                                                    <td className="p-2 text-center"></td> <td className="p-2 pl-8 flex items-center gap-2">{isL2Expanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}<span className="font-bold text-[16px] text-blue-600">{child.label}</span></td><td></td><td className="p-2 text-right font-mono font-bold text-[16px] text-blue-600">{(child.totalQty/1000).toFixed(2)}張</td><td className="p-2 text-right font-mono font-bold text-[16px] text-blue-600">{fmtMoney(child.totalCost)}</td>
+                                                                    <td className="p-2 text-center"></td> <td className="p-2 pl-8 flex items-center gap-2">{isL2Expanded ? <ChevronDown className="w-4 h-4 text-blue-500" /> : <ChevronRight className="w-4 h-4 text-gray-400" />}<span className="font-bold text-[16px] text-blue-600">{child.label}</span></td><td></td><td className="p-2 text-right font-mono font-bold text-[16px] text-blue-600">{(child.totalQty/1000).toFixed(2)}張</td><td className="p-2 text-right font-mono font-bold text-[16px] text-blue-600">{fmtMoney(child.totalCost)}</td>
                                                                 </tr>
                                                                 {isL2Expanded && child.children.map((item: any, idx: number) => (
                                                                     <tr key={idx} className="hover:bg-gray-50 border-b border-gray-50"><td></td><td className="p-2 pl-16 font-bold text-[16px] text-gray-500 font-mono">{item.code}</td><td className="p-2 font-bold text-[16px] text-gray-500">{item.name}</td><td className="p-2 text-right font-mono font-bold text-[16px] text-gray-500">{(item.qty/1000).toFixed(2)}張</td><td className="p-2 text-right font-mono font-bold text-[16px] text-gray-500">{fmtMoney(item.cost)}</td></tr>
@@ -628,7 +653,7 @@ const TabPerformance: React.FC = () => {
                      <div className="bg-white rounded-xl w-full max-w-md shadow-2xl p-6">
                          <h3 className="font-bold text-lg mb-4 text-blue-900">匯入資料</h3>
                          <p className="text-sm text-gray-600 mb-4">請選擇 CSV 檔案 (轉檔 CSV UTF-8 (逗號分隔))。資料匯入前比對資料，是否相同資料，相同不匯入，匯入沒有的資料。</p>
-                         <div className="bg-gray-100 p-3 rounded mb-4 text-xs font-mono text-gray-500">
+                         <div className="bg-gray-100 p-3 rounded mb-4 text-xs font-mono text-gray-500 leading-relaxed">
                              所需欄位和順序:<br/>
                              Date, Broker, Category, Code, Name, Price, Qty, Amount, Fee, Cost, Note
                          </div>
@@ -647,7 +672,7 @@ const TabPerformance: React.FC = () => {
                          <div className="flex gap-2 mb-4"><input type="text" value={lexiconInput} onChange={e => setLexiconInput(e.target.value)} placeholder="輸入新名稱" className="flex-1 border p-2 rounded" /><button onClick={handleLexiconSave} className="bg-green-600 text-white px-4 rounded font-bold">新增</button></div>
                          <div className="space-y-2 max-h-60 overflow-y-auto">
                              {(showLexiconModal === 'BROKER' ? brokerOptions : categoryOptions).map(opt => (
-                                 <div key={opt} className="flex justify-between items-center bg-gray-50 p-2 rounded border"><span>{opt}</span><button onClick={() => handleDeleteLexiconItem(opt)} className="text-red-500 hover:bg-red-50 p-1 rounded"><Trash2 className="w-4 h-4"/></button></div>
+                                 <div key={opt} className="flex justify-between items-center bg-gray-50 p-2 rounded border mb-2"><span>{opt}</span><button onClick={() => handleDeleteLexiconItem(opt)} className="text-red-500 hover:bg-red-50 p-1 rounded"><Trash2 className="w-4 h-4"/></button></div>
                              ))}
                          </div>
                          <button onClick={() => setShowLexiconModal(null)} className="w-full mt-4 bg-gray-200 text-gray-700 py-2 rounded font-bold">關閉</button>
