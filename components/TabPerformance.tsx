@@ -355,22 +355,22 @@ const TabPerformance: React.FC = () => {
              <div className="bg-white p-2 rounded-lg shadow-sm border border-blue-200 flex flex-col gap-2 flex-none">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                     
-                    {/* Filters: Active only if data exists */}
-                    <div className={`flex flex-col gap-2 flex-1 overflow-hidden transition-opacity ${transactions.length === 0 ? 'opacity-50 pointer-events-none grayscale' : ''}`}>
-                         {/* Row 1: Brokers (No Label, just buttons) */}
-                         <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
-                             <button onClick={() => setSelectedBroker('ALL')} className={`px-3 py-1.5 rounded-lg text-sm font-bold whitespace-nowrap transition-all border shrink-0 ${selectedBroker === 'ALL' ? 'bg-blue-600 text-white border-blue-600 shadow-sm' : 'bg-white text-blue-600 border-blue-200 hover:bg-blue-50'}`}>全部</button>
-                             {availableBrokers.map(b => (
-                                 <button key={b} onClick={() => setSelectedBroker(b)} className={`px-3 py-1.5 rounded-lg text-sm font-bold whitespace-nowrap transition-all border shrink-0 ${selectedBroker === b ? 'bg-blue-600 text-white border-blue-600 shadow-sm' : 'bg-white text-blue-600 border-blue-200 hover:bg-blue-50'}`}>{b}</button>
-                             ))}
-                         </div>
-                         {/* Row 2: Categories (No Label, just buttons) */}
-                         <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
-                             <button onClick={() => setSelectedCategory('ALL')} className={`px-3 py-1.5 rounded-lg text-sm font-bold whitespace-nowrap transition-all border shrink-0 ${selectedCategory === 'ALL' ? 'bg-blue-600 text-white border-blue-600 shadow-sm' : 'bg-white text-blue-600 border-blue-200 hover:bg-blue-50'}`}>全部</button>
-                             {availableCategories.map(c => (
-                                 <button key={c} onClick={() => setSelectedCategory(c)} className={`px-3 py-1.5 rounded-lg text-sm font-bold whitespace-nowrap transition-all border shrink-0 ${selectedCategory === c ? 'bg-blue-600 text-white border-blue-600 shadow-sm' : 'bg-white text-blue-600 border-blue-200 hover:bg-blue-50'}`}>{c}</button>
-                             ))}
-                         </div>
+                    {/* Filters: Active only if data exists, Single Row */}
+                    <div className={`flex items-center gap-2 overflow-x-auto no-scrollbar flex-1 transition-opacity ${transactions.length === 0 ? 'opacity-50 pointer-events-none grayscale' : ''}`}>
+                         {/* Broker Group */}
+                         <button onClick={() => setSelectedBroker('ALL')} className={`px-3 py-1.5 rounded-lg text-sm font-bold whitespace-nowrap transition-all border shrink-0 ${selectedBroker === 'ALL' ? 'bg-blue-600 text-white border-blue-600 shadow-sm' : 'bg-white text-blue-600 border-blue-200 hover:bg-blue-50'}`}>全部</button>
+                         {availableBrokers.map(b => (
+                             <button key={b} onClick={() => setSelectedBroker(b)} className={`px-3 py-1.5 rounded-lg text-sm font-bold whitespace-nowrap transition-all border shrink-0 ${selectedBroker === b ? 'bg-blue-600 text-white border-blue-600 shadow-sm' : 'bg-white text-blue-600 border-blue-200 hover:bg-blue-50'}`}>{b}</button>
+                         ))}
+
+                         {/* Separator */}
+                         <div className="h-6 w-px bg-gray-300 mx-1 shrink-0"></div>
+
+                         {/* Category Group */}
+                         <button onClick={() => setSelectedCategory('ALL')} className={`px-3 py-1.5 rounded-lg text-sm font-bold whitespace-nowrap transition-all border shrink-0 ${selectedCategory === 'ALL' ? 'bg-blue-600 text-white border-blue-600 shadow-sm' : 'bg-white text-blue-600 border-blue-200 hover:bg-blue-50'}`}>全部</button>
+                         {availableCategories.map(c => (
+                             <button key={c} onClick={() => setSelectedCategory(c)} className={`px-3 py-1.5 rounded-lg text-sm font-bold whitespace-nowrap transition-all border shrink-0 ${selectedCategory === c ? 'bg-blue-600 text-white border-blue-600 shadow-sm' : 'bg-white text-blue-600 border-blue-200 hover:bg-blue-50'}`}>{c}</button>
+                         ))}
                     </div>
                     
                     {/* Actions */}
