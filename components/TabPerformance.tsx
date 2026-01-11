@@ -228,7 +228,6 @@ const TabPerformance: React.FC = () => {
         const source = transactions.filter(t => t.type === 'Buy');
 
         if (summaryViewMode === 'ACCOUNT') {
-            // Group by Broker + Category
             const groups = new Map<string, { broker: string, category: string, totalQty: number, totalCost: number, items: Map<string, any> }>();
             
             source.forEach(t => {
@@ -259,7 +258,6 @@ const TabPerformance: React.FC = () => {
             })).sort((a,b) => (a.group1 + a.group2).localeCompare(b.group1 + b.group2));
 
         } else {
-            // Group by Code (Stock)
             const groups = new Map<string, { code: string, name: string, totalQty: number, totalCost: number, items: Map<string, any> }>();
 
             source.forEach(t => {
@@ -305,10 +303,6 @@ const TabPerformance: React.FC = () => {
     };
 
     // ... (Keep existing handlers for Save, Edit, Delete, Clear, Export, Import) ...
-    // To save space in this response, assume standard handlers are unchanged 
-    // but included in the full implementation logic.
-    // Re-implementing them for completeness:
-
     const handleSaveTransaction = () => {
         if (!formData.code || !formData.price || !formData.quantity) {
             alert('請填寫完整資料');
@@ -587,7 +581,7 @@ const TabPerformance: React.FC = () => {
 
                         <div className="flex-1 overflow-auto bg-white min-h-0">
                             <table className="w-full text-left border-collapse min-w-[800px]">
-                                <thead className="bg-blue-200 sticky top-0 z-10 border-b border-blue-300">
+                                <thead className="bg-blue-50 sticky top-0 z-10 border-b border-blue-200">
                                     <tr>
                                         <th className="p-2 font-bold text-blue-900 text-base whitespace-nowrap">證券戶</th>
                                         <th className="p-2 font-bold text-blue-900 text-base whitespace-nowrap">分類</th>
@@ -658,7 +652,7 @@ const TabPerformance: React.FC = () => {
 
                         <div className="flex-1 overflow-auto bg-white min-h-0">
                             <table className="w-full text-left border-collapse min-w-[800px]">
-                                <thead className="bg-blue-200 sticky top-0 z-10 border-b border-blue-300">
+                                <thead className="bg-blue-50 sticky top-0 z-10 border-b border-blue-200">
                                     <tr>
                                         <th className="p-2 font-bold text-blue-900 text-base whitespace-nowrap">證券戶</th>
                                         <th className="p-2 font-bold text-blue-900 text-base whitespace-nowrap">分類</th>
@@ -721,7 +715,8 @@ const TabPerformance: React.FC = () => {
 
                         <div className="flex-1 overflow-auto bg-white p-0">
                             <table className="w-full text-left border-collapse">
-                                <thead className="bg-indigo-200 sticky top-0 z-10 border-b border-indigo-300 text-base font-bold text-indigo-900 shadow-sm">
+                                {/* PARENT TABLE HEADER - DARKER COLOR FOR HIERARCHY */}
+                                <thead className="bg-blue-200 sticky top-0 z-10 border-b border-blue-300 text-base font-bold text-blue-900 shadow-sm">
                                     <tr>
                                         <th className="p-3 w-12 text-center">#</th>
                                         <th className="p-3">{summaryViewMode === 'ACCOUNT' ? '證券戶' : '股號'}</th>
@@ -736,25 +731,28 @@ const TabPerformance: React.FC = () => {
                                         const isExpanded = expandedSummaryRows.has(group.id);
                                         return (
                                             <React.Fragment key={group.id}>
+                                                {/* PARENT ROW - DISTINCT BACKGROUND */}
                                                 <tr 
-                                                    className={`cursor-pointer transition-colors hover:bg-indigo-50/50 ${isExpanded ? 'bg-indigo-50 border-indigo-100' : ''}`}
+                                                    className={`cursor-pointer transition-colors hover:bg-blue-100 ${isExpanded ? 'bg-blue-100 border-blue-200' : 'bg-white'}`}
                                                     onClick={() => toggleSummaryRow(group.id)}
                                                 >
-                                                    <td className="p-3 text-center text-gray-400">
-                                                        {isExpanded ? <ChevronDown className="w-5 h-5 mx-auto text-indigo-600" /> : <ChevronRight className="w-5 h-5 mx-auto" />}
+                                                    <td className="p-3 text-center text-gray-500">
+                                                        {isExpanded ? <ChevronDown className="w-5 h-5 mx-auto text-blue-600" /> : <ChevronRight className="w-5 h-5 mx-auto" />}
                                                     </td>
                                                     <td className={`p-3 font-bold ${summaryViewMode === 'STOCK' ? 'font-mono text-blue-800 text-lg' : 'text-gray-900'}`}>{group.group1}</td>
                                                     <td className="p-3 font-bold text-gray-700">{group.group2}</td>
                                                     <td className="p-3 text-right font-mono font-bold text-gray-900 text-lg">{fmtMoney(group.totalQty)}</td>
-                                                    <td className="p-3 text-right font-mono font-bold text-indigo-700 text-lg">{fmtMoney(group.totalCost)}</td>
+                                                    <td className="p-3 text-right font-mono font-bold text-blue-700 text-lg">{fmtMoney(group.totalCost)}</td>
                                                     <td></td>
                                                 </tr>
+                                                {/* DETAIL ROW */}
                                                 {isExpanded && (
-                                                    <tr className="bg-slate-50 border-y border-slate-200 shadow-inner">
+                                                    <tr className="bg-gray-50 border-y border-gray-200 shadow-inner">
                                                         <td colSpan={6} className="p-0">
                                                             <div className="py-3 px-12">
-                                                                <table className="w-full text-sm border border-slate-200 rounded-lg overflow-hidden bg-white">
-                                                                    <thead className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200">
+                                                                <table className="w-full text-sm border border-gray-200 rounded-lg overflow-hidden bg-white">
+                                                                    {/* DETAIL TABLE HEADER - LIGHTER COLOR */}
+                                                                    <thead className="bg-gray-100 text-gray-700 font-bold border-b border-gray-200">
                                                                         <tr>
                                                                             <th className="p-2 pl-4 text-base">{summaryViewMode === 'ACCOUNT' ? '股號' : '證券戶'}</th>
                                                                             <th className="p-2 text-base">{summaryViewMode === 'ACCOUNT' ? '股名' : '分類'}</th>
@@ -762,9 +760,9 @@ const TabPerformance: React.FC = () => {
                                                                             <th className="p-2 text-right pr-4 text-base">持股金額</th>
                                                                         </tr>
                                                                     </thead>
-                                                                    <tbody className="divide-y divide-slate-100 text-base">
+                                                                    <tbody className="divide-y divide-gray-100 text-base">
                                                                         {group.details.map((item: any, idx: number) => (
-                                                                            <tr key={idx} className="hover:bg-slate-50">
+                                                                            <tr key={idx} className="hover:bg-gray-50">
                                                                                 <td className={`p-2 pl-4 font-bold ${summaryViewMode === 'ACCOUNT' ? 'font-mono text-blue-700' : 'text-gray-800'}`}>
                                                                                     {summaryViewMode === 'ACCOUNT' ? item.code : item.broker}
                                                                                 </td>
@@ -797,8 +795,8 @@ const TabPerformance: React.FC = () => {
                 </div>
             )}
 
+            {/* ... Other Modals unchanged ... */}
             {/* --- ADD/EDIT MODAL & LEXICON MODAL & IMPORT MODAL --- */}
-            {/* Kept unchanged for brevity, but assume they inherit global styles if any */}
             {showAddModal && (
                 <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
                     <div className="bg-white rounded-xl w-full max-w-4xl shadow-2xl animate-in zoom-in-95 flex flex-col max-h-[90vh]">

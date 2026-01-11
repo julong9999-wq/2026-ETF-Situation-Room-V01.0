@@ -562,7 +562,7 @@ const TabPrices: React.FC<TabPricesProps> = ({
                         </div>
                         <div className="flex-1 overflow-auto min-h-0">
                             <table className="w-full text-left border-collapse">
-                                <thead className="bg-blue-200 sticky top-0 text-base text-blue-900 border-b border-blue-300 z-10 font-bold">
+                                <thead className="bg-blue-50 sticky top-0 text-base text-blue-900 border-b border-blue-200 z-10 font-bold">
                                     <tr>
                                         <th className="p-2.5 pl-4 whitespace-nowrap">日期</th>
                                         <th className="p-2.5 text-right whitespace-nowrap">昨日收盤</th>

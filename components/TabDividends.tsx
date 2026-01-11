@@ -383,7 +383,7 @@ const TabDividends: React.FC<TabDividendsProps> = ({
                         </div>
                         <div className="flex-1 overflow-y-auto min-h-0">
                             <table className="w-full text-left border-collapse">
-                                <thead className="bg-blue-200 sticky top-0 text-base z-10 text-blue-900 font-bold border-b border-blue-300">
+                                <thead className="bg-blue-50 sticky top-0 text-base z-10 text-blue-900 font-bold border-b border-blue-200">
                                     <tr>
                                         <th className="p-2.5 pl-4 w-1/6">年月</th>
                                         <th className="p-2.5 w-1/6">除息日期</th>

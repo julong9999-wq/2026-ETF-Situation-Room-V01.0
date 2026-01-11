@@ -701,7 +701,8 @@ const TabAdvancedSearch: React.FC = () => {
         activeTheme = 'indigo';
     }
 
-    const getTableHeadClass = () => `bg-${activeTheme}-200 text-${activeTheme}-900 sticky top-0 font-bold z-10 text-base`;
+    // UPDATED TABLE STYLES: Reverted to lighter headers, kept 16px bold.
+    const getTableHeadClass = () => `bg-${activeTheme}-50 text-${activeTheme}-900 sticky top-0 font-bold z-10 text-base shadow-sm border-b border-${activeTheme}-200`;
     const getTableBodyClass = () => `divide-y divide-${activeTheme}-100 text-base font-bold text-gray-800`;
     const getRowHoverClass = () => `group hover:bg-${activeTheme}-50 transition-colors`;
 
@@ -814,12 +815,12 @@ const TabAdvancedSearch: React.FC = () => {
                                     <table className="w-full text-left border-separate border-spacing-0">
                                         <thead>
                                             <tr>
-                                                <th className={`p-3 whitespace-nowrap bg-${activeTheme}-200 text-${activeTheme}-900 sticky top-0 left-0 z-30 font-bold border-b border-${activeTheme}-300 text-base`}>ETF代碼</th>
-                                                <th className={`p-3 whitespace-nowrap bg-${activeTheme}-200 text-${activeTheme}-900 sticky top-0 left-[90px] z-30 font-bold border-b border-${activeTheme}-300 text-base`}>ETF名稱</th>
-                                                <th className={`p-3 whitespace-nowrap bg-${activeTheme}-200 text-${activeTheme}-900 sticky top-0 z-20 font-bold border-b border-${activeTheme}-300 text-base`}>商品分類</th>
-                                                <th className={`p-3 whitespace-nowrap bg-${activeTheme}-200 text-${activeTheme}-900 sticky top-0 z-20 font-bold border-b border-${activeTheme}-300 text-base`}>配息週期</th>
-                                                <th className={`p-3 whitespace-nowrap bg-${activeTheme}-200 text-${activeTheme}-900 sticky top-0 z-20 font-bold border-b border-${activeTheme}-300 text-base`}>ETF類型</th>
-                                                {reportPrice.headers.map(d => <th key={d} className={`p-3 whitespace-nowrap text-right font-mono bg-${activeTheme}-200 text-${activeTheme}-900 sticky top-0 z-20 font-bold border-b border-${activeTheme}-300 text-base`}>{d}</th>)}
+                                                <th className={`p-3 whitespace-nowrap bg-${activeTheme}-50 text-${activeTheme}-900 sticky top-0 left-0 z-30 font-bold border-b border-${activeTheme}-200 text-base`}>ETF代碼</th>
+                                                <th className={`p-3 whitespace-nowrap bg-${activeTheme}-50 text-${activeTheme}-900 sticky top-0 left-[90px] z-30 font-bold border-b border-${activeTheme}-200 text-base`}>ETF名稱</th>
+                                                <th className={`p-3 whitespace-nowrap bg-${activeTheme}-50 text-${activeTheme}-900 sticky top-0 z-20 font-bold border-b border-${activeTheme}-200 text-base`}>商品分類</th>
+                                                <th className={`p-3 whitespace-nowrap bg-${activeTheme}-50 text-${activeTheme}-900 sticky top-0 z-20 font-bold border-b border-${activeTheme}-200 text-base`}>配息週期</th>
+                                                <th className={`p-3 whitespace-nowrap bg-${activeTheme}-50 text-${activeTheme}-900 sticky top-0 z-20 font-bold border-b border-${activeTheme}-200 text-base`}>ETF類型</th>
+                                                {reportPrice.headers.map(d => <th key={d} className={`p-3 whitespace-nowrap text-right font-mono bg-${activeTheme}-50 text-${activeTheme}-900 sticky top-0 z-20 font-bold border-b border-${activeTheme}-200 text-base`}>{d}</th>)}
                                             </tr>
                                         </thead>
                                         <tbody className={getTableBodyClass()}>
@@ -884,10 +885,10 @@ const TabAdvancedSearch: React.FC = () => {
                                     <table className="w-full text-left border-separate border-spacing-0">
                                         <thead>
                                             <tr>
-                                                <th className={`p-3 whitespace-nowrap bg-${activeTheme}-200 text-${activeTheme}-900 sticky top-0 left-0 z-30 font-bold border-b border-${activeTheme}-300 text-base`}>ETF代碼</th>
-                                                <th className={`p-3 whitespace-nowrap bg-${activeTheme}-200 text-${activeTheme}-900 sticky top-0 left-[90px] z-30 font-bold border-b border-${activeTheme}-300 text-base`}>ETF名稱</th>
-                                                <th className={`p-3 whitespace-nowrap bg-${activeTheme}-200 text-${activeTheme}-900 sticky top-0 z-20 font-bold border-b border-${activeTheme}-300 text-base`}>ETF類型</th>
-                                                {preMarketReports.etf.headers.map(d => <th key={d} className={`p-3 whitespace-nowrap text-right font-mono bg-${activeTheme}-200 text-${activeTheme}-900 sticky top-0 z-20 font-bold border-b border-${activeTheme}-300 text-base`}>{d}</th>)}
+                                                <th className={`p-3 whitespace-nowrap bg-${activeTheme}-50 text-${activeTheme}-900 sticky top-0 left-0 z-30 font-bold border-b border-${activeTheme}-200 text-base`}>ETF代碼</th>
+                                                <th className={`p-3 whitespace-nowrap bg-${activeTheme}-50 text-${activeTheme}-900 sticky top-0 left-[90px] z-30 font-bold border-b border-${activeTheme}-200 text-base`}>ETF名稱</th>
+                                                <th className={`p-3 whitespace-nowrap bg-${activeTheme}-50 text-${activeTheme}-900 sticky top-0 z-20 font-bold border-b border-${activeTheme}-200 text-base`}>ETF類型</th>
+                                                {preMarketReports.etf.headers.map(d => <th key={d} className={`p-3 whitespace-nowrap text-right font-mono bg-${activeTheme}-50 text-${activeTheme}-900 sticky top-0 z-20 font-bold border-b border-${activeTheme}-200 text-base`}>{d}</th>)}
                                             </tr>
                                         </thead>
                                         <tbody className={getTableBodyClass()}>
@@ -912,7 +913,7 @@ const TabAdvancedSearch: React.FC = () => {
                                     <table className="w-full text-left border-collapse">
                                         <thead className={getTableHeadClass()}>
                                             <tr>
-                                                <th className="p-3 whitespace-nowrap">商品分類</th><th className="p-3 whitespace-nowrap">配息週期</th><th className="p-3 whitespace-nowrap">ETF代碼</th><th className="p-3 whitespace-nowrap">ETF名稱</th><th className="p-3 whitespace-nowrap">ETF類型</th><th className="p-3 whitespace-nowrap text-right">規模大小</th><th className={`p-3 whitespace-nowrap text-center bg-${activeTheme}-300`}>月初日期</th><th className={`p-3 whitespace-nowrap text-right bg-${activeTheme}-300`}>月初股價</th>
+                                                <th className="p-3 whitespace-nowrap">商品分類</th><th className="p-3 whitespace-nowrap">配息週期</th><th className="p-3 whitespace-nowrap">ETF代碼</th><th className="p-3 whitespace-nowrap">ETF名稱</th><th className="p-3 whitespace-nowrap">ETF類型</th><th className="p-3 whitespace-nowrap text-right">規模大小</th><th className={`p-3 whitespace-nowrap text-center bg-${activeTheme}-100`}>月初日期</th><th className={`p-3 whitespace-nowrap text-right bg-${activeTheme}-100`}>月初股價</th>
                                             </tr>
                                         </thead>
                                         <tbody className={getTableBodyClass()}>
@@ -973,7 +974,7 @@ const TabAdvancedSearch: React.FC = () => {
                                     <table className="w-full text-left border-collapse">
                                         <thead className={getTableHeadClass()}>
                                             <tr>
-                                                <th className="p-3 whitespace-nowrap">商品分類</th><th className="p-3 whitespace-nowrap">配息週期</th><th className="p-3 whitespace-nowrap">ETF代碼</th><th className="p-3 whitespace-nowrap">ETF名稱</th><th className="p-3 whitespace-nowrap">ETF類型</th><th className="p-3 whitespace-nowrap text-right">規模大小</th><th className={`p-3 whitespace-nowrap text-center bg-${activeTheme}-300`}>起始日期 (去年)</th><th className={`p-3 whitespace-nowrap text-right bg-${activeTheme}-300`}>起始股價</th><th className="p-3 whitespace-nowrap text-center">最近日期</th><th className="p-3 whitespace-nowrap text-right">最近股價</th>
+                                                <th className="p-3 whitespace-nowrap">商品分類</th><th className="p-3 whitespace-nowrap">配息週期</th><th className="p-3 whitespace-nowrap">ETF代碼</th><th className="p-3 whitespace-nowrap">ETF名稱</th><th className="p-3 whitespace-nowrap">ETF類型</th><th className="p-3 whitespace-nowrap text-right">規模大小</th><th className={`p-3 whitespace-nowrap text-center bg-${activeTheme}-100`}>起始日期 (去年)</th><th className={`p-3 whitespace-nowrap text-right bg-${activeTheme}-100`}>起始股價</th><th className="p-3 whitespace-nowrap text-center">最近日期</th><th className="p-3 whitespace-nowrap text-right">最近股價</th>
                                             </tr>
                                         </thead>
                                         <tbody className={getTableBodyClass()}>

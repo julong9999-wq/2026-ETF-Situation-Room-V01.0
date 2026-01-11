@@ -218,7 +218,7 @@ const TabBasicInfo: React.FC<TabBasicInfoProps> = ({
 
       <div className="flex-1 overflow-auto bg-white rounded-lg shadow-sm border border-blue-200 min-h-0">
         <table className="w-full text-left border-collapse">
-            <thead className="bg-blue-200 sticky top-0 z-10 shadow-sm border-b border-blue-300">
+            <thead className="bg-blue-50 sticky top-0 z-10 shadow-sm border-b border-blue-200">
                 <tr>
                     <th className="p-2.5 font-bold text-blue-900 text-base whitespace-nowrap">ETF 代碼</th>
                     <th className="p-2.5 font-bold text-blue-900 text-base whitespace-nowrap">ETF 名稱</th>
