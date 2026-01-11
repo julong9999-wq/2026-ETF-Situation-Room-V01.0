@@ -28,7 +28,7 @@ const TabPerformance: React.FC = () => {
     const [brokerOptions, setBrokerOptions] = useState<string[]>(DEFAULT_BROKERS);
     const [categoryOptions, setCategoryOptions] = useState<string[]>(DEFAULT_CATEGORIES);
 
-    // Filters (Moved to Top Level)
+    // Filters (Top Level)
     const [selectedBroker, setSelectedBroker] = useState<string>('ALL');
     const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
 
@@ -114,7 +114,7 @@ const TabPerformance: React.FC = () => {
             if (!map.has(t.code)) {
                 map.set(t.code, {
                     code: t.code, name: t.name, totalQty: 0, avgCost: 0, totalCost: 0,
-                    broker: '', category: '' // Detailed in drill-down
+                    broker: '', category: '' 
                 });
             }
             const pos = map.get(t.code)!;
@@ -129,6 +129,7 @@ const TabPerformance: React.FC = () => {
 
     const detailData = useMemo(() => {
         if (!selectedCode) return [];
+        // Only return necessary fields for UI, but keeping full object for edit
         return filteredTransactions.filter(t => t.code === selectedCode).sort((a, b) => b.date.localeCompare(a.date));
     }, [selectedCode, filteredTransactions]);
 
@@ -166,7 +167,7 @@ const TabPerformance: React.FC = () => {
         setTransactions(updatedTransactions);
         localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updatedTransactions));
         
-        // Update Lexicon if new items (optional, but good UX)
+        // Update Lexicon if new items
         if (newItem.broker && !brokerOptions.includes(newItem.broker)) {
              const newBrokers = [...brokerOptions, newItem.broker];
              setBrokerOptions(newBrokers);
@@ -213,6 +214,36 @@ const TabPerformance: React.FC = () => {
         }
     };
 
+    // --- IMPORT LOGIC (ROBUST CSV PARSER) ---
+    const parseCSVRow = (str: string) => {
+        const result = [];
+        let current = '';
+        let inQuote = false;
+        for(let i=0; i<str.length; i++) {
+            const char = str[i];
+            if (char === '"') { inQuote = !inQuote; }
+            else if (char === ',' && !inQuote) { result.push(current.trim()); current = ''; }
+            else { current += char; }
+        }
+        result.push(current.trim());
+        return result.map(s => s.replace(/^"|"$/g, '').trim());
+    };
+
+    const normalizeDate = (d: string) => {
+        // Handle 2023/3/5 -> 2023-03-05
+        if (!d) return '';
+        const parts = d.replace(/\//g, '-').split('-');
+        if (parts.length === 3) {
+            return `${parts[0]}-${parts[1].padStart(2,'0')}-${parts[2].padStart(2,'0')}`;
+        }
+        return d;
+    };
+
+    const cleanNum = (v: string) => {
+        if (!v) return 0;
+        return parseFloat(v.replace(/,/g, '').replace(/"/g, '')) || 0;
+    };
+
     const handleImportFile = (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
         if (!file) return;
@@ -222,50 +253,55 @@ const TabPerformance: React.FC = () => {
             const text = e.target?.result as string;
             if (!text) return;
 
-            // Simple CSV Parser
-            const rows = text.split('\n').map(row => row.split(',').map(cell => cell.trim()));
-            // Assuming header is row 0
-            const headers = rows[0];
-            const dataRows = rows.slice(1).filter(r => r.length > 1);
+            const lines = text.split('\n');
+            if (lines.length < 2) return;
+
+            // Header mapping
+            const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
+            const getIdx = (name: string) => headers.findIndex(h => h.includes(name));
+            
+            // Allow flexibility in column names
+            const dateIdx = Math.max(getIdx('日期'), getIdx('Date'));
+            const codeIdx = Math.max(getIdx('股號'), getIdx('代碼'), getIdx('Code'));
+            const nameIdx = Math.max(getIdx('股名'), getIdx('名稱'), getIdx('Name'));
+            const priceIdx = Math.max(getIdx('價格'), getIdx('成交單價'), getIdx('單價'), getIdx('Price'));
+            const qtyIdx = Math.max(getIdx('股數'), getIdx('成交股數'), getIdx('Qty'));
+            const feeIdx = Math.max(getIdx('手續費'), getIdx('Fee'));
+            const brokerIdx = Math.max(getIdx('證券戶'), getIdx('Broker'));
+            const catIdx = Math.max(getIdx('分類'), getIdx('Category'));
+
+            if (codeIdx === -1 || priceIdx === -1 || qtyIdx === -1) {
+                alert('匯入失敗：找不到必要的欄位 (股號, 價格, 股數)。請檢查 CSV 標題列。');
+                return;
+            }
 
             const newTransactions: UserTransaction[] = [];
-            
-            dataRows.forEach(row => {
-                // Map columns based on suggested order in Import Modal or Header Name
-                // "日期, 股號, 股名, 買賣別, 價格, 股數, 手續費, 證券戶, 分類"
-                // Simple mapping by index for now as per "Suggested Order"
-                // Or try to find index by header
-                const getIdx = (name: string) => headers.findIndex(h => h.includes(name));
-                
-                const dateIdx = getIdx('日期') > -1 ? getIdx('日期') : 0;
-                const codeIdx = getIdx('股號') > -1 ? getIdx('股號') : 1;
-                const nameIdx = getIdx('股名') > -1 ? getIdx('股名') : 2;
-                const priceIdx = getIdx('價格') > -1 ? getIdx('價格') : 4;
-                const qtyIdx = getIdx('股數') > -1 ? getIdx('股數') : 5;
-                const feeIdx = getIdx('手續費') > -1 ? getIdx('手續費') : 6;
-                const brokerIdx = getIdx('證券戶') > -1 ? getIdx('證券戶') : 7;
-                const catIdx = getIdx('分類') > -1 ? getIdx('分類') : 8;
+            let dupCount = 0;
 
-                const price = parseFloat(row[priceIdx]);
-                const qty = parseFloat(row[qtyIdx]);
+            for (let i = 1; i < lines.length; i++) {
+                if (!lines[i].trim()) continue;
+                const row = parseCSVRow(lines[i]);
                 
-                if (row[codeIdx] && !isNaN(price) && !isNaN(qty)) {
-                    // Avoid Duplicates (Simple check by code+date+price+qty)
+                const rawDate = row[dateIdx] || new Date().toISOString().split('T')[0];
+                const date = normalizeDate(rawDate);
+                const code = row[codeIdx];
+                const price = cleanNum(row[priceIdx]);
+                const qty = cleanNum(row[qtyIdx]);
+
+                if (code && price > 0 && qty > 0) {
+                    // Check Duplicate
                     const isDup = transactions.some(t => 
-                        t.code === row[codeIdx] && 
-                        t.date === row[dateIdx] && 
-                        t.price === price && 
-                        t.quantity === qty
+                        t.code === code && t.date === date && t.price === price && t.quantity === qty
                     );
-
+                    
                     if (!isDup) {
-                        const fee = parseFloat(row[feeIdx]) || 0;
+                        const fee = feeIdx > -1 ? cleanNum(row[feeIdx]) : 0;
                         const totalAmt = Math.floor(price * qty);
                         
                         newTransactions.push({
                             id: crypto.randomUUID(),
-                            date: row[dateIdx] || new Date().toISOString().split('T')[0],
-                            code: row[codeIdx],
+                            date: date,
+                            code: code,
                             name: row[nameIdx] || '',
                             type: 'Buy',
                             price: price,
@@ -274,34 +310,31 @@ const TabPerformance: React.FC = () => {
                             tax: 0,
                             totalAmount: totalAmt,
                             cost: totalAmt + fee,
-                            broker: row[brokerIdx] || brokerOptions[0] || '',
-                            category: row[catIdx] || categoryOptions[0] || ''
+                            broker: brokerIdx > -1 ? (row[brokerIdx] || brokerOptions[0] || '') : (brokerOptions[0] || ''),
+                            category: catIdx > -1 ? (row[catIdx] || categoryOptions[0] || '') : (categoryOptions[0] || '')
                         });
+                    } else {
+                        dupCount++;
                     }
                 }
-            });
+            }
 
             if (newTransactions.length > 0) {
                 const updated = [...transactions, ...newTransactions];
                 setTransactions(updated);
                 localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updated));
-                alert(`成功匯入 ${newTransactions.length} 筆資料`);
+                alert(`成功匯入 ${newTransactions.length} 筆資料 (已忽略 ${dupCount} 筆重複)`);
                 setShowImportModal(false);
             } else {
-                alert('未發現新資料或是格式不符');
+                alert(`未發現新資料。(${dupCount} 筆重複資料已忽略，或格式不符)`);
             }
         };
         reader.readAsText(file);
-        // Reset value so same file can be selected again
         event.target.value = '';
     };
 
     const handleExportReport = () => {
         if (transactions.length === 0) return alert('無資料可匯出');
-        // Export ALL transactions currently in state (or filtered? usually all for backup)
-        // Let's export filtered for flexibility, or all. Usually "Export Report" implies visible data or all. 
-        // User said "Export Report" in functionality tweaks. Let's export ALL transactions to ensure backup utility.
-        
         const headers = ['日期', '證券戶', '分類', '股號', '股名', '買賣別', '成交單價', '成交股數', '成交價金', '手續費', '購買成本'];
         const csvData = transactions.map(t => ({
             '日期': t.date,
@@ -319,48 +352,61 @@ const TabPerformance: React.FC = () => {
         exportToCSV(`交易紀錄備份_${new Date().toISOString().split('T')[0]}`, headers, csvData);
     };
 
-    // --- LEXICON HANDLERS ---
-    const handleAddLexiconItem = () => {
-        if (!lexiconInput.trim()) return;
-        if (showLexiconModal === 'BROKER') {
-            const newOpts = [...brokerOptions, lexiconInput.trim()];
-            setBrokerOptions(newOpts);
-            localStorage.setItem(KEY_BROKERS, JSON.stringify(newOpts));
-        } else {
-            const newOpts = [...categoryOptions, lexiconInput.trim()];
-            setCategoryOptions(newOpts);
-            localStorage.setItem(KEY_CATEGORIES, JSON.stringify(newOpts));
-        }
-        setLexiconInput('');
-    };
+    const fmtMoney = (n: number) => n?.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 }) || '0';
+    const fmtPrice = (n: number) => n?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00';
 
-    const handleDeleteLexiconItem = (item: string) => {
-        if (!confirm(`確定刪除詞庫項目 "${item}" 嗎？`)) return;
-        if (showLexiconModal === 'BROKER') {
-            const newOpts = brokerOptions.filter(i => i !== item);
-            setBrokerOptions(newOpts);
-            localStorage.setItem(KEY_BROKERS, JSON.stringify(newOpts));
-        } else {
-            const newOpts = categoryOptions.filter(i => i !== item);
-            setCategoryOptions(newOpts);
-            localStorage.setItem(KEY_CATEGORIES, JSON.stringify(newOpts));
-        }
-    };
-
+    // --- ADDED MISSING FUNCTIONS ---
+    
     const openAddModal = () => {
         setEditingId(null);
         setFormData({
             date: new Date().toISOString().split('T')[0],
             broker: brokerOptions[0] || '',
             category: categoryOptions[0] || '',
-            code: '', name: '',
-            price: '', quantity: '', totalAmount: '', fee: '', cost: 0
+            code: '',
+            name: '',
+            price: '',
+            quantity: '',
+            totalAmount: '',
+            fee: '',
+            cost: 0
         });
         setShowAddModal(true);
     };
 
-    const fmtMoney = (n: number) => n?.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 }) || '0';
-    const fmtPrice = (n: number) => n?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00';
+    const handleAddLexiconItem = () => {
+        const val = lexiconInput.trim();
+        if (!val) return;
+        
+        if (showLexiconModal === 'BROKER') {
+            if (!brokerOptions.includes(val)) {
+                const updated = [...brokerOptions, val];
+                setBrokerOptions(updated);
+                localStorage.setItem(KEY_BROKERS, JSON.stringify(updated));
+            }
+        } else if (showLexiconModal === 'CATEGORY') {
+            if (!categoryOptions.includes(val)) {
+                const updated = [...categoryOptions, val];
+                setCategoryOptions(updated);
+                localStorage.setItem(KEY_CATEGORIES, JSON.stringify(updated));
+            }
+        }
+        setLexiconInput('');
+    };
+
+    const handleDeleteLexiconItem = (item: string) => {
+        if (!confirm(`確定要刪除 "${item}" 嗎？`)) return;
+
+        if (showLexiconModal === 'BROKER') {
+            const updated = brokerOptions.filter(i => i !== item);
+            setBrokerOptions(updated);
+            localStorage.setItem(KEY_BROKERS, JSON.stringify(updated));
+        } else if (showLexiconModal === 'CATEGORY') {
+            const updated = categoryOptions.filter(i => i !== item);
+            setCategoryOptions(updated);
+            localStorage.setItem(KEY_CATEGORIES, JSON.stringify(updated));
+        }
+    };
     
     // --- RENDER ---
     return (
@@ -434,7 +480,7 @@ const TabPerformance: React.FC = () => {
             {activeSubTab === 'HOLDINGS' ? (
                 <div className="flex-1 flex gap-2 p-2 overflow-hidden min-h-0">
                     
-                    {/* LEFT PANEL: Master List (Positions) - Simplified Columns */}
+                    {/* LEFT PANEL: Master List */}
                     <div className="w-[360px] flex-none bg-white rounded-xl shadow-sm border border-blue-200 flex flex-col overflow-hidden">
                         <div className="p-3 bg-blue-50 border-b border-blue-100 flex justify-between items-center gap-2">
                             <h3 className="font-bold text-blue-900 text-lg flex items-center gap-2">
@@ -518,7 +564,11 @@ const TabPerformance: React.FC = () => {
                                 <button onClick={openAddModal} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 shadow-sm transition-colors text-base">
                                     <Plus className="w-4 h-4" /> 新增資料
                                 </button>
-                                <button onClick={() => setShowImportModal(true)} className="flex items-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg font-bold hover:bg-emerald-100 shadow-sm transition-colors text-base">
+                                <button onClick={() => {
+                                    /* Force click hidden input */
+                                    if(fileInputRef.current) fileInputRef.current.click(); 
+                                    else setShowImportModal(true); 
+                                }} className="flex items-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg font-bold hover:bg-emerald-100 shadow-sm transition-colors text-base">
                                     <Upload className="w-4 h-4" /> 匯入資料
                                 </button>
                                 <button onClick={handleExportReport} className="flex items-center gap-2 px-4 py-2 bg-gray-50 text-gray-600 border border-gray-200 rounded-lg font-bold hover:bg-gray-100 shadow-sm transition-colors text-base" disabled={transactions.length === 0}>
@@ -534,7 +584,7 @@ const TabPerformance: React.FC = () => {
                                         <th className="p-3 font-bold text-gray-700 text-base whitespace-nowrap">證券戶</th>
                                         <th className="p-3 font-bold text-gray-700 text-base whitespace-nowrap">分類</th>
                                         <th className="p-3 font-bold text-gray-700 text-base whitespace-nowrap">日期</th>
-                                        {/* Hidden Code/Name columns from view, but data exists */}
+                                        {/* Hiding Code/Name in detail view as requested */}
                                         <th className="p-3 font-bold text-gray-700 text-base text-right whitespace-nowrap">成交單價</th>
                                         <th className="p-3 font-bold text-gray-700 text-base text-right whitespace-nowrap">成交股數</th>
                                         <th className="p-3 font-bold text-gray-700 text-base text-right whitespace-nowrap">成交價金</th>
