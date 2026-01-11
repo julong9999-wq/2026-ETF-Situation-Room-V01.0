@@ -672,22 +672,124 @@ const TabAdvancedSearch: React.FC = () => {
         }
     };
 
+    // --- REVISED COPY SCRIPT HANDLER ---
     const handleCopyScript = () => {
-        const scriptCode = `
-function doGet(e) {
-  var sheet = SpreadsheetApp.getActiveSpreadsheet();
-  return ContentService.createTextOutput('Active');
+        const payload: Record<string, any[][]> = {};
+        let titleMode = "";
+
+        if (mainTab === 'SELF_MONTHLY') {
+            titleMode = "自主月配 (名單+除息)";
+            // ... (keep existing self monthly payload logic)
+            const listHeaders = ['商品分類', '配息週期', 'ETF 代碼', 'ETF 名稱', 'ETF類型', '規模大小', '起始日期', '起始股價', '最近日期', '最近股價'];
+            const listRows = selfMonthlyData.list.map((row: any) => [
+                row['商品分類'], row['配息週期'], `'${row['ETF代碼']}`, row['ETF名稱'], row['ETF類型'], row['規模大小'], row['起始日期'], row['起始股價'], row['最近日期'], row['最近股價']
+            ]);
+            payload['季配名單'] = [listHeaders, ...listRows];
+            const divHeaders = ['ETF 代碼', 'ETF 名稱', '年月', '除息日期', '除息金額'];
+            const divRows = selfMonthlyData.div.map((d: any) => [`'${d['ETF代碼']}`, d['ETF名稱'], d['年月'], d['除息日期'], fmtDiv(d['除息金額'])]);
+            payload['除息資料'] = [divHeaders, ...divRows];
+
+        } else if (mainTab === 'PRE_MARKET') {
+            titleMode = "每日盤前 (國際大盤+ETF股價)";
+            const marketHeaders = ['日期', '指數名稱', '昨日收盤', '開盤', '高價', '低價', '現價', '漲跌點數', '漲跌幅度'];
+            const marketRows = preMarketReports.market.map(d => [d.date, d.indexName, d.prevClose, d.open, d.high, d.low, d.price, d.change, d.changePercent]);
+            payload['國際大盤'] = [marketHeaders, ...marketRows];
+
+            const { headers: dateHeaders, rows: etfRows } = preMarketReports.etf;
+            const fixedHeaders = ['ETF 代碼', 'ETF 名稱', 'ETF類型'];
+            const fullHeaders = [...fixedHeaders, ...dateHeaders];
+            const pivotRows = etfRows.map((row: any) => {
+                const base = [`'${row['ETF代碼']}`, row['ETF名稱'], row['ETF類型']];
+                const dynamic = dateHeaders.map(dateKey => row[dateKey] || '');
+                return [...base, ...dynamic];
+            });
+            payload['ETF 股價'] = [fullHeaders, ...pivotRows];
+
+        } else if (mainTab === 'POST_MARKET') {
+            titleMode = "每日盤後 (基本+除息+填息+未填)";
+            const basicHeaders = ['商品分類', '配息週期', 'ETF 代碼', 'ETF 名稱', 'ETF類型', '規模大小', '月初日期', '月初股價'];
+            const basicRows = postMarketReports.basic.map((row: any) => [row['商品分類'], row['配息週期'], `'${row['ETF代碼']}`, row['ETF名稱'], row['ETF類型'], row['規模大小'], row['月初日期'], row['月初股價']]);
+            payload['基本資料'] = [basicHeaders, ...basicRows];
+
+            const exHeaders = ['ETF 代碼', 'ETF 名稱', '除息日期', '除息金額', '股利發放', '除息參考價'];
+            const exRows = postMarketReports.todayEx.length > 0 
+                ? postMarketReports.todayEx.map((d:any) => [`'${d['ETF代碼']}`, d['ETF名稱'], d['除息日期'], fmtDiv(d['除息金額']), d['股利發放'], d['除息參考價']])
+                : [['', '本日無除息資料', '', '', '', '']];
+            payload['本日除息'] = [exHeaders, ...exRows];
+
+            const fillHeaders = ['ETF 代碼', 'ETF 名稱', '除息日期', '除息金額', '除息前一天股價', '除息參考價', '分析比對日期', '分析比對價格', '分析是否填息成功', '幾天填息'];
+            const fillRows = postMarketReports.filled.length > 0
+                ? postMarketReports.filled.map((d:any) => [`'${d['ETF代碼']}`, d['ETF名稱'], d['除息日期'], fmtDiv(d['除息金額']), d['除息前一天股價'], d['除息參考價'], d['分析比對日期'], d['分析比對價格'], d['分析是否填息成功'], d['幾天填息']])
+                : [['', '本日無填息資料', '', '', '', '', '', '', '', '']];
+            payload['填息名單'] = [fillHeaders, ...fillRows];
+
+            const unfillHeaders = ['ETF 代碼', 'ETF 名稱', '除息日期', '除息金額', '除息前一天股價', '除息參考價'];
+            const unfillRows = postMarketReports.unfilled.length > 0
+                ? postMarketReports.unfilled.map((d:any) => [`'${d['ETF代碼']}`, d['ETF名稱'], d['除息日期'], fmtDiv(d['除息金額']), d['除息前一天股價'], d['除息參考價']])
+                : [['', '本日無比對資料', '', '', '', '']];
+            payload['是否填息'] = [unfillHeaders, ...unfillRows];
+
+        } else if (mainTab === 'WEEKLY') {
+            titleMode = "每週報告 (4表合一)";
+            // ... (keep weekly logic)
+            const marketHeaders = ['日期', '指數名稱', '昨日收盤', '開盤', '高價', '低價', '現價', '漲跌點數', '漲跌幅度'];
+            const marketRows = reportMarket.map(d => [d.date, d.indexName, d.prevClose, d.open, d.high, d.low, d.price, d.change, d.changePercent]);
+            payload['國際大盤'] = [marketHeaders, ...marketRows];
+
+            const { headers: dateHeaders, rows: pricePivotRows } = reportPrice;
+            const priceFixedHeaders = ['商品分類', '配息週期', 'ETF代碼', 'ETF名稱', 'ETF類型'];
+            const priceFullHeaders = [...priceFixedHeaders, ...dateHeaders];
+            const priceRows = pricePivotRows.map((row: any) => {
+                const base = [row['商品分類'], row['配息週期'], `'${row['ETF代碼']}`, row['ETF名稱'], row['ETF類型']];
+                const dynamic = dateHeaders.map(dateKey => row[dateKey] || '');
+                return [...base, ...dynamic];
+            });
+            payload['ETF 股價'] = [priceFullHeaders, ...priceRows];
+
+            const divHeaders = ['ETF代碼', 'ETF名稱', '除息日期', '除息金額', '股利發放'];
+            const divRows = reportDividend.map(d => [`'${d.etfCode}`, d.etfName, d.exDate, fmtDiv(d.amount), d.paymentDate || '-']);
+            payload['本週除息'] = [divHeaders, ...divRows];
+
+            const fillHeaders = ['ETF代碼', 'ETF名稱', '除息日期', '除息金額', '除息前一天股價', '分析比對日期', '分析比對價格', '分析是否填息成功', '幾天填息'];
+            const fillRows = reportFill.map(d => [`'${d.etfCode}`, d.etfName, d.exDate, fmtDiv(d.amount), d.pricePreEx, d.fillDate, d.fillPrice, '是', d.daysToFill]);
+            payload['本週填息'] = [fillHeaders, ...fillRows];
+        }
+
+        const jsonString = JSON.stringify(payload, null, 2);
+        const scriptContent = `
+/**
+ * ETF 戰情室 - 一鍵寫入多個分頁腳本
+ * 模式: ${titleMode}
+ * 產生時間: ${new Date().toLocaleString()}
+ */
+function importAllData() {
+  var spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  var payload = ${jsonString};
+  for (var sheetName in payload) {
+    if (payload.hasOwnProperty(sheetName)) {
+      var data = payload[sheetName];
+      var sheet = spreadsheet.getSheetByName(sheetName);
+      if (!sheet) { sheet = spreadsheet.insertSheet(sheetName); } else { sheet.clear(); }
+      if (data.length > 0) {
+        var range = sheet.getRange(1, 1, data.length, data[0].length);
+        range.setValues(data);
+        sheet.getRange(1, 1, 1, data[0].length).setFontWeight("bold").setBackground("#e6f7ff");
+        Logger.log("已寫入: " + sheetName + " (" + data.length + " 筆)");
+      } else { Logger.log("無資料: " + sheetName); }
+    }
+  }
+  SpreadsheetApp.getUi().alert("✅ 資料匯入完成！");
 }`;
         if (navigator && navigator.clipboard) {
-            navigator.clipboard.writeText(scriptCode).then(() => {
-                alert('自動化腳本已複製到剪貼簿');
+            navigator.clipboard.writeText(scriptContent).then(() => {
+                alert(`✅ Google Apps Script 已複製！\n\n模式: [${titleMode}]\n\n請至 Google Sheet 執行。`);
             }).catch(err => {
-                console.error('Failed to copy: ', err);
-                alert('複製失敗，請手動複製');
+                console.error(err);
+                alert("複製失敗");
             });
         } else {
              alert('您的瀏覽器不支援自動複製，請手動複製 console 中的內容');
-             console.log(scriptCode);
+             console.log(scriptContent);
         }
     };
 
