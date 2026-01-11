@@ -70,9 +70,48 @@ const TabAdvancedSearch: React.FC = () => {
         return fillData.filter(d => d.exDate >= dateRange.thisMonday && d.exDate <= dateRange.thisFriday).sort((a,b) => a.exDate.localeCompare(b.exDate));
     }, [fillData, dateRange]);
 
+    // NEW LOGIC RESTORATION
+    const reportPreMarketGlobal = useMemo(() => {
+        // Show US market data sorted by date descending
+        return marketData.filter(d => d.type === 'US').sort((a, b) => b.date.localeCompare(a.date));
+    }, [marketData]);
+
+    const reportPreMarketEtfPrice = useMemo(() => {
+        // Show ETF prices sorted by date descending
+        return priceData.sort((a, b) => b.date.localeCompare(a.date)).slice(0, 100); // Limit for performance
+    }, [priceData]);
+
+    const reportSelfMonthlyList = useMemo(() => {
+        const groups: any = { 'Q1': [], 'Q2': [], 'Q3': [], 'M': [] };
+        basicInfo.forEach(b => {
+            const f = b.dividendFreq || '';
+            if(f.includes('月')) groups.M.push(b);
+            else if(f.includes('季一') || f.includes('1,4')) groups.Q1.push(b);
+            else if(f.includes('季二') || f.includes('2,5')) groups.Q2.push(b);
+            else if(f.includes('季三') || f.includes('3,6')) groups.Q3.push(b);
+        });
+        return groups;
+    }, [basicInfo]);
+
+    const reportSelfMonthlyExDiv = useMemo(() => {
+        // Recent dividend data for popular ETFs
+        return divData.sort((a,b) => b.exDate.localeCompare(a.exDate)).slice(0, 100);
+    }, [divData]);
+
+    const reportPostMarketBasic = useMemo(() => basicInfo, [basicInfo]);
+    
     const reportPostMarketTodayEx = useMemo(() => {
         return divData.filter(d => d.exDate === refDate);
     }, [divData, refDate]);
+
+    const reportPostMarketFilled3Days = useMemo(() => {
+        return fillData.filter(d => d.isFilled && typeof d.daysToFill === 'number' && d.daysToFill <= 3).sort((a,b) => b.exDate.localeCompare(a.exDate));
+    }, [fillData]);
+
+    const reportPostMarketUnfilled2026 = useMemo(() => {
+        return fillData.filter(d => !d.isFilled && d.exDate >= '2026-01-01').sort((a,b) => b.exDate.localeCompare(a.exDate));
+    }, [fillData]);
+
 
     // --- UNIFIED TABS CONFIG ---
     const MAIN_TABS = [ { id: 'PRE_MARKET', label: '每日盤前', icon: Zap }, { id: 'POST_MARKET', label: '每日盤後', icon: Moon }, { id: 'WEEKLY', label: '每週報告', icon: FileText }, { id: 'SELF_MONTHLY', label: '自主月配', icon: Calendar } ];
@@ -80,7 +119,7 @@ const TabAdvancedSearch: React.FC = () => {
         WEEKLY: [ { id: 'MARKET', label: '國際大盤', icon: TrendingUp }, { id: 'PRICE', label: 'ETF股價', icon: FileText }, { id: 'DIVIDEND', label: '本週除息', icon: Filter }, { id: 'FILL', label: '本週填息', icon: Search } ],
         SELF_MONTHLY: [ { id: 'QUARTERLY_LIST', label: '季配名單', icon: TableIcon }, { id: 'EX_DIV_DATA', label: '除息資料', icon: PieChart } ],
         PRE_MARKET: [ { id: 'GLOBAL_MARKET', label: '國際大盤', icon: TrendingUp }, { id: 'ETF_PRICE', label: 'ETF 股價', icon: TableIcon } ],
-        POST_MARKET: [ { id: 'BASIC', label: '基本資料', icon: FileText }, { id: 'TODAY_EX', label: '本日除息', icon: PieChart }, { id: 'FILLED_3DAYS', label: '填息名單', icon: Check }, { id: 'UNFILLED_2026', label: '是否填息', icon: AlertCircle } ]
+        POST_MARKET: [ { id: 'BASIC', label: '基本資料', icon: FileText }, { id: 'TODAY_EX', label: '本日除息', icon: PieChart }, { id: 'FILLED_3DAYS', label: '秒填息', icon: Check }, { id: 'UNFILLED_2026', label: '未填息', icon: AlertCircle } ]
     };
 
     const currentSubTabs = SUB_TABS[mainTab] || [];
@@ -192,7 +231,69 @@ const TabAdvancedSearch: React.FC = () => {
                             </table>
                         )}
 
-                        {/* 4. POST MARKET > TODAY EX */}
+                        {/* 4. WEEKLY > FILL */}
+                        {mainTab === 'WEEKLY' && reportType === 'FILL' && (
+                            <table className="w-full text-left border-collapse text-base">
+                                <thead className="bg-blue-50 sticky top-0 z-10 border-b border-blue-200 font-bold text-blue-900">
+                                    <tr><th className="p-3">代碼</th><th className="p-3">名稱</th><th className="p-3">除息日</th><th className="p-3 text-right">金額</th><th className="p-3 text-center">填息日</th><th className="p-3 text-right">天數</th></tr>
+                                </thead>
+                                <tbody className="divide-y divide-blue-50 font-bold text-gray-700">
+                                    {reportFill.length===0?<tr><td colSpan={6} className="p-8 text-center text-gray-400">本週無填息資料</td></tr> : reportFill.map((d,i)=>(
+                                        <tr key={i} className="hover:bg-blue-50"><td className="p-3 font-mono">{d.etfCode}</td><td className="p-3">{d.etfName}</td><td className="p-3 font-mono">{d.exDate}</td><td className="p-3 text-right font-mono text-emerald-600">{fmtDiv(d.amount)}</td><td className="p-3 text-center font-mono">{d.fillDate}</td><td className="p-3 text-right font-mono">{d.daysToFill}</td></tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        )}
+
+                        {/* 5. PRE MARKET > GLOBAL */}
+                        {mainTab === 'PRE_MARKET' && preMarketType === 'GLOBAL_MARKET' && (
+                            <table className="w-full text-left border-collapse text-base">
+                                <thead className="bg-blue-50 sticky top-0 z-10 border-b border-blue-200 font-bold text-blue-900">
+                                    <tr><th className="p-3">日期</th><th className="p-3">指數名稱</th><th className="p-3 text-right">現價</th><th className="p-3 text-right">漲跌</th><th className="p-3 text-right">幅度</th></tr>
+                                </thead>
+                                <tbody className="divide-y divide-blue-50 font-bold text-gray-700">
+                                    {reportPreMarketGlobal.map((d, i) => (
+                                        <tr key={i} className="hover:bg-blue-50 transition-colors">
+                                            <td className="p-3 font-mono">{d.date}</td><td className="p-3">{d.indexName}</td><td className="p-3 text-right font-mono text-blue-900">{fmtNum(d.price)}</td><td className={`p-3 text-right font-mono ${d.change>=0?'text-red-600':'text-green-600'}`}>{fmtNum(d.change)}</td><td className={`p-3 text-right font-mono ${d.changePercent>=0?'text-red-600':'text-green-600'}`}>{fmtNum(d.changePercent)}%</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        )}
+
+                        {/* 6. PRE MARKET > ETF PRICE */}
+                        {mainTab === 'PRE_MARKET' && preMarketType === 'ETF_PRICE' && (
+                            <table className="w-full text-left border-collapse text-base">
+                                <thead className="bg-blue-50 sticky top-0 z-10 border-b border-blue-200 font-bold text-blue-900">
+                                    <tr><th className="p-3">日期</th><th className="p-3">代碼</th><th className="p-3">名稱</th><th className="p-3 text-right">收盤</th><th className="p-3 text-right">漲跌</th></tr>
+                                </thead>
+                                <tbody className="divide-y divide-blue-50 font-bold text-gray-700">
+                                    {reportPreMarketEtfPrice.map((d, i) => (
+                                        <tr key={i} className="hover:bg-blue-50 transition-colors">
+                                            <td className="p-3 font-mono">{d.date}</td><td className="p-3 font-mono">{d.etfCode}</td><td className="p-3">{d.etfName}</td><td className="p-3 text-right font-mono text-blue-900">{fmtNum(d.price)}</td><td className="p-3 text-right font-mono text-gray-600">{fmtNum(d.price - d.prevClose)}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        )}
+
+                        {/* 7. POST MARKET > BASIC */}
+                        {mainTab === 'POST_MARKET' && postMarketType === 'BASIC' && (
+                            <table className="w-full text-left border-collapse text-base">
+                                <thead className="bg-blue-50 sticky top-0 z-10 border-b border-blue-200 font-bold text-blue-900">
+                                    <tr><th className="p-3">代碼</th><th className="p-3">名稱</th><th className="p-3">分類</th><th className="p-3">週期</th><th className="p-3 text-right">規模(億)</th></tr>
+                                </thead>
+                                <tbody className="divide-y divide-blue-50 font-bold text-gray-700">
+                                    {reportPostMarketBasic.map((d, i) => (
+                                        <tr key={i} className="hover:bg-blue-50 transition-colors">
+                                            <td className="p-3 font-mono">{d.etfCode}</td><td className="p-3">{d.etfName}</td><td className="p-3">{d.category}</td><td className="p-3">{d.dividendFreq}</td><td className="p-3 text-right font-mono">{d.size ? d.size.toLocaleString() : '-'}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        )}
+
+                        {/* 8. POST MARKET > TODAY EX */}
                         {mainTab === 'POST_MARKET' && postMarketType === 'TODAY_EX' && (
                             <table className="w-full text-left border-collapse text-base">
                                 <thead className="bg-blue-50 sticky top-0 z-10 border-b border-blue-200 font-bold text-blue-900">
@@ -206,13 +307,66 @@ const TabAdvancedSearch: React.FC = () => {
                             </table>
                         )}
 
-                        {/* FALLBACK FOR OTHER TABS */}
-                        {(mainTab !== 'WEEKLY' && mainTab !== 'POST_MARKET' || (mainTab==='POST_MARKET' && postMarketType !== 'TODAY_EX')) && (
-                             <div className="p-12 text-center text-gray-400 font-bold text-lg flex flex-col items-center gap-4">
-                                <FileText className="w-16 h-16 opacity-30" />
-                                <p>此報表功能 ({mainTab} - {currentSubTabId}) 開發中...</p>
-                             </div>
+                        {/* 9. POST MARKET > FILLED 3 DAYS */}
+                        {mainTab === 'POST_MARKET' && postMarketType === 'FILLED_3DAYS' && (
+                            <table className="w-full text-left border-collapse text-base">
+                                <thead className="bg-blue-50 sticky top-0 z-10 border-b border-blue-200 font-bold text-blue-900">
+                                    <tr><th className="p-3">代碼</th><th className="p-3">名稱</th><th className="p-3">除息日</th><th className="p-3 text-right">金額</th><th className="p-3 text-center">填息日</th><th className="p-3 text-right">天數</th></tr>
+                                </thead>
+                                <tbody className="divide-y divide-blue-50 font-bold text-gray-700">
+                                    {reportPostMarketFilled3Days.length===0?<tr><td colSpan={6} className="p-8 text-center text-gray-400">無秒填息資料</td></tr> : reportPostMarketFilled3Days.map((d,i)=>(
+                                        <tr key={i} className="hover:bg-blue-50"><td className="p-3 font-mono">{d.etfCode}</td><td className="p-3">{d.etfName}</td><td className="p-3 font-mono">{d.exDate}</td><td className="p-3 text-right font-mono text-emerald-600">{fmtDiv(d.amount)}</td><td className="p-3 text-center font-mono">{d.fillDate}</td><td className="p-3 text-right font-mono text-green-600">{d.daysToFill}</td></tr>
+                                    ))}
+                                </tbody>
+                            </table>
                         )}
+
+                        {/* 10. POST MARKET > UNFILLED 2026 */}
+                        {mainTab === 'POST_MARKET' && postMarketType === 'UNFILLED_2026' && (
+                            <table className="w-full text-left border-collapse text-base">
+                                <thead className="bg-blue-50 sticky top-0 z-10 border-b border-blue-200 font-bold text-blue-900">
+                                    <tr><th className="p-3">代碼</th><th className="p-3">名稱</th><th className="p-3">除息日</th><th className="p-3 text-right">金額</th><th className="p-3 text-right">參考價</th><th className="p-3 text-center">狀態</th></tr>
+                                </thead>
+                                <tbody className="divide-y divide-blue-50 font-bold text-gray-700">
+                                    {reportPostMarketUnfilled2026.length===0?<tr><td colSpan={6} className="p-8 text-center text-gray-400">目前皆已填息或無資料</td></tr> : reportPostMarketUnfilled2026.map((d,i)=>(
+                                        <tr key={i} className="hover:bg-blue-50"><td className="p-3 font-mono">{d.etfCode}</td><td className="p-3">{d.etfName}</td><td className="p-3 font-mono">{d.exDate}</td><td className="p-3 text-right font-mono text-emerald-600">{fmtDiv(d.amount)}</td><td className="p-3 text-right font-mono">{d.priceReference}</td><td className="p-3 text-center text-red-500">未填息</td></tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        )}
+
+                        {/* 11. SELF MONTHLY > LIST */}
+                        {mainTab === 'SELF_MONTHLY' && selfMonthlySubTab === 'QUARTERLY_LIST' && (
+                            <div className="space-y-4 p-4">
+                                {Object.entries(reportSelfMonthlyList).map(([group, list]: [string, any[]]) => (
+                                    <div key={group} className="bg-white rounded border p-4 shadow-sm">
+                                        <h3 className="font-bold text-lg text-blue-900 mb-2 border-b pb-2">
+                                            {group === 'M' ? '月配息 (M)' : group === 'Q1' ? '季配 (1,4,7,10)' : group === 'Q2' ? '季配 (2,5,8,11)' : '季配 (3,6,9,12)'}
+                                        </h3>
+                                        <div className="flex flex-wrap gap-2">
+                                            {list.map((b: any) => (
+                                                <span key={b.etfCode} className="bg-blue-50 text-blue-800 px-2 py-1 rounded text-sm font-bold border border-blue-100">{b.etfCode} {b.etfName}</span>
+                                            ))}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+
+                        {/* 12. SELF MONTHLY > EX DIV DATA */}
+                        {mainTab === 'SELF_MONTHLY' && selfMonthlySubTab === 'EX_DIV_DATA' && (
+                            <table className="w-full text-left border-collapse text-base">
+                                <thead className="bg-blue-50 sticky top-0 z-10 border-b border-blue-200 font-bold text-blue-900">
+                                    <tr><th className="p-3">代碼</th><th className="p-3">名稱</th><th className="p-3">除息日</th><th className="p-3 text-right">金額</th><th className="p-3 text-right">發放日</th></tr>
+                                </thead>
+                                <tbody className="divide-y divide-blue-50 font-bold text-gray-700">
+                                    {reportSelfMonthlyExDiv.map((d,i)=>(
+                                        <tr key={i} className="hover:bg-blue-50"><td className="p-3 font-mono">{d.etfCode}</td><td className="p-3">{d.etfName}</td><td className="p-3 font-mono">{d.exDate}</td><td className="p-3 text-right font-mono text-emerald-600">{fmtDiv(d.amount)}</td><td className="p-3 text-right font-mono">{d.paymentDate}</td></tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        )}
+
                     </div>
                 </div>
             </div>

@@ -102,7 +102,7 @@ const TabFillAnalysis: React.FC<any> = ({
           </div>
       </div>
 
-      {/* UNIFIED TABLE STYLE - 16px (text-base) */}
+      {/* UNIFIED CONTENT AREA */}
       <div className="flex-1 overflow-auto bg-white rounded-lg shadow-sm border border-blue-200 min-h-0">
          <table className="w-full text-left border-collapse text-base">
             <thead className="bg-blue-50 sticky top-0 z-10 border-b border-blue-200 font-bold text-blue-900">
