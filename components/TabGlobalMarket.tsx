@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { getMarketData, exportToCSV } from '../services/dataService';
 import { MarketData } from '../types';
 import { TrendingUp, TrendingDown, Download, Info, X, LineChart as LineChartIcon, Maximize2 } from 'lucide-react';
-import { createChart, ColorType } from 'lightweight-charts';
+import { createChart, ColorType, CandlestickSeries } from 'lightweight-charts';
 
 const TabGlobalMarket: React.FC = () => {
   const [data, setData] = useState<MarketData[]>([]);
@@ -314,7 +314,7 @@ const KLineChartModal: React.FC<ChartModalProps> = ({ data, title, onClose }) =>
             width: chartContainerRef.current.clientWidth,
             height: 400,
         });
-        const series = chart.addCandlestickSeries({ upColor: '#ef4444', downColor: '#22c55e', borderVisible: false, wickUpColor: '#ef4444', wickDownColor: '#22c55e' });
+        const series = chart.addSeries(CandlestickSeries, { upColor: '#ef4444', downColor: '#22c55e', borderVisible: false, wickUpColor: '#ef4444', wickDownColor: '#22c55e' });
         series.setData(chartData);
         chart.timeScale().fitContent();
         const handleResize = () => chart.applyOptions({ width: chartContainerRef.current?.clientWidth || 0 });

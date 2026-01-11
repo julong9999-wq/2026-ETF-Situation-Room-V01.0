@@ -681,8 +681,8 @@ const TabAdvancedSearch: React.FC = () => {
     if (mainConfig) activeTheme = mainConfig.theme;
 
     let subTabs = WEEKLY_SUB;
-    let currentSubTabId = reportType;
-    let setSubTab = setReportType;
+    let currentSubTabId: string = reportType;
+    let setSubTab: (val: any) => void = setReportType;
 
     if (mainTab === 'SELF_MONTHLY') {
         subTabs = MONTHLY_SUB;
@@ -980,7 +980,7 @@ const TabAdvancedSearch: React.FC = () => {
                                         <tbody className={getTableBodyClass()}>
                                             {selfMonthlyData.list.map((row: any, i: number) => (
                                                 <tr key={i} className={getRowHoverClass()}>
-                                                    <td className="p-3 text-gray-700">{row['商品分類']}</td><td className="p-3"><span className="bg-gray-100 px-2 py-0.5 rounded text-xs font-bold text-gray-600">{row['配息週期']}</span></td><td className="p-3 font-mono font-bold text-blue-700">{row['ETF代碼']}</td><td className="p-3 font-bold text-gray-800">{row['ETF名稱']}</td><td className="p-3 text-gray-700">{row['ETF類型']}</td><td className="p-3 text-right font-mono text-gray-900">{row['規模大小'] !== '-' ? Number(row['規模大小']).toLocaleString() : '-'}</td><td className="p-3 text-center font-mono text-orange-700 bg-orange-50/50 flex items-center justify-center gap-1">{row['dateWarning'] && <AlertTriangle className="w-4 h-4 text-red-600" title="起始日期較晚" />}{row['起始日期']}</td><td className="p-3 text-right font-mono font-bold text-orange-700 bg-orange-50/50">{fmtNum(row['起始股價'])}</td><td className="p-3 text-center font-mono text-gray-600">{row['最近日期']}</td><td className="p-3 text-right font-mono font-bold text-blue-700">{fmtNum(row['最近股價'])}</td>
+                                                    <td className="p-3 text-gray-700">{row['商品分類']}</td><td className="p-3"><span className="bg-gray-100 px-2 py-0.5 rounded text-xs font-bold text-gray-600">{row['配息週期']}</span></td><td className="p-3 font-mono font-bold text-blue-700">{row['ETF代碼']}</td><td className="p-3 font-bold text-gray-800">{row['ETF名稱']}</td><td className="p-3 text-gray-700">{row['ETF類型']}</td><td className="p-3 text-right font-mono text-gray-900">{row['規模大小'] !== '-' ? Number(row['規模大小']).toLocaleString() : '-'}</td><td className="p-3 text-center font-mono text-orange-700 bg-orange-50/50 flex items-center justify-center gap-1">{row['dateWarning'] && <span title="起始日期較晚"><AlertTriangle className="w-4 h-4 text-red-600" /></span>}{row['起始日期']}</td><td className="p-3 text-right font-mono font-bold text-orange-700 bg-orange-50/50">{fmtNum(row['起始股價'])}</td><td className="p-3 text-center font-mono text-gray-600">{row['最近日期']}</td><td className="p-3 text-right font-mono font-bold text-blue-700">{fmtNum(row['最近股價'])}</td>
                                                 </tr>
                                             ))}
                                         </tbody>

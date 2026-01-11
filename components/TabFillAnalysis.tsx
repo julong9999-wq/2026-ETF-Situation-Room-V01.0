@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { getFillAnalysisData, getBasicInfo, getPriceData, getHistoryData, getDividendData, exportToCSV } from '../services/dataService';
 import { FillAnalysisData, BasicInfo, PriceData, HistoryData, DividendData } from '../types';
 import { Download, CheckCircle, Clock, Database, ChevronRight, ArrowRight, AlertCircle, CheckCircle2, LineChart, PieChart, TrendingUp, X, RefreshCw } from 'lucide-react';
-import { createChart, ColorType } from 'lightweight-charts';
+import { createChart, ColorType, CandlestickSeries, LineSeries } from 'lightweight-charts';
 
 // --- SHARED MODAL COMPONENTS ---
 const TechChartModal = ({ data, title, onClose }: { data: any[], title: string, onClose: () => void }) => {
@@ -16,7 +16,7 @@ const TechChartModal = ({ data, title, onClose }: { data: any[], title: string, 
             width: containerRef.current.clientWidth,
             height: 400,
         });
-        const series = chart.addCandlestickSeries({ upColor: '#ef4444', downColor: '#22c55e', borderVisible: false, wickUpColor: '#ef4444', wickDownColor: '#22c55e', });
+        const series = chart.addSeries(CandlestickSeries, { upColor: '#ef4444', downColor: '#22c55e', borderVisible: false, wickUpColor: '#ef4444', wickDownColor: '#22c55e', });
         series.setData(chartData);
         chart.timeScale().fitContent();
         const handleResize = () => chart.applyOptions({ width: containerRef.current?.clientWidth || 0 });
@@ -59,8 +59,8 @@ const TrendChartModal = ({ historyData, priceData, divData, title, onClose }: { 
             line2Data.push({ time: p.date, value: p.price + cumDiv });
         }
         const chart = createChart(containerRef.current, { layout: { background: { type: ColorType.Solid, color: 'white' }, textColor: '#333' }, grid: { vertLines: { color: '#f0f0f0' }, horzLines: { color: '#f0f0f0' } }, width: containerRef.current.clientWidth, height: 400, });
-        const lineSeries1 = chart.addLineSeries({ color: '#2563eb', title: '股價變化', lineWidth: 2 });
-        const lineSeries2 = chart.addLineSeries({ color: '#d97706', title: '含息累積', lineWidth: 2 });
+        const lineSeries1 = chart.addSeries(LineSeries, { color: '#2563eb', title: '股價變化', lineWidth: 2 });
+        const lineSeries2 = chart.addSeries(LineSeries, { color: '#d97706', title: '含息累積', lineWidth: 2 });
         lineSeries1.setData(line1Data); lineSeries2.setData(line2Data);
         chart.timeScale().fitContent();
         const handleResize = () => chart.applyOptions({ width: containerRef.current?.clientWidth || 0 });

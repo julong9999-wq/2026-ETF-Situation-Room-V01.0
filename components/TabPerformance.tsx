@@ -16,6 +16,15 @@ const KEY_CATEGORIES = 'user_lexicon_categories';
 const DEFAULT_BROKERS = ["國泰_爸", "國泰_媽", "國泰_小孩"];
 const DEFAULT_CATEGORIES = ["自存退休", "質押貸款", "勞退理財"];
 
+// Helper for Frequency Logic
+const checkSeason = (freqStr: string | undefined, season: 'Q1'|'Q2'|'Q3') => {
+    const f = String(freqStr || '').replace(/\s/g, ''); 
+    if (season === 'Q1') return f.includes('季一') || f.includes('1,4') || f.includes('01,04') || (f.includes('1') && f.includes('4'));
+    if (season === 'Q2') return f.includes('季二') || f.includes('2,5') || f.includes('02,05') || (f.includes('2') && f.includes('5'));
+    if (season === 'Q3') return f.includes('季三') || f.includes('3,6') || f.includes('03,06') || (f.includes('3') && f.includes('6'));
+    return false;
+};
+
 const TabPerformance: React.FC = () => {
     // --- STATE ---
     const [activeSubTab, setActiveSubTab] = useState<'HOLDINGS' | 'DIVIDEND' | 'PERFORMANCE'>('HOLDINGS');
@@ -42,6 +51,7 @@ const TabPerformance: React.FC = () => {
 
     // Summary Modal State
     const [summaryViewMode, setSummaryViewMode] = useState<'ACCOUNT' | 'STOCK'>('ACCOUNT');
+    // Using a set to track expanded IDs. ID format: "L1:Key" or "L2:Key"
     const [expandedSummaryRows, setExpandedSummaryRows] = useState<Set<string>>(new Set());
 
     // File Input Ref for Import
@@ -151,8 +161,45 @@ const TabPerformance: React.FC = () => {
         map.forEach(pos => {
             if (pos.totalQty > 0) pos.avgCost = pos.totalCost / pos.totalQty;
         });
-        return Array.from(map.values()).sort((a,b) => a.code.localeCompare(b.code));
-    }, [filteredTransactions]);
+        
+        // Sorting Logic: Month(1) > Q1(2) > Q2(3) > Q3(4) > Other(5) > Code
+        return Array.from(map.values()).sort((a,b) => {
+            const getFreq = (code: string) => {
+                const info = basicInfo.find(i => i.etfCode === code);
+                return info ? (info.dividendFreq || '') : '';
+            };
+            const fA = getFreq(a.code);
+            const fB = getFreq(b.code);
+            
+            const getScore = (f: string) => {
+                if (f.includes('月')) return 1;
+                if (checkSeason(f, 'Q1')) return 2;
+                if (checkSeason(f, 'Q2')) return 3;
+                if (checkSeason(f, 'Q3')) return 4;
+                return 5;
+            };
+
+            const sA = getScore(fA);
+            const sB = getScore(fB);
+            
+            if (sA !== sB) return sA - sB;
+            return a.code.localeCompare(b.code);
+        });
+    }, [filteredTransactions, basicInfo]);
+
+    const getPositionColor = (code: string, isSelected: boolean) => {
+        const info = basicInfo.find(i => i.etfCode === code);
+        const f = info ? (info.dividendFreq || '') : '';
+        let baseClass = 'bg-gray-50 border-gray-200'; // Default Light Gray
+
+        if (f.includes('月')) baseClass = 'bg-amber-50 border-amber-200 text-amber-900'; // Light Tea/Brown
+        else if (checkSeason(f, 'Q1')) baseClass = 'bg-blue-50 border-blue-200 text-blue-900'; // Light Blue
+        else if (checkSeason(f, 'Q2')) baseClass = 'bg-green-50 border-green-200 text-green-900'; // Light Green
+        else if (checkSeason(f, 'Q3')) baseClass = 'bg-orange-50 border-orange-200 text-orange-900'; // Light Orange
+        
+        if (isSelected) return `${baseClass} ring-2 ring-blue-500 shadow-md transform scale-[1.01] z-10`;
+        return `${baseClass} hover:brightness-95 hover:shadow-sm`;
+    };
 
     // --- AUTO-SELECT FIRST ITEM EFFECT ---
     useEffect(() => {
@@ -223,69 +270,99 @@ const TabPerformance: React.FC = () => {
         return results;
     }, [selectedCode, systemDividends, transactions, selectedBroker, selectedCategory]);
 
-    // --- SUMMARY CALCULATIONS ---
+    // --- SUMMARY CALCULATIONS (New 3-Level Logic) ---
     const summaryData = useMemo(() => {
         const source = transactions.filter(t => t.type === 'Buy');
 
         if (summaryViewMode === 'ACCOUNT') {
-            const groups = new Map<string, { broker: string, category: string, totalQty: number, totalCost: number, items: Map<string, any> }>();
-            
-            source.forEach(t => {
-                const key = `${t.broker}|${t.category}`;
-                if (!groups.has(key)) {
-                    groups.set(key, { broker: t.broker, category: t.category, totalQty: 0, totalCost: 0, items: new Map() });
-                }
-                const g = groups.get(key)!;
-                g.totalQty += t.quantity;
-                g.totalCost += t.cost;
+            const hierarchy = new Map<string, {
+                broker: string,
+                totalQty: number,
+                totalCost: number,
+                categories: Map<string, {
+                    category: string,
+                    totalQty: number,
+                    totalCost: number,
+                    items: Map<string, { code: string, name: string, qty: number, cost: number }>
+                }>
+            }>();
 
-                const itemKey = t.code;
-                if (!g.items.has(itemKey)) {
-                    g.items.set(itemKey, { code: t.code, name: t.name, qty: 0, cost: 0 });
+            source.forEach(t => {
+                const bKey = t.broker || '未分類';
+                const cKey = t.category || '未分類';
+                
+                if (!hierarchy.has(bKey)) {
+                    hierarchy.set(bKey, { broker: bKey, totalQty: 0, totalCost: 0, categories: new Map() });
                 }
-                const i = g.items.get(itemKey)!;
-                i.qty += t.quantity;
-                i.cost += t.cost;
+                const bGroup = hierarchy.get(bKey)!;
+                bGroup.totalQty += t.quantity;
+                bGroup.totalCost += t.cost;
+
+                if (!bGroup.categories.has(cKey)) {
+                    bGroup.categories.set(cKey, { category: cKey, totalQty: 0, totalCost: 0, items: new Map() });
+                }
+                const cGroup = bGroup.categories.get(cKey)!;
+                cGroup.totalQty += t.quantity;
+                cGroup.totalCost += t.cost;
+
+                const iKey = t.code;
+                if (!cGroup.items.has(iKey)) {
+                    cGroup.items.set(iKey, { code: t.code, name: t.name, qty: 0, cost: 0 });
+                }
+                const item = cGroup.items.get(iKey)!;
+                item.qty += t.quantity;
+                item.cost += t.cost;
             });
 
-            return Array.from(groups.values()).map(g => ({
-                id: `${g.broker}|${g.category}`,
-                group1: g.broker,
-                group2: g.category,
-                totalQty: g.totalQty,
-                totalCost: g.totalCost,
-                details: Array.from(g.items.values()).sort((a,b) => a.code.localeCompare(b.code))
-            })).sort((a,b) => (a.group1 + a.group2).localeCompare(b.group1 + b.group2));
+            return Array.from(hierarchy.values()).map(b => ({
+                id: b.broker,
+                label: b.broker,
+                totalQty: b.totalQty,
+                totalCost: b.totalCost,
+                children: Array.from(b.categories.values()).map(c => ({
+                    id: `${b.broker}|${c.category}`,
+                    label: c.category,
+                    totalQty: c.totalQty,
+                    totalCost: c.totalCost,
+                    children: Array.from(c.items.values()).sort((x,y) => x.code.localeCompare(y.code))
+                })).sort((x,y) => x.label.localeCompare(y.label))
+            })).sort((x,y) => x.label.localeCompare(y.label));
 
         } else {
-            const groups = new Map<string, { code: string, name: string, totalQty: number, totalCost: number, items: Map<string, any> }>();
+            const hierarchy = new Map<string, {
+                code: string,
+                name: string,
+                totalQty: number,
+                totalCost: number,
+                items: Map<string, { broker: string, category: string, qty: number, cost: number }>
+            }>();
 
             source.forEach(t => {
                 const key = t.code;
-                if (!groups.has(key)) {
-                    groups.set(key, { code: t.code, name: t.name, totalQty: 0, totalCost: 0, items: new Map() });
+                if (!hierarchy.has(key)) {
+                    hierarchy.set(key, { code: t.code, name: t.name, totalQty: 0, totalCost: 0, items: new Map() });
                 }
-                const g = groups.get(key)!;
-                g.totalQty += t.quantity;
-                g.totalCost += t.cost;
+                const group = hierarchy.get(key)!;
+                group.totalQty += t.quantity;
+                group.totalCost += t.cost;
 
-                const itemKey = `${t.broker}|${t.category}`;
-                if (!g.items.has(itemKey)) {
-                    g.items.set(itemKey, { broker: t.broker, category: t.category, qty: 0, cost: 0 });
+                const iKey = `${t.broker}|${t.category}`;
+                if (!group.items.has(iKey)) {
+                    group.items.set(iKey, { broker: t.broker, category: t.category, qty: 0, cost: 0 });
                 }
-                const i = g.items.get(itemKey)!;
-                i.qty += t.quantity;
-                i.cost += t.cost;
+                const item = group.items.get(iKey)!;
+                item.qty += t.quantity;
+                item.cost += t.cost;
             });
 
-            return Array.from(groups.values()).map(g => ({
+            return Array.from(hierarchy.values()).map(g => ({
                 id: g.code,
-                group1: g.code,
-                group2: g.name,
+                label: g.code,
+                subLabel: g.name,
                 totalQty: g.totalQty,
                 totalCost: g.totalCost,
-                details: Array.from(g.items.values()).sort((a,b) => (a.broker + a.category).localeCompare(b.broker + b.category))
-            })).sort((a,b) => a.group1.localeCompare(b.group1));
+                children: Array.from(g.items.values()).sort((x,y) => (x.broker+x.category).localeCompare(y.broker+y.category))
+            })).sort((a,b) => a.label.localeCompare(b.label));
         }
     }, [transactions, summaryViewMode]);
 
@@ -388,7 +465,7 @@ const TabPerformance: React.FC = () => {
         exportToCSV(`${selectedCode || 'Portfolio'}_股息分析_${new Date().toISOString().split('T')[0]}`, headers, csvData);
     };
 
-    // Import Logic (Simplified for brevity as no logic change)
+    // Import Logic
     const parseCSVRow = (str: string) => { const result = []; let current = ''; let inQuote = false; for(let i=0; i<str.length; i++) { const char = str[i]; if (char === '"') { inQuote = !inQuote; } else if (char === ',' && !inQuote) { result.push(current.trim()); current = ''; } else { current += char; } } result.push(current.trim()); return result.map(s => s.replace(/^"|"$/g, '').trim()); };
     const normalizeDate = (d: string) => { if (!d) return ''; const parts = d.replace(/\//g, '-').split('-'); if (parts.length === 3) { return `${parts[0]}-${parts[1].padStart(2,'0')}-${parts[2].padStart(2,'0')}`; } return d; };
     const cleanNum = (v: string) => { if (!v) return 0; return parseFloat(v.replace(/,/g, '').replace(/"/g, '')) || 0; };
@@ -491,7 +568,7 @@ const TabPerformance: React.FC = () => {
             {/* 3. Main Content Area */}
             <div className="flex-1 flex gap-2 p-2 overflow-hidden min-h-0">
                 
-                {/* LEFT PANEL: Master List */}
+                {/* LEFT PANEL: Master List (Updated Layout) */}
                 <div className="w-[360px] flex-none bg-white rounded-xl shadow-sm border border-blue-200 flex flex-col overflow-hidden">
                     <div className="p-2 bg-blue-100 border-b border-blue-200 grid grid-cols-3 gap-2 shrink-0">
                         <div className="flex flex-col items-center justify-center bg-blue-100 p-1.5 rounded-lg border border-blue-200 shadow-sm">
@@ -522,35 +599,23 @@ const TabPerformance: React.FC = () => {
                                     onClick={() => setSelectedCode(pos.code)}
                                     className={`
                                         p-2 rounded-lg cursor-pointer border transition-all relative group flex flex-col gap-0.5
-                                        ${selectedCode === pos.code 
-                                            ? 'bg-blue-50 border-blue-500 shadow-md ring-1 ring-blue-500' 
-                                            : 'bg-white border-gray-200 hover:border-blue-300 hover:shadow-sm'
-                                        }
+                                        ${getPositionColor(pos.code, selectedCode === pos.code)}
                                     `}
                                 >
-                                    <div className="flex justify-between items-center">
+                                    <div className="flex justify-between items-center border-b border-black/5 pb-1 mb-1">
                                         <div className="flex items-baseline gap-2">
-                                            <span className="text-lg font-bold text-blue-900 font-mono">{pos.code}</span>
-                                            <span className="text-base font-bold text-gray-800 truncate">{pos.name}</span>
+                                            <span className="text-lg font-bold font-mono leading-none">{pos.code}</span>
+                                            <span className="text-base font-bold truncate leading-none opacity-90">{pos.name}</span>
                                         </div>
                                         <div className={`absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity ${selectedCode === pos.code ? 'text-blue-500' : 'text-gray-300'}`}>
                                             <ChevronRight className="w-5 h-5" />
                                         </div>
                                     </div>
                                     
-                                    <div className="grid grid-cols-3 gap-1">
-                                        <div className="flex flex-col">
-                                            <span className="text-gray-500 text-[10px] font-bold">累積股數</span>
-                                            <span className="font-bold font-mono text-gray-900 text-sm">{fmtMoney(pos.totalQty)}</span>
-                                        </div>
-                                        <div className="flex flex-col items-end">
-                                            <span className="text-gray-500 text-[10px] font-bold">平均成本</span>
-                                            <span className="font-bold font-mono text-gray-900 text-sm">{fmtPrice(Math.round(pos.avgCost * 100) / 100)}</span>
-                                        </div>
-                                        <div className="flex flex-col items-end">
-                                            <span className="text-gray-500 text-[10px] font-bold">累積金額</span>
-                                            <span className="font-bold font-mono text-blue-700 text-sm">{fmtMoney(pos.totalCost)}</span>
-                                        </div>
+                                    <div className="grid grid-cols-3 gap-1 text-center">
+                                        <div className="font-mono font-bold text-sm">{fmtMoney(pos.totalQty)}</div>
+                                        <div className="font-mono font-bold text-sm">{fmtPrice(Math.round(pos.avgCost * 100) / 100)}</div>
+                                        <div className="font-mono font-bold text-sm">{fmtMoney(pos.totalCost)}</div>
                                     </div>
                                 </div>
                             ))
@@ -559,6 +624,7 @@ const TabPerformance: React.FC = () => {
                 </div>
 
                 {/* RIGHT PANEL: Content Switch */}
+                {/* ... (Right Panel remains unchanged) ... */}
                 {activeSubTab === 'HOLDINGS' ? (
                     <div className="flex-1 bg-white rounded-xl shadow-sm border border-blue-200 flex flex-col overflow-hidden">
                         <div className="p-3 bg-white border-b border-blue-100 flex items-center justify-between flex-none">
@@ -688,6 +754,7 @@ const TabPerformance: React.FC = () => {
             </div>
 
             {/* --- SUMMARY ANALYSIS MODAL --- */}
+            {/* ... (Keep existing modal code) ... */}
             {showSummaryModal && (
                 <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
                     <div className="bg-white rounded-xl w-full max-w-5xl h-[85vh] shadow-2xl animate-in zoom-in-95 flex flex-col overflow-hidden">
@@ -715,75 +782,88 @@ const TabPerformance: React.FC = () => {
 
                         <div className="flex-1 overflow-auto bg-white p-0">
                             <table className="w-full text-left border-collapse">
-                                {/* PARENT TABLE HEADER - DARKER COLOR FOR HIERARCHY */}
-                                <thead className="bg-blue-200 sticky top-0 z-10 border-b border-blue-300 text-base font-bold text-blue-900 shadow-sm">
+                                {/* PARENT TABLE HEADER */}
+                                <thead className="bg-blue-100 sticky top-0 z-10 border-b border-blue-200 text-base font-bold text-blue-900 shadow-sm">
                                     <tr>
                                         <th className="p-3 w-12 text-center">#</th>
                                         <th className="p-3">{summaryViewMode === 'ACCOUNT' ? '證券戶' : '股號'}</th>
-                                        <th className="p-3">{summaryViewMode === 'ACCOUNT' ? '分類' : '股名'}</th>
+                                        <th className="p-3">{summaryViewMode === 'ACCOUNT' ? '' : '股名'}</th>
                                         <th className="p-3 text-right">持股張數 (總計)</th>
                                         <th className="p-3 text-right">持股金額 (總計)</th>
-                                        <th className="p-3 w-10"></th>
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-gray-100 text-base">
+                                <tbody className="text-base">
                                     {summaryData.map((group) => {
                                         const isExpanded = expandedSummaryRows.has(group.id);
                                         return (
                                             <React.Fragment key={group.id}>
-                                                {/* PARENT ROW - DISTINCT BACKGROUND */}
+                                                {/* PARENT ROW (Level 1) */}
                                                 <tr 
-                                                    className={`cursor-pointer transition-colors hover:bg-blue-100 ${isExpanded ? 'bg-blue-100 border-blue-200' : 'bg-white'}`}
+                                                    className={`cursor-pointer transition-colors border-b border-gray-100 hover:bg-gray-50 ${isExpanded ? 'bg-blue-50/50' : 'bg-white'}`}
                                                     onClick={() => toggleSummaryRow(group.id)}
                                                 >
-                                                    <td className="p-3 text-center text-gray-500">
-                                                        {isExpanded ? <ChevronDown className="w-5 h-5 mx-auto text-blue-600" /> : <ChevronRight className="w-5 h-5 mx-auto" />}
+                                                    <td className="p-3 text-center text-gray-400">
+                                                        {isExpanded ? <ChevronDown className="w-5 h-5 mx-auto text-blue-700" /> : <ChevronRight className="w-5 h-5 mx-auto" />}
                                                     </td>
-                                                    <td className={`p-3 font-bold ${summaryViewMode === 'STOCK' ? 'font-mono text-blue-800 text-lg' : 'text-gray-900'}`}>{group.group1}</td>
-                                                    <td className="p-3 font-bold text-gray-700">{group.group2}</td>
+                                                    <td className={`p-3 font-bold text-base ${summaryViewMode === 'ACCOUNT' ? 'text-blue-900' : 'text-blue-700 font-mono'}`}>
+                                                        {group.label}
+                                                    </td>
+                                                    <td className="p-3 font-bold text-gray-700 text-base">
+                                                        {summaryViewMode === 'STOCK' ? group.subLabel : ''}
+                                                    </td>
                                                     <td className="p-3 text-right font-mono font-bold text-gray-900 text-lg">{fmtMoney(group.totalQty)}</td>
-                                                    <td className="p-3 text-right font-mono font-bold text-blue-700 text-lg">{fmtMoney(group.totalCost)}</td>
-                                                    <td></td>
+                                                    <td className="p-3 text-right font-mono font-bold text-blue-800 text-lg">{fmtMoney(group.totalCost)}</td>
                                                 </tr>
-                                                {/* DETAIL ROW */}
-                                                {isExpanded && (
-                                                    <tr className="bg-gray-50 border-y border-gray-200 shadow-inner">
-                                                        <td colSpan={6} className="p-0">
-                                                            <div className="py-3 px-12">
-                                                                <table className="w-full text-sm border border-gray-200 rounded-lg overflow-hidden bg-white">
-                                                                    {/* DETAIL TABLE HEADER - LIGHTER COLOR */}
-                                                                    <thead className="bg-gray-100 text-gray-700 font-bold border-b border-gray-200">
-                                                                        <tr>
-                                                                            <th className="p-2 pl-4 text-base">{summaryViewMode === 'ACCOUNT' ? '股號' : '證券戶'}</th>
-                                                                            <th className="p-2 text-base">{summaryViewMode === 'ACCOUNT' ? '股名' : '分類'}</th>
-                                                                            <th className="p-2 text-right text-base">持股張數</th>
-                                                                            <th className="p-2 text-right pr-4 text-base">持股金額</th>
-                                                                        </tr>
-                                                                    </thead>
-                                                                    <tbody className="divide-y divide-gray-100 text-base">
-                                                                        {group.details.map((item: any, idx: number) => (
-                                                                            <tr key={idx} className="hover:bg-gray-50">
-                                                                                <td className={`p-2 pl-4 font-bold ${summaryViewMode === 'ACCOUNT' ? 'font-mono text-blue-700' : 'text-gray-800'}`}>
-                                                                                    {summaryViewMode === 'ACCOUNT' ? item.code : item.broker}
-                                                                                </td>
-                                                                                <td className="p-2 text-gray-700 font-bold">
-                                                                                    {summaryViewMode === 'ACCOUNT' ? item.name : item.category}
-                                                                                </td>
-                                                                                <td className="p-2 text-right font-mono font-bold text-gray-900">{fmtMoney(item.qty)}</td>
-                                                                                <td className="p-2 text-right pr-4 font-mono font-bold text-blue-700">{fmtMoney(item.cost)}</td>
-                                                                            </tr>
-                                                                        ))}
-                                                                    </tbody>
-                                                                </table>
-                                                            </div>
-                                                        </td>
-                                                    </tr>
-                                                )}
+
+                                                {/* LEVEL 2 CHILDREN */}
+                                                {isExpanded && group.children.map((child: any) => {
+                                                    const isL2Expanded = expandedSummaryRows.has(child.id);
+                                                    
+                                                    if (summaryViewMode === 'ACCOUNT') {
+                                                        return (
+                                                            <React.Fragment key={child.id}>
+                                                                <tr 
+                                                                    className="cursor-pointer hover:bg-gray-50 border-b border-gray-100"
+                                                                    onClick={() => toggleSummaryRow(child.id)}
+                                                                >
+                                                                    <td className="p-2 text-center"></td> 
+                                                                    <td className="p-2 pl-4 flex items-center gap-2">
+                                                                        {isL2Expanded ? <ChevronDown className="w-4 h-4 text-blue-500" /> : <ChevronRight className="w-4 h-4 text-gray-400" />}
+                                                                        <span className="font-bold text-blue-700 text-base">{child.label}</span>
+                                                                    </td>
+                                                                    <td></td>
+                                                                    <td className="p-2 text-right font-mono font-bold text-gray-800 text-base">{fmtMoney(child.totalQty)}</td>
+                                                                    <td className="p-2 text-right font-mono font-bold text-blue-700 text-base">{fmtMoney(child.totalCost)}</td>
+                                                                </tr>
+                                                                {/* Level 3 */}
+                                                                {isL2Expanded && child.children.map((item: any, idx: number) => (
+                                                                    <tr key={idx} className="hover:bg-gray-50 border-b border-gray-50">
+                                                                        <td></td>
+                                                                        <td className="p-2 pl-12 font-bold text-blue-500 text-base font-mono">{item.code}</td>
+                                                                        <td className="p-2 font-bold text-gray-600 text-base">{item.name}</td>
+                                                                        <td className="p-2 text-right font-mono font-bold text-gray-700 text-base">{fmtMoney(item.qty)}</td>
+                                                                        <td className="p-2 text-right font-mono font-bold text-blue-500 text-base">{fmtMoney(item.cost)}</td>
+                                                                    </tr>
+                                                                ))}
+                                                            </React.Fragment>
+                                                        );
+                                                    } else {
+                                                        return (
+                                                            <tr key={child.id} className="hover:bg-gray-50 border-b border-gray-50">
+                                                                <td></td>
+                                                                <td className="p-2 pl-12 font-bold text-blue-500 text-base">{child.broker}</td>
+                                                                <td className="p-2 font-bold text-gray-600 text-base">{child.category}</td>
+                                                                <td className="p-2 text-right font-mono font-bold text-gray-700 text-base">{fmtMoney(child.qty)}</td>
+                                                                <td className="p-2 text-right font-mono font-bold text-blue-500 text-base">{fmtMoney(child.cost)}</td>
+                                                            </tr>
+                                                        );
+                                                    }
+                                                })}
                                             </React.Fragment>
                                         );
                                     })}
                                     {summaryData.length === 0 && (
-                                        <tr><td colSpan={6} className="p-10 text-center text-gray-400 font-bold text-lg">無持股資料</td></tr>
+                                        <tr><td colSpan={5} className="p-10 text-center text-gray-400 font-bold text-lg">無持股資料</td></tr>
                                     )}
                                 </tbody>
                             </table>
@@ -795,11 +875,12 @@ const TabPerformance: React.FC = () => {
                 </div>
             )}
 
-            {/* ... Other Modals unchanged ... */}
-            {/* --- ADD/EDIT MODAL & LEXICON MODAL & IMPORT MODAL --- */}
+            {/* ... Other Modals ... */}
+            {/* --- ADD/EDIT MODAL --- */}
             {showAddModal && (
                 <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
                     <div className="bg-white rounded-xl w-full max-w-4xl shadow-2xl animate-in zoom-in-95 flex flex-col max-h-[90vh]">
+                        {/* ... Modal Content ... */}
                         <div className="p-4 border-b bg-blue-50 rounded-t-xl flex justify-between items-center shrink-0">
                             <h3 className="font-bold text-xl text-blue-900 flex items-center gap-2">
                                 {editingId ? <Edit className="w-6 h-6" /> : <Plus className="w-6 h-6" />} 
@@ -810,6 +891,7 @@ const TabPerformance: React.FC = () => {
                         
                         <div className="p-8 overflow-y-auto">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
+                                {/* ... Same Form Fields ... */}
                                 {/* Left Column */}
                                 <div className="space-y-6">
                                     {/* Date */}
