@@ -64,6 +64,9 @@ const TabFillAnalysis: React.FC<any> = ({
       return n ? n.toFixed(2) : '-';
   };
 
+  // Unified Button Style
+  const btnClass = "flex items-center gap-1 px-3 py-1.5 bg-white text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-50 font-bold text-sm shadow-sm transition-colors";
+
   return (
     <div className="h-full flex flex-col p-2 gap-2 bg-blue-50 overflow-hidden">
       
@@ -95,28 +98,28 @@ const TabFillAnalysis: React.FC<any> = ({
               )}
           </div>
           <div className="flex items-center gap-2 shrink-0 border-l border-gray-100 pl-2">
-            <button className="flex items-center gap-1 px-3 py-1.5 bg-white text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-50 font-bold text-sm shadow-sm transition-colors"><Download className="w-4 h-4" /> 匯出資料</button>
+            <button className={btnClass}><Download className="w-4 h-4" /> 匯出資料</button>
           </div>
       </div>
 
       {/* UNIFIED CONTENT AREA */}
       <div className="flex-1 overflow-auto bg-white rounded-lg shadow-sm border border-blue-200 min-h-0">
-         <table className="w-full text-left border-collapse">
-            <thead className="bg-blue-50 sticky top-0 z-10 border-b border-blue-200">
+         <table className="w-full text-left border-collapse text-sm">
+            <thead className="bg-blue-50 sticky top-0 z-10 border-b border-blue-200 font-bold text-blue-900">
                 <tr>
-                    <th className="p-3 font-bold text-blue-900 text-sm">ETF代碼</th>
-                    <th className="p-3 font-bold text-blue-900 text-sm">ETF名稱</th>
-                    <th className="p-3 font-bold text-blue-900 text-sm">除息日期</th>
-                    <th className="p-3 font-bold text-blue-900 text-sm text-right">除息金額</th>
-                    <th className="p-3 font-bold text-blue-900 text-sm text-right">除息前股價</th>
-                    <th className="p-3 font-bold text-blue-900 text-sm text-right">參考價</th>
-                    <th className="p-3 font-bold text-blue-900 text-sm text-center">填息日期</th>
-                    <th className="p-3 font-bold text-blue-900 text-sm text-right">填息價</th>
-                    <th className="p-3 font-bold text-blue-900 text-sm text-center">狀態</th>
-                    <th className="p-3 font-bold text-blue-900 text-sm text-right">天數</th>
+                    <th className="p-3">ETF代碼</th>
+                    <th className="p-3">ETF名稱</th>
+                    <th className="p-3">除息日期</th>
+                    <th className="p-3 text-right">除息金額</th>
+                    <th className="p-3 text-right">除息前股價</th>
+                    <th className="p-3 text-right">參考價</th>
+                    <th className="p-3 text-center">填息日期</th>
+                    <th className="p-3 text-right">填息價</th>
+                    <th className="p-3 text-center">狀態</th>
+                    <th className="p-3 text-right">天數</th>
                 </tr>
             </thead>
-            <tbody className="divide-y divide-blue-50 text-sm font-bold text-gray-700">
+            <tbody className="divide-y divide-blue-50 font-bold text-gray-700">
                 {filteredData.map((d, i) => (
                     <tr key={i} className="hover:bg-blue-50 transition-colors">
                         <td className="p-3 font-mono text-blue-800">{d.etfCode}</td>

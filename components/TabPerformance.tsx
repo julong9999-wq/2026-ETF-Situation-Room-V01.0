@@ -14,15 +14,6 @@ const KEY_CATEGORIES = 'user_lexicon_categories';
 const DEFAULT_BROKERS = ["國泰_爸", "國泰_媽", "國泰_小孩"];
 const DEFAULT_CATEGORIES = ["自存退休", "質押貸款", "勞退理財"];
 
-// --- HELPERS ---
-const checkSeason = (freqStr: string | undefined, season: 'Q1'|'Q2'|'Q3') => {
-    const f = String(freqStr || '').replace(/\s/g, ''); 
-    if (season === 'Q1') return f.includes('季一') || f.includes('1,4') || f.includes('01,04') || (f.includes('1') && f.includes('4'));
-    if (season === 'Q2') return f.includes('季二') || f.includes('2,5') || f.includes('02,05') || (f.includes('2') && f.includes('5'));
-    if (season === 'Q3') return f.includes('季三') || f.includes('3,6') || f.includes('03,06') || (f.includes('3') && f.includes('6'));
-    return false;
-};
-
 const TabPerformance: React.FC = () => {
     // --- STATE ---
     const [topTab, setTopTab] = useState<'HOLDINGS' | 'DIVIDEND' | 'PERFORMANCE'>('HOLDINGS');
@@ -229,7 +220,7 @@ const TabPerformance: React.FC = () => {
         }
     }, [transactions, summaryViewMode]);
 
-    // --- HANDLERS (RESTORED) ---
+    // --- HANDLERS ---
     const handleSaveTransaction = () => {
         if (!formData.code || !formData.price || !formData.quantity) { alert('請填寫完整資料'); return; }
         const newItem: UserTransaction = {
@@ -337,6 +328,10 @@ const TabPerformance: React.FC = () => {
 
     const fmtMoney = (n: number) => Math.round(n).toLocaleString();
 
+    // Unified Button Style
+    const btnClass = "flex items-center gap-1 px-3 py-1.5 bg-white text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-50 font-bold text-sm shadow-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed";
+    const btnClassRed = "flex items-center gap-1 px-3 py-1.5 bg-white text-red-600 border border-red-200 rounded-lg hover:bg-red-50 font-bold text-sm shadow-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed";
+
     return (
         <div className="h-full flex flex-col p-2 gap-2 bg-blue-50 overflow-hidden">
              
@@ -355,7 +350,7 @@ const TabPerformance: React.FC = () => {
              <div className="bg-white p-2 rounded-lg shadow-sm border border-blue-200 flex flex-col gap-2 flex-none">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                     
-                    {/* Filters: Active only if data exists, Single Row */}
+                    {/* Filters */}
                     <div className={`flex items-center gap-2 overflow-x-auto no-scrollbar flex-1 transition-opacity ${transactions.length === 0 ? 'opacity-50 pointer-events-none grayscale' : ''}`}>
                          {/* Broker Group */}
                          <button onClick={() => setSelectedBroker('ALL')} className={`px-3 py-1.5 rounded-lg text-sm font-bold whitespace-nowrap transition-all border shrink-0 ${selectedBroker === 'ALL' ? 'bg-blue-600 text-white border-blue-600 shadow-sm' : 'bg-white text-blue-600 border-blue-200 hover:bg-blue-50'}`}>全部</button>
@@ -373,14 +368,14 @@ const TabPerformance: React.FC = () => {
                          ))}
                     </div>
                     
-                    {/* Actions */}
+                    {/* Actions - Unified Blue Theme */}
                     {topTab === 'HOLDINGS' && (
                         <div className="flex items-center gap-2 shrink-0 ml-auto border-l border-gray-100 pl-2">
-                            <button onClick={() => setShowSummaryModal(true)} disabled={transactions.length===0} className="flex items-center gap-1 px-3 py-1.5 bg-white text-purple-600 border border-purple-200 rounded-lg hover:bg-purple-50 font-bold text-sm shadow-sm transition-colors disabled:opacity-50"><LayoutDashboard className="w-4 h-4" /> 總表分析</button>
-                            <button onClick={() => { setEditingId(null); setFormData({ ...formData, broker: brokerOptions[0]||'', category: categoryOptions[0]||'' }); setShowAddModal(true); }} className="flex items-center gap-1 px-3 py-1.5 bg-white text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-50 font-bold text-sm shadow-sm transition-colors"><Plus className="w-4 h-4" /> 新增交易</button>
-                            <button onClick={() => setShowImportModal(true)} className="flex items-center gap-1 px-3 py-1.5 bg-white text-emerald-600 border border-emerald-200 rounded-lg hover:bg-emerald-50 font-bold text-sm shadow-sm transition-colors"><Upload className="w-4 h-4" /> 匯入資料</button>
-                            <button onClick={handleExport} disabled={transactions.length===0} className="flex items-center gap-1 px-3 py-1.5 bg-white text-amber-600 border border-amber-200 rounded-lg hover:bg-amber-50 font-bold text-sm shadow-sm transition-colors disabled:opacity-50"><Download className="w-4 h-4" /> 匯出資料</button>
-                            <button onClick={handleClearAll} disabled={transactions.length===0} className="flex items-center gap-1 px-3 py-1.5 bg-white text-red-600 border border-red-200 rounded-lg hover:bg-red-50 font-bold text-sm shadow-sm transition-colors disabled:opacity-50"><Eraser className="w-4 h-4" /> 清除全部</button>
+                            <button onClick={() => setShowSummaryModal(true)} disabled={transactions.length===0} className={btnClass}><LayoutDashboard className="w-4 h-4" /> 總表分析</button>
+                            <button onClick={() => { setEditingId(null); setFormData({ ...formData, broker: brokerOptions[0]||'', category: categoryOptions[0]||'' }); setShowAddModal(true); }} className={btnClass}><Plus className="w-4 h-4" /> 新增交易</button>
+                            <button onClick={() => setShowImportModal(true)} className={btnClass}><Upload className="w-4 h-4" /> 匯入資料</button>
+                            <button onClick={handleExport} disabled={transactions.length===0} className={btnClass}><Download className="w-4 h-4" /> 匯出資料</button>
+                            <button onClick={handleClearAll} disabled={transactions.length===0} className={btnClassRed}><Eraser className="w-4 h-4" /> 清除全部</button>
                         </div>
                     )}
                 </div>
@@ -417,13 +412,13 @@ const TabPerformance: React.FC = () => {
                         {!selectedCode ? <div className="h-full flex flex-col items-center justify-center text-gray-400"><Wallet className="w-16 h-16 mb-4 opacity-30" /><p>請選擇左側 ETF 查看詳情</p></div> : (
                             <>
                                 {topTab === 'HOLDINGS' && (
-                                    <table className="w-full text-left border-collapse">
-                                        <thead className="bg-blue-50 sticky top-0 border-b border-blue-200 text-sm font-bold text-blue-900 z-10">
+                                    <table className="w-full text-left border-collapse text-sm">
+                                        <thead className="bg-blue-50 sticky top-0 border-b border-blue-200 font-bold text-blue-900 z-10">
                                             <tr>
                                                 <th className="p-3 whitespace-nowrap">日期</th><th className="p-3 whitespace-nowrap">證券戶</th><th className="p-3 whitespace-nowrap">分類</th><th className="p-3 whitespace-nowrap">股號</th><th className="p-3 whitespace-nowrap">股名</th><th className="p-3 whitespace-nowrap text-right">成交單價</th><th className="p-3 whitespace-nowrap text-right">成交股數</th><th className="p-3 whitespace-nowrap text-right">成交價金</th><th className="p-3 whitespace-nowrap text-right">手續費</th><th className="p-3 whitespace-nowrap text-right">購買成本</th><th className="p-3 whitespace-nowrap text-center">操作</th>
                                             </tr>
                                         </thead>
-                                        <tbody className="divide-y divide-blue-50 text-sm font-bold text-gray-700">
+                                        <tbody className="divide-y divide-blue-50 font-bold text-gray-700">
                                             {holdingsDetailData.map(t => (
                                                 <tr key={t.id} className="hover:bg-blue-50 transition-colors">
                                                     <td className="p-3 font-mono text-gray-900">{t.date}</td><td className="p-3 text-blue-800">{t.broker}</td><td className="p-3 text-gray-600">{t.category}</td><td className="p-3 font-mono text-blue-700">{t.code}</td><td className="p-3 text-gray-800">{t.name}</td>
@@ -435,11 +430,11 @@ const TabPerformance: React.FC = () => {
                                     </table>
                                 )}
                                 {topTab === 'DIVIDEND' && (
-                                    <table className="w-full text-left border-collapse">
-                                        <thead className="bg-blue-50 sticky top-0 border-b border-blue-200 text-sm font-bold text-blue-900 z-10">
+                                    <table className="w-full text-left border-collapse text-sm">
+                                        <thead className="bg-blue-50 sticky top-0 border-b border-blue-200 font-bold text-blue-900 z-10">
                                             <tr><th className="p-3 whitespace-nowrap">證券戶</th><th className="p-3 whitespace-nowrap">分類</th><th className="p-3 whitespace-nowrap">年月</th><th className="p-3 whitespace-nowrap text-right">除息金額</th><th className="p-3 whitespace-nowrap text-right">持有張數</th><th className="p-3 whitespace-nowrap text-right">股息金額</th><th className="p-3 whitespace-nowrap text-right">除息日期</th></tr>
                                         </thead>
-                                        <tbody className="divide-y divide-blue-50 text-sm font-bold text-gray-700">
+                                        <tbody className="divide-y divide-blue-50 font-bold text-gray-700">
                                             {dividendDetailData.map((d: any, i) => (
                                                 <tr key={i} className="hover:bg-blue-50 transition-colors">
                                                     <td className="p-3 text-gray-800">{d.broker}</td><td className="p-3 text-blue-700">{d.category}</td><td className="p-3 font-mono text-gray-600">{d.yearMonth}</td><td className="p-3 text-right font-mono text-emerald-600">{d.amount}</td><td className="p-3 text-right font-mono text-gray-600">{(d.qty/1000).toFixed(2)}張</td><td className="p-3 text-right font-mono text-orange-600 text-base">{fmtMoney(d.totalDiv)}</td><td className="p-3 text-right font-mono text-gray-500">{d.exDate}</td>
@@ -475,8 +470,8 @@ const TabPerformance: React.FC = () => {
                             </div>
                         </div>
                         <div className="flex-1 overflow-auto bg-white p-0">
-                            <table className="w-full text-left border-collapse">
-                                <thead className="bg-blue-50 sticky top-0 z-10 border-b border-blue-200 text-base font-bold text-blue-900">
+                            <table className="w-full text-left border-collapse text-sm">
+                                <thead className="bg-blue-50 sticky top-0 z-10 border-b border-blue-200 font-bold text-blue-900">
                                     <tr><th className="p-3 w-12 text-center">#</th><th className="p-3">{summaryViewMode === 'ACCOUNT' ? '證券戶' : '股號'}</th><th className="p-3">{summaryViewMode === 'ACCOUNT' ? '' : '股名'}</th><th className="p-3 text-right">持有張數 (總計)</th><th className="p-3 text-right">持有金額 (總計)</th></tr>
                                 </thead>
                                 <tbody className="text-base">

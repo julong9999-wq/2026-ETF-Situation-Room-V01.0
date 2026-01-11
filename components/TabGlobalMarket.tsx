@@ -84,6 +84,9 @@ const TabGlobalMarket: React.FC = () => {
 
   const usSubOptions = ['道瓊', '那斯', '費半', '標普'];
 
+  // Unified Button Style
+  const btnClass = "flex items-center gap-1 px-3 py-1.5 bg-white text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-50 font-bold text-sm shadow-sm transition-colors";
+
   return (
     <div className="h-full flex flex-col p-2 gap-2 bg-blue-50 overflow-hidden">
       
@@ -121,30 +124,30 @@ const TabGlobalMarket: React.FC = () => {
                  <span className="text-gray-400 text-xs">~</span>
                  <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="bg-transparent text-sm w-28 font-mono outline-none text-blue-900 font-bold" />
              </div>
-             <button onClick={() => setShowChartModal(true)} className="flex items-center gap-1 px-3 py-1.5 bg-white text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-50 font-bold text-sm shadow-sm transition-colors"><LineChartIcon className="w-4 h-4" /> 查看線圖</button>
-             <button onClick={() => setShowRecentModal(true)} className="flex items-center gap-1 px-3 py-1.5 bg-white text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-50 font-bold text-sm shadow-sm transition-colors"><Info className="w-4 h-4" /> 近期資訊</button>
-             <button onClick={handleExport} className="flex items-center gap-1 px-3 py-1.5 bg-white text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-50 font-bold text-sm shadow-sm transition-colors"><Download className="w-4 h-4" /> 匯出資料</button>
+             <button onClick={() => setShowChartModal(true)} className={btnClass}><LineChartIcon className="w-4 h-4" /> 查看線圖</button>
+             <button onClick={() => setShowRecentModal(true)} className={btnClass}><Info className="w-4 h-4" /> 近期資訊</button>
+             <button onClick={handleExport} className={btnClass}><Download className="w-4 h-4" /> 匯出資料</button>
           </div>
       </div>
 
       {/* UNIFIED TABLE STYLE */}
       <div className="flex-1 overflow-auto bg-white rounded-lg shadow-sm border border-blue-200 min-h-0">
-        <table className="w-full text-left border-collapse">
-            <thead className="bg-blue-50 sticky top-0 z-10 border-b border-blue-200">
+        <table className="w-full text-left border-collapse text-sm">
+            <thead className="bg-blue-50 sticky top-0 z-10 border-b border-blue-200 font-bold text-blue-900">
                 <tr>
-                    <th className="p-3 font-bold text-blue-900 text-sm whitespace-nowrap">指數名稱</th>
-                    <th className="p-3 font-bold text-blue-900 text-sm whitespace-nowrap">日期</th>
-                    <th className="p-3 font-bold text-blue-900 text-sm whitespace-nowrap text-right">昨日收盤</th>
-                    <th className="p-3 font-bold text-blue-900 text-sm whitespace-nowrap text-right">開盤</th>
-                    <th className="p-3 font-bold text-blue-900 text-sm whitespace-nowrap text-right">高價</th>
-                    <th className="p-3 font-bold text-blue-900 text-sm whitespace-nowrap text-right">低價</th>
-                    <th className="p-3 font-bold text-blue-900 text-sm whitespace-nowrap text-right">現價</th>
-                    <th className="p-3 font-bold text-blue-900 text-sm whitespace-nowrap text-right">成交量</th>
-                    <th className="p-3 font-bold text-blue-900 text-sm whitespace-nowrap text-right">漲跌</th>
-                    <th className="p-3 font-bold text-blue-900 text-sm whitespace-nowrap text-right">幅度</th>
+                    <th className="p-3 whitespace-nowrap">指數名稱</th>
+                    <th className="p-3 whitespace-nowrap">日期</th>
+                    <th className="p-3 whitespace-nowrap text-right">昨日收盤</th>
+                    <th className="p-3 whitespace-nowrap text-right">開盤</th>
+                    <th className="p-3 whitespace-nowrap text-right">高價</th>
+                    <th className="p-3 whitespace-nowrap text-right">低價</th>
+                    <th className="p-3 whitespace-nowrap text-right">現價</th>
+                    <th className="p-3 whitespace-nowrap text-right">成交量</th>
+                    <th className="p-3 whitespace-nowrap text-right">漲跌</th>
+                    <th className="p-3 whitespace-nowrap text-right">幅度</th>
                 </tr>
             </thead>
-            <tbody className="divide-y divide-blue-50 text-sm font-bold text-gray-700">
+            <tbody className="divide-y divide-blue-50 font-bold text-gray-700">
                 {filteredData.length === 0 ? <tr><td colSpan={10} className="p-8 text-center text-gray-400">無符合條件的資料</td></tr> : filteredData.map((row, idx) => (
                     <tr key={idx} className="hover:bg-blue-50 transition-colors">
                         <td className="p-3 text-gray-900">{row.indexName}</td>

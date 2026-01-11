@@ -64,6 +64,9 @@ const TabPrices: React.FC<TabPricesProps> = ({
 
   const fmt = (n: number) => n.toFixed(2);
 
+  // Unified Button Style
+  const btnClass = "flex items-center gap-1 px-3 py-1.5 bg-white text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-50 font-bold text-sm shadow-sm transition-colors";
+
   return (
     <div className="h-full flex flex-col p-2 gap-2 bg-blue-50 overflow-hidden">
       
@@ -95,8 +98,8 @@ const TabPrices: React.FC<TabPricesProps> = ({
               )}
           </div>
           <div className="flex items-center gap-2 shrink-0 border-l border-gray-100 pl-2">
-            <button className="flex items-center gap-1 px-3 py-1.5 bg-white text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-50 font-bold text-sm shadow-sm transition-colors"><Info className="w-4 h-4" /> 近期資訊</button>
-            <button className="flex items-center gap-1 px-3 py-1.5 bg-white text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-50 font-bold text-sm shadow-sm transition-colors"><Download className="w-4 h-4" /> 匯出資料</button>
+            <button className={btnClass}><Info className="w-4 h-4" /> 近期資訊</button>
+            <button className={btnClass}><Download className="w-4 h-4" /> 匯出資料</button>
           </div>
       </div>
 
@@ -123,8 +126,8 @@ const TabPrices: React.FC<TabPricesProps> = ({
            {/* Right: Detail Table */}
            <div className="flex-1 bg-white rounded-lg shadow-sm border border-blue-200 flex flex-col overflow-hidden">
                 <div className="flex-1 overflow-auto bg-white p-0">
-                    <table className="w-full text-left border-collapse">
-                        <thead className="bg-blue-50 sticky top-0 border-b border-blue-200 text-sm font-bold text-blue-900 z-10">
+                    <table className="w-full text-left border-collapse text-sm">
+                        <thead className="bg-blue-50 sticky top-0 border-b border-blue-200 font-bold text-blue-900 z-10">
                             <tr>
                                 <th className="p-3 whitespace-nowrap">日期</th>
                                 <th className="p-3 whitespace-nowrap text-right">開盤</th>
@@ -134,7 +137,7 @@ const TabPrices: React.FC<TabPricesProps> = ({
                                 <th className="p-3 whitespace-nowrap text-right">昨收</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-blue-50 text-sm font-bold text-gray-700">
+                        <tbody className="divide-y divide-blue-50 font-bold text-gray-700">
                             {detailData.map((d, i) => (
                                 <tr key={i} className="hover:bg-blue-50 transition-colors">
                                     <td className="p-3 font-mono text-gray-900">{d.date}</td>

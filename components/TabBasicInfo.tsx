@@ -74,6 +74,9 @@ const TabBasicInfo: React.FC<TabBasicInfoProps> = ({
 
   const subOptions = mainFilter === '全部' ? ['全部', '季一', '季二', '季三', '月配', '半年', '年配', '無配'] : mainFilter === '債券' ? ['全部', '月配', '季一', '季二', '季三'] : mainFilter === '季配' ? ['全部', '季一', '季二', '季三'] : [];
 
+  // Unified Button Style
+  const btnClass = "flex items-center gap-1 px-3 py-1.5 bg-white text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-50 font-bold text-sm shadow-sm transition-colors";
+
   return (
     <div className="h-full flex flex-col p-2 gap-2 bg-blue-50 overflow-hidden">
       
@@ -106,19 +109,19 @@ const TabBasicInfo: React.FC<TabBasicInfoProps> = ({
         </div>
         <div className="flex items-center gap-2 shrink-0 border-l border-gray-100 pl-2">
             <span className="text-blue-900 text-sm font-bold bg-blue-50 px-2 py-1 rounded border border-blue-100">筆數: {filteredData.length}</span>
-            <button onClick={handleExport} className="flex items-center gap-1 px-3 py-1.5 bg-white text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-50 font-bold text-sm shadow-sm transition-colors"><Download className="w-4 h-4" /> 匯出資料</button>
+            <button onClick={handleExport} className={btnClass}><Download className="w-4 h-4" /> 匯出資料</button>
         </div>
       </div>
 
       {/* UNIFIED TABLE STYLE */}
       <div className="flex-1 overflow-auto bg-white rounded-lg shadow-sm border border-blue-200 min-h-0">
-        <table className="w-full text-left border-collapse">
-            <thead className="bg-blue-50 sticky top-0 z-10 border-b border-blue-200">
+        <table className="w-full text-left border-collapse text-sm">
+            <thead className="bg-blue-50 sticky top-0 z-10 border-b border-blue-200 font-bold text-blue-900">
                 <tr>
-                    <th className="p-3 font-bold text-blue-900 text-sm">ETF 代碼</th><th className="p-3 font-bold text-blue-900 text-sm">ETF 名稱</th><th className="p-3 font-bold text-blue-900 text-sm">商品分類</th><th className="p-3 font-bold text-blue-900 text-sm">配息週期</th><th className="p-3 font-bold text-blue-900 text-sm">發行投信</th><th className="p-3 font-bold text-blue-900 text-sm">ETF類型</th><th className="p-3 font-bold text-blue-900 text-sm text-right">規模(億)</th><th className="p-3 font-bold text-blue-900 text-sm">規模趨勢</th>
+                    <th className="p-3">ETF 代碼</th><th className="p-3">ETF 名稱</th><th className="p-3">商品分類</th><th className="p-3">配息週期</th><th className="p-3">發行投信</th><th className="p-3">ETF類型</th><th className="p-3 text-right">規模(億)</th><th className="p-3">規模趨勢</th>
                 </tr>
             </thead>
-            <tbody className="divide-y divide-blue-50 text-sm font-bold text-gray-700">
+            <tbody className="divide-y divide-blue-50 font-bold text-gray-700">
                 {filteredData.map((row, index) => (
                     <tr key={index} className="hover:bg-blue-50 transition-colors">
                         <td className="p-3 text-blue-800 font-mono">{row.etfCode}</td><td className="p-3 text-gray-900">{row.etfName}</td><td className="p-3 text-gray-600">{row.category}</td><td className="p-3 text-gray-600">{row.dividendFreq}</td><td className="p-3 text-gray-600">{row.issuer}</td><td className="p-3 text-gray-600">{row.etfType}</td><td className="p-3 text-right font-mono text-blue-900">{row.size > 0 ? row.size.toLocaleString() : '-'}</td><td className={`p-3 ${row.trend === '成長' ? 'text-red-600' : row.trend === '衰退' ? 'text-green-600' : 'text-gray-400'}`}>{row.trend}</td>

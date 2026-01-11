@@ -63,6 +63,9 @@ const TabAdvancedSearch: React.FC = () => {
     const handleCopyScript = () => alert('請手動複製 console 中的內容');
     const handleExport = () => alert('匯出功能已保留');
 
+    // Unified Button Style
+    const btnClass = "flex items-center gap-1 px-3 py-1.5 bg-white text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-50 font-bold text-sm shadow-sm transition-colors";
+
     return (
         <div className="flex flex-col h-full bg-blue-50">
             {/* UNIFIED TOP NAVIGATION */}
@@ -91,8 +94,8 @@ const TabAdvancedSearch: React.FC = () => {
                             </div>
                         </div>
                         <div className="flex items-center gap-2">
-                            <button onClick={handleCopyScript} className="flex items-center gap-1 px-3 py-1.5 bg-white text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-50 font-bold text-sm shadow-sm transition-colors"><Code className="w-4 h-4" /> 複製腳本</button>
-                            <button onClick={handleExport} className="flex items-center gap-1 px-3 py-1.5 bg-white text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-50 font-bold text-sm shadow-sm transition-colors"><Download className="w-4 h-4" /> 匯出資料</button>
+                            <button onClick={handleCopyScript} className={btnClass}><Code className="w-4 h-4" /> 複製腳本</button>
+                            <button onClick={handleExport} className={btnClass}><Download className="w-4 h-4" /> 匯出資料</button>
                         </div>
                     </div>
 
@@ -110,11 +113,11 @@ const TabAdvancedSearch: React.FC = () => {
                     {/* UNIFIED TABLE DISPLAY */}
                     <div className="flex-1 overflow-auto bg-white p-0">
                         {mainTab === 'WEEKLY' && reportType === 'MARKET' && (
-                            <table className="w-full text-left border-collapse">
-                                <thead className="bg-blue-50 sticky top-0 z-10 border-b border-blue-200">
-                                    <tr><th className="p-3 font-bold text-blue-900 text-sm">日期</th><th className="p-3 font-bold text-blue-900 text-sm">指數名稱</th><th className="p-3 font-bold text-blue-900 text-sm text-right">現價</th><th className="p-3 font-bold text-blue-900 text-sm text-right">漲跌</th><th className="p-3 font-bold text-blue-900 text-sm text-right">幅度</th></tr>
+                            <table className="w-full text-left border-collapse text-sm">
+                                <thead className="bg-blue-50 sticky top-0 z-10 border-b border-blue-200 font-bold text-blue-900">
+                                    <tr><th className="p-3">日期</th><th className="p-3">指數名稱</th><th className="p-3 text-right">現價</th><th className="p-3 text-right">漲跌</th><th className="p-3 text-right">幅度</th></tr>
                                 </thead>
-                                <tbody className="divide-y divide-blue-50 text-sm font-bold text-gray-700">
+                                <tbody className="divide-y divide-blue-50 font-bold text-gray-700">
                                     {reportMarket.map((d, i) => (
                                         <tr key={i} className="hover:bg-blue-50 transition-colors">
                                             <td className="p-3 font-mono">{d.date}</td><td className="p-3">{d.indexName}</td><td className="p-3 text-right font-mono text-blue-900">{fmtNum(d.price)}</td><td className={`p-3 text-right font-mono ${d.change>=0?'text-red-600':'text-green-600'}`}>{fmtNum(d.change)}</td><td className={`p-3 text-right font-mono ${d.changePercent>=0?'text-red-600':'text-green-600'}`}>{fmtNum(d.changePercent)}%</td>
