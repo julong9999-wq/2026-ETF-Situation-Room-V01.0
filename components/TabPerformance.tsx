@@ -148,6 +148,19 @@ const TabPerformance: React.FC = () => {
         return Array.from(map.values()).sort((a,b) => a.code.localeCompare(b.code));
     }, [filteredTransactions]);
 
+    // --- AUTO-SELECT FIRST ITEM EFFECT ---
+    useEffect(() => {
+        if (positions.length > 0) {
+            // Check if current selection is still valid
+            const exists = positions.find(p => p.code === selectedCode);
+            if (!selectedCode || !exists) {
+                setSelectedCode(positions[0].code);
+            }
+        } else {
+            setSelectedCode(null);
+        }
+    }, [positions, selectedCode]);
+
     // 3. Detail Data (Holdings View)
     const holdingsDetailData = useMemo(() => {
         if (!selectedCode) return [];
@@ -636,21 +649,21 @@ const TabPerformance: React.FC = () => {
                 <div className="w-[360px] flex-none bg-white rounded-xl shadow-sm border border-blue-200 flex flex-col overflow-hidden">
                     {/* Header Summary Dashboard */}
                     <div className="p-2 bg-blue-50 border-b border-blue-100 grid grid-cols-3 gap-2 shrink-0">
-                        <div className="flex flex-col items-center justify-center bg-white p-2 rounded-lg border border-blue-100 shadow-sm">
-                            <span className="text-xs font-bold text-gray-400">檔數</span>
-                            <span className="text-base font-bold text-blue-800 font-mono">{positions.length}</span>
+                        <div className="flex flex-col items-center justify-center bg-blue-100 p-1.5 rounded-lg border border-blue-200 shadow-sm">
+                            <span className="text-xs font-bold text-gray-500">檔數</span>
+                            <span className="text-base font-bold text-blue-900 font-mono">{positions.length}</span>
                         </div>
-                        <div className="flex flex-col items-center justify-center bg-white p-2 rounded-lg border border-blue-100 shadow-sm">
-                            <span className="text-xs font-bold text-gray-400">持有股數</span>
-                            <span className="text-base font-bold text-gray-800 font-mono">{fmtMoney(summaryShares)}</span>
+                        <div className="flex flex-col items-center justify-center bg-blue-100 p-1.5 rounded-lg border border-blue-200 shadow-sm">
+                            <span className="text-xs font-bold text-gray-500">持有股數</span>
+                            <span className="text-base font-bold text-gray-900 font-mono">{fmtMoney(summaryShares)}</span>
                         </div>
-                        <div className="flex flex-col items-center justify-center bg-white p-2 rounded-lg border border-blue-100 shadow-sm">
-                            <span className="text-xs font-bold text-gray-400">持有金額</span>
-                            <span className="text-sm font-bold text-blue-600 font-mono">{fmtMoney(summaryCost)}</span>
+                        <div className="flex flex-col items-center justify-center bg-blue-100 p-1.5 rounded-lg border border-blue-200 shadow-sm">
+                            <span className="text-xs font-bold text-gray-500">持有金額</span>
+                            <span className="text-sm font-bold text-blue-700 font-mono">{fmtMoney(summaryCost)}</span>
                         </div>
                     </div>
 
-                    <div className="flex-1 overflow-y-auto p-2 space-y-2 bg-gray-50/50">
+                    <div className="flex-1 overflow-y-auto p-2 space-y-1.5 bg-gray-50/50">
                         {positions.length === 0 ? (
                             <div className="flex flex-col items-center justify-center h-48 text-gray-400">
                                 <Wallet className="w-12 h-12 mb-2 opacity-20" />
@@ -663,7 +676,7 @@ const TabPerformance: React.FC = () => {
                                     key={pos.code}
                                     onClick={() => setSelectedCode(pos.code)}
                                     className={`
-                                        p-3 rounded-lg cursor-pointer border transition-all relative group flex flex-col gap-1
+                                        p-2 rounded-lg cursor-pointer border transition-all relative group flex flex-col gap-0.5
                                         ${selectedCode === pos.code 
                                             ? 'bg-blue-50 border-blue-500 shadow-md ring-1 ring-blue-500' 
                                             : 'bg-white border-gray-200 hover:border-blue-300 hover:shadow-sm'
@@ -672,26 +685,26 @@ const TabPerformance: React.FC = () => {
                                 >
                                     <div className="flex justify-between items-center">
                                         <div className="flex items-baseline gap-2">
-                                            <span className="text-xl font-bold text-blue-800 font-mono">{pos.code}</span>
-                                            <span className="text-base font-bold text-gray-700">{pos.name}</span>
+                                            <span className="text-lg font-bold text-blue-800 font-mono">{pos.code}</span>
+                                            <span className="text-base font-bold text-gray-700 truncate">{pos.name}</span>
                                         </div>
                                         <div className={`absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity ${selectedCode === pos.code ? 'text-blue-500' : 'text-gray-300'}`}>
-                                            <ChevronRight className="w-6 h-6" />
+                                            <ChevronRight className="w-5 h-5" />
                                         </div>
                                     </div>
                                     
-                                    <div className="grid grid-cols-3 gap-2 mt-1">
+                                    <div className="grid grid-cols-3 gap-1">
                                         <div className="flex flex-col">
-                                            <span className="text-gray-400 text-xs font-bold">累積股數</span>
-                                            <span className="font-bold font-mono text-gray-800 text-base">{fmtMoney(pos.totalQty)}</span>
+                                            <span className="text-gray-400 text-[10px] font-bold">累積股數</span>
+                                            <span className="font-bold font-mono text-gray-800 text-sm">{fmtMoney(pos.totalQty)}</span>
                                         </div>
                                         <div className="flex flex-col items-end">
-                                            <span className="text-gray-400 text-xs font-bold">平均成本</span>
-                                            <span className="font-bold font-mono text-gray-800 text-base">{fmtPrice(Math.round(pos.avgCost * 100) / 100)}</span>
+                                            <span className="text-gray-400 text-[10px] font-bold">平均成本</span>
+                                            <span className="font-bold font-mono text-gray-800 text-sm">{fmtPrice(Math.round(pos.avgCost * 100) / 100)}</span>
                                         </div>
                                         <div className="flex flex-col items-end">
-                                            <span className="text-gray-400 text-xs font-bold">累積金額</span>
-                                            <span className="font-bold font-mono text-blue-600 text-base">{fmtMoney(pos.totalCost)}</span>
+                                            <span className="text-gray-400 text-[10px] font-bold">累積金額</span>
+                                            <span className="font-bold font-mono text-blue-600 text-sm">{fmtMoney(pos.totalCost)}</span>
                                         </div>
                                     </div>
                                 </div>
@@ -725,36 +738,36 @@ const TabPerformance: React.FC = () => {
                             <table className="w-full text-left border-collapse min-w-[800px]">
                                 <thead className="bg-gray-50 sticky top-0 z-10 border-b border-gray-200">
                                     <tr>
-                                        <th className="p-3 font-bold text-gray-700 text-base whitespace-nowrap">證券戶</th>
-                                        <th className="p-3 font-bold text-gray-700 text-base whitespace-nowrap">分類</th>
-                                        <th className="p-3 font-bold text-gray-700 text-base whitespace-nowrap">日期</th>
-                                        <th className="p-3 font-bold text-gray-700 text-base text-right whitespace-nowrap">成交單價</th>
-                                        <th className="p-3 font-bold text-gray-700 text-base text-right whitespace-nowrap">成交股數</th>
-                                        <th className="p-3 font-bold text-gray-700 text-base text-right whitespace-nowrap">成交價金</th>
-                                        <th className="p-3 font-bold text-gray-700 text-base text-right whitespace-nowrap">手續費</th>
-                                        <th className="p-3 font-bold text-gray-700 text-base text-right whitespace-nowrap">購買成本</th>
-                                        <th className="p-3 font-bold text-gray-700 text-base text-center whitespace-nowrap">操作</th>
+                                        <th className="p-2 font-bold text-gray-700 text-base whitespace-nowrap">證券戶</th>
+                                        <th className="p-2 font-bold text-gray-700 text-base whitespace-nowrap">分類</th>
+                                        <th className="p-2 font-bold text-gray-700 text-base whitespace-nowrap">日期</th>
+                                        <th className="p-2 font-bold text-gray-700 text-base text-right whitespace-nowrap">成交單價</th>
+                                        <th className="p-2 font-bold text-gray-700 text-base text-right whitespace-nowrap">成交股數</th>
+                                        <th className="p-2 font-bold text-gray-700 text-base text-right whitespace-nowrap">成交價金</th>
+                                        <th className="p-2 font-bold text-gray-700 text-base text-right whitespace-nowrap">手續費</th>
+                                        <th className="p-2 font-bold text-gray-700 text-base text-right whitespace-nowrap">購買成本</th>
+                                        <th className="p-2 font-bold text-gray-700 text-base text-center whitespace-nowrap">操作</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-100 text-base font-bold">
                                     {holdingsDetailData.map((t) => (
                                         <tr key={t.id} className="hover:bg-blue-50/50 transition-colors group">
-                                            <td className="p-3 text-gray-700">{t.broker}</td>
-                                            <td className="p-3 text-gray-600"><span className="bg-gray-100 px-2 py-0.5 rounded text-sm">{t.category}</span></td>
-                                            <td className="p-3 font-mono text-gray-600">{t.date}</td>
+                                            <td className="p-2 text-gray-700">{t.broker}</td>
+                                            <td className="p-2 text-gray-600"><span className="bg-gray-100 px-2 py-0.5 rounded text-sm">{t.category}</span></td>
+                                            <td className="p-2 font-mono text-gray-600">{t.date}</td>
                                             
-                                            <td className="p-3 font-mono text-right">{fmtPrice(t.price)}</td>
-                                            <td className="p-3 font-mono text-right font-bold">{fmtMoney(t.quantity)}</td>
-                                            <td className="p-3 font-mono text-right text-gray-500">{fmtMoney(t.totalAmount)}</td>
-                                            <td className="p-3 font-mono text-right text-gray-400">{fmtMoney(t.fee)}</td>
-                                            <td className="p-3 font-mono text-right font-bold text-blue-700">{fmtMoney(t.cost)}</td>
-                                            <td className="p-3 text-center">
+                                            <td className="p-2 font-mono text-right">{fmtPrice(t.price)}</td>
+                                            <td className="p-2 font-mono text-right font-bold">{fmtMoney(t.quantity)}</td>
+                                            <td className="p-2 font-mono text-right text-gray-500">{fmtMoney(t.totalAmount)}</td>
+                                            <td className="p-2 font-mono text-right text-gray-400">{fmtMoney(t.fee)}</td>
+                                            <td className="p-2 font-mono text-right font-bold text-blue-700">{fmtMoney(t.cost)}</td>
+                                            <td className="p-2 text-center">
                                                 <div className="flex items-center justify-center gap-2">
                                                     <button onClick={(e) => { e.stopPropagation(); handleEdit(t); }} className="p-1.5 text-blue-400 hover:text-blue-600 hover:bg-blue-100 rounded transition-colors" title="編輯">
-                                                        <Edit className="w-5 h-5" />
+                                                        <Edit className="w-4 h-4" />
                                                     </button>
                                                     <button onClick={(e) => { e.stopPropagation(); handleDelete(t.id); }} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-100 rounded transition-colors" title="刪除">
-                                                        <Trash2 className="w-5 h-5" />
+                                                        <Trash2 className="w-4 h-4" />
                                                     </button>
                                                 </div>
                                             </td>
@@ -796,25 +809,25 @@ const TabPerformance: React.FC = () => {
                             <table className="w-full text-left border-collapse min-w-[800px]">
                                 <thead className="bg-gray-50 sticky top-0 z-10 border-b border-gray-200">
                                     <tr>
-                                        <th className="p-3 font-bold text-gray-700 text-base whitespace-nowrap">證券戶</th>
-                                        <th className="p-3 font-bold text-gray-700 text-base whitespace-nowrap">分類</th>
-                                        <th className="p-3 font-bold text-gray-700 text-base whitespace-nowrap">年月</th>
-                                        <th className="p-3 font-bold text-gray-700 text-base whitespace-nowrap">除息日</th>
-                                        <th className="p-3 font-bold text-gray-700 text-base text-right whitespace-nowrap">除息金額</th>
-                                        <th className="p-3 font-bold text-gray-700 text-base text-right whitespace-nowrap">持有股數</th>
-                                        <th className="p-3 font-bold text-gray-700 text-base text-right whitespace-nowrap">股息金額</th>
+                                        <th className="p-2 font-bold text-gray-700 text-base whitespace-nowrap">證券戶</th>
+                                        <th className="p-2 font-bold text-gray-700 text-base whitespace-nowrap">分類</th>
+                                        <th className="p-2 font-bold text-gray-700 text-base whitespace-nowrap">年月</th>
+                                        <th className="p-2 font-bold text-gray-700 text-base whitespace-nowrap">除息日</th>
+                                        <th className="p-2 font-bold text-gray-700 text-base text-right whitespace-nowrap">除息金額</th>
+                                        <th className="p-2 font-bold text-gray-700 text-base text-right whitespace-nowrap">持有股數</th>
+                                        <th className="p-2 font-bold text-gray-700 text-base text-right whitespace-nowrap">股息金額</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-100 text-base font-bold">
                                     {dividendDetailData.map((row) => (
                                         <tr key={row.id} className="hover:bg-purple-50 transition-colors group">
-                                            <td className="p-3 text-gray-700">{row.broker}</td>
-                                            <td className="p-3 text-gray-600"><span className="bg-gray-100 px-2 py-0.5 rounded text-sm">{row.category}</span></td>
-                                            <td className="p-3 font-mono text-gray-600">{row.yearMonth}</td>
-                                            <td className="p-3 font-mono text-blue-600">{row.exDate}</td>
-                                            <td className="p-3 font-mono text-right text-emerald-600">{fmtDiv(row.divAmount)}</td>
-                                            <td className="p-3 font-mono text-right text-gray-700">{fmtMoney(row.heldShares)}</td>
-                                            <td className="p-3 font-mono text-right text-purple-700 text-lg">{fmtMoney(row.totalReceived)}</td>
+                                            <td className="p-2 text-gray-700">{row.broker}</td>
+                                            <td className="p-2 text-gray-600"><span className="bg-gray-100 px-2 py-0.5 rounded text-sm">{row.category}</span></td>
+                                            <td className="p-2 font-mono text-gray-600">{row.yearMonth}</td>
+                                            <td className="p-2 font-mono text-blue-600">{row.exDate}</td>
+                                            <td className="p-2 font-mono text-right text-emerald-600">{fmtDiv(row.divAmount)}</td>
+                                            <td className="p-2 font-mono text-right text-gray-700">{fmtMoney(row.heldShares)}</td>
+                                            <td className="p-2 font-mono text-right text-purple-700 text-lg">{fmtMoney(row.totalReceived)}</td>
                                         </tr>
                                     ))}
                                     {dividendDetailData.length === 0 && (<tr><td colSpan={7} className="p-10 text-center text-gray-400 font-bold">{selectedCode ? '此標的尚無領息紀錄 (或持有期間未遇除息)' : '👈 請先從左側選擇一檔標的'}</td></tr>)}
