@@ -1,11 +1,11 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
     Wallet, PieChart, TrendingUp, Plus, Upload, Download, 
     Trash2, Edit, X, FileSpreadsheet, AlertCircle, ChevronRight,
-    Book, Settings, Save
+    Book, Save, Filter
 } from 'lucide-react';
 import { UserTransaction, UserPosition, BasicInfo } from '../types';
-import { getBasicInfo } from '../services/dataService';
+import { getBasicInfo, exportToCSV } from '../services/dataService';
 
 const LOCAL_STORAGE_KEY = 'user_transactions_v1';
 const KEY_BROKERS = 'user_lexicon_brokers';
@@ -28,14 +28,17 @@ const TabPerformance: React.FC = () => {
     const [brokerOptions, setBrokerOptions] = useState<string[]>(DEFAULT_BROKERS);
     const [categoryOptions, setCategoryOptions] = useState<string[]>(DEFAULT_CATEGORIES);
 
-    // Filters
-    const [selectedBroker, setSelectedBroker] = useState<string>('');
-    const [selectedCategory, setSelectedCategory] = useState<string>('');
+    // Filters (Moved to Top Level)
+    const [selectedBroker, setSelectedBroker] = useState<string>('ALL');
+    const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
 
     // Modals
     const [showAddModal, setShowAddModal] = useState(false);
     const [showImportModal, setShowImportModal] = useState(false);
     const [showLexiconModal, setShowLexiconModal] = useState<'BROKER' | 'CATEGORY' | null>(null);
+
+    // File Input Ref for Import
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     // Edit State
     const [editingId, setEditingId] = useState<string | null>(null);
@@ -49,9 +52,9 @@ const TabPerformance: React.FC = () => {
         name: '',
         price: '',
         quantity: '',
-        totalAmount: '', // 成交價金
-        fee: '',         // 手續費
-        cost: 0          // 購買成本 (Calculated)
+        totalAmount: '', 
+        fee: '',         
+        cost: 0          
     });
 
     // Lexicon Edit State
@@ -59,25 +62,18 @@ const TabPerformance: React.FC = () => {
 
     // --- INITIALIZATION ---
     useEffect(() => {
-        // Load Transactions
         const saved = localStorage.getItem(LOCAL_STORAGE_KEY);
         if (saved) {
             try { setTransactions(JSON.parse(saved)); } catch (e) { console.error(e); }
         }
-
-        // Load Basic Info for Auto-fill
         getBasicInfo().then(setBasicInfo);
-
-        // Load Lexicons
         const savedBrokers = localStorage.getItem(KEY_BROKERS);
         if (savedBrokers) setBrokerOptions(JSON.parse(savedBrokers));
-        
         const savedCats = localStorage.getItem(KEY_CATEGORIES);
         if (savedCats) setCategoryOptions(JSON.parse(savedCats));
     }, []);
 
     // --- AUTO-FILL LOGIC ---
-    // 1. Auto-fill Name when Code changes
     useEffect(() => {
         if (formData.code && basicInfo.length > 0) {
             const found = basicInfo.find(b => b.etfCode === formData.code);
@@ -87,18 +83,14 @@ const TabPerformance: React.FC = () => {
         }
     }, [formData.code, basicInfo]);
 
-    // 2. Auto-calc Total Amount (Suggestion) when Price or Qty changes
     useEffect(() => {
         const p = parseFloat(formData.price);
         const q = parseFloat(formData.quantity);
         if (!isNaN(p) && !isNaN(q) && p > 0 && q > 0) {
-            // Only auto-fill if amount is empty or looks calculated
-            // Only if user hasn't manually set it? For simplicity, we auto-calc
             setFormData(prev => ({ ...prev, totalAmount: Math.floor(p * q).toString() }));
         }
     }, [formData.price, formData.quantity]);
 
-    // 3. Auto-calc Cost (System Calculation)
     useEffect(() => {
         const amt = parseFloat(formData.totalAmount) || 0;
         const fee = parseFloat(formData.fee) || 0;
@@ -107,14 +99,22 @@ const TabPerformance: React.FC = () => {
 
 
     // --- CALCULATIONS (Master List) ---
+    const filteredTransactions = useMemo(() => {
+        return transactions.filter(t => {
+            if (selectedBroker !== 'ALL' && t.broker !== selectedBroker) return false;
+            if (selectedCategory !== 'ALL' && t.category !== selectedCategory) return false;
+            return true;
+        });
+    }, [transactions, selectedBroker, selectedCategory]);
+
     const positions: UserPosition[] = useMemo(() => {
         const map = new Map<string, UserPosition>();
-        transactions.forEach(t => {
+        filteredTransactions.forEach(t => {
             if (t.type !== 'Buy') return;
             if (!map.has(t.code)) {
                 map.set(t.code, {
                     code: t.code, name: t.name, totalQty: 0, avgCost: 0, totalCost: 0,
-                    broker: t.broker, category: t.category
+                    broker: '', category: '' // Detailed in drill-down
                 });
             }
             const pos = map.get(t.code)!;
@@ -125,12 +125,12 @@ const TabPerformance: React.FC = () => {
             if (pos.totalQty > 0) pos.avgCost = pos.totalCost / pos.totalQty;
         });
         return Array.from(map.values()).sort((a,b) => a.code.localeCompare(b.code));
-    }, [transactions]);
+    }, [filteredTransactions]);
 
     const detailData = useMemo(() => {
         if (!selectedCode) return [];
-        return transactions.filter(t => t.code === selectedCode).sort((a, b) => b.date.localeCompare(a.date));
-    }, [selectedCode, transactions]);
+        return filteredTransactions.filter(t => t.code === selectedCode).sort((a, b) => b.date.localeCompare(a.date));
+    }, [selectedCode, filteredTransactions]);
 
     // --- HANDLERS ---
     const handleSaveTransaction = () => {
@@ -166,6 +166,18 @@ const TabPerformance: React.FC = () => {
         setTransactions(updatedTransactions);
         localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updatedTransactions));
         
+        // Update Lexicon if new items (optional, but good UX)
+        if (newItem.broker && !brokerOptions.includes(newItem.broker)) {
+             const newBrokers = [...brokerOptions, newItem.broker];
+             setBrokerOptions(newBrokers);
+             localStorage.setItem(KEY_BROKERS, JSON.stringify(newBrokers));
+        }
+        if (newItem.category && !categoryOptions.includes(newItem.category)) {
+             const newCats = [...categoryOptions, newItem.category];
+             setCategoryOptions(newCats);
+             localStorage.setItem(KEY_CATEGORIES, JSON.stringify(newCats));
+        }
+
         // Reset Form
         setFormData({
             date: new Date().toISOString().split('T')[0],
@@ -199,6 +211,112 @@ const TabPerformance: React.FC = () => {
             setTransactions(updated);
             localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updated));
         }
+    };
+
+    const handleImportFile = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const text = e.target?.result as string;
+            if (!text) return;
+
+            // Simple CSV Parser
+            const rows = text.split('\n').map(row => row.split(',').map(cell => cell.trim()));
+            // Assuming header is row 0
+            const headers = rows[0];
+            const dataRows = rows.slice(1).filter(r => r.length > 1);
+
+            const newTransactions: UserTransaction[] = [];
+            
+            dataRows.forEach(row => {
+                // Map columns based on suggested order in Import Modal or Header Name
+                // "日期, 股號, 股名, 買賣別, 價格, 股數, 手續費, 證券戶, 分類"
+                // Simple mapping by index for now as per "Suggested Order"
+                // Or try to find index by header
+                const getIdx = (name: string) => headers.findIndex(h => h.includes(name));
+                
+                const dateIdx = getIdx('日期') > -1 ? getIdx('日期') : 0;
+                const codeIdx = getIdx('股號') > -1 ? getIdx('股號') : 1;
+                const nameIdx = getIdx('股名') > -1 ? getIdx('股名') : 2;
+                const priceIdx = getIdx('價格') > -1 ? getIdx('價格') : 4;
+                const qtyIdx = getIdx('股數') > -1 ? getIdx('股數') : 5;
+                const feeIdx = getIdx('手續費') > -1 ? getIdx('手續費') : 6;
+                const brokerIdx = getIdx('證券戶') > -1 ? getIdx('證券戶') : 7;
+                const catIdx = getIdx('分類') > -1 ? getIdx('分類') : 8;
+
+                const price = parseFloat(row[priceIdx]);
+                const qty = parseFloat(row[qtyIdx]);
+                
+                if (row[codeIdx] && !isNaN(price) && !isNaN(qty)) {
+                    // Avoid Duplicates (Simple check by code+date+price+qty)
+                    const isDup = transactions.some(t => 
+                        t.code === row[codeIdx] && 
+                        t.date === row[dateIdx] && 
+                        t.price === price && 
+                        t.quantity === qty
+                    );
+
+                    if (!isDup) {
+                        const fee = parseFloat(row[feeIdx]) || 0;
+                        const totalAmt = Math.floor(price * qty);
+                        
+                        newTransactions.push({
+                            id: crypto.randomUUID(),
+                            date: row[dateIdx] || new Date().toISOString().split('T')[0],
+                            code: row[codeIdx],
+                            name: row[nameIdx] || '',
+                            type: 'Buy',
+                            price: price,
+                            quantity: qty,
+                            fee: fee,
+                            tax: 0,
+                            totalAmount: totalAmt,
+                            cost: totalAmt + fee,
+                            broker: row[brokerIdx] || brokerOptions[0] || '',
+                            category: row[catIdx] || categoryOptions[0] || ''
+                        });
+                    }
+                }
+            });
+
+            if (newTransactions.length > 0) {
+                const updated = [...transactions, ...newTransactions];
+                setTransactions(updated);
+                localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updated));
+                alert(`成功匯入 ${newTransactions.length} 筆資料`);
+                setShowImportModal(false);
+            } else {
+                alert('未發現新資料或是格式不符');
+            }
+        };
+        reader.readAsText(file);
+        // Reset value so same file can be selected again
+        event.target.value = '';
+    };
+
+    const handleExportReport = () => {
+        if (transactions.length === 0) return alert('無資料可匯出');
+        // Export ALL transactions currently in state (or filtered? usually all for backup)
+        // Let's export filtered for flexibility, or all. Usually "Export Report" implies visible data or all. 
+        // User said "Export Report" in functionality tweaks. Let's export ALL transactions to ensure backup utility.
+        
+        const headers = ['日期', '證券戶', '分類', '股號', '股名', '買賣別', '成交單價', '成交股數', '成交價金', '手續費', '購買成本'];
+        const csvData = transactions.map(t => ({
+            '日期': t.date,
+            '證券戶': t.broker,
+            '分類': t.category,
+            '股號': t.code,
+            '股名': t.name,
+            '買賣別': t.type,
+            '成交單價': t.price.toFixed(2),
+            '成交股數': t.quantity,
+            '成交價金': t.totalAmount,
+            '手續費': t.fee,
+            '購買成本': t.cost
+        }));
+        exportToCSV(`交易紀錄備份_${new Date().toISOString().split('T')[0]}`, headers, csvData);
     };
 
     // --- LEXICON HANDLERS ---
@@ -241,68 +359,92 @@ const TabPerformance: React.FC = () => {
         setShowAddModal(true);
     };
 
-    const fmtNum = (n: number) => n?.toLocaleString() || '0';
+    const fmtMoney = (n: number) => n?.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 }) || '0';
+    const fmtPrice = (n: number) => n?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00';
     
     // --- RENDER ---
     return (
         <div className="flex flex-col h-full bg-blue-50">
-            {/* 1. Top Navigation Tabs */}
-            <div className="bg-white border-b border-blue-200 p-2 flex items-center gap-2 flex-none">
-                {[
-                    { id: 'HOLDINGS', label: '持股明細', icon: Wallet },
-                    { id: 'DIVIDEND', label: '股息分析', icon: PieChart },
-                    { id: 'PERFORMANCE', label: '績效分析', icon: TrendingUp },
-                ].map(tab => (
-                    <button
-                        key={tab.id}
-                        onClick={() => setActiveSubTab(tab.id as any)}
-                        className={`
-                            flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-base transition-all
-                            ${activeSubTab === tab.id 
-                                ? 'bg-blue-600 text-white shadow-md' 
-                                : 'bg-white text-blue-500 border border-blue-100 hover:bg-blue-50'
-                            }
-                        `}
-                    >
-                        <tab.icon className="w-4 h-4" />
-                        {tab.label}
-                    </button>
-                ))}
+            {/* 1. Top Navigation & Filters */}
+            <div className="bg-white border-b border-blue-200 p-2 flex flex-col gap-2 flex-none shadow-sm z-20">
+                <div className="flex items-center justify-between">
+                    <div className="flex gap-2">
+                        {[
+                            { id: 'HOLDINGS', label: '持股明細', icon: Wallet },
+                            { id: 'DIVIDEND', label: '股息分析', icon: PieChart },
+                            { id: 'PERFORMANCE', label: '績效分析', icon: TrendingUp },
+                        ].map(tab => (
+                            <button
+                                key={tab.id}
+                                onClick={() => setActiveSubTab(tab.id as any)}
+                                className={`
+                                    flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-base transition-all
+                                    ${activeSubTab === tab.id 
+                                        ? 'bg-blue-600 text-white shadow-md' 
+                                        : 'bg-white text-blue-500 border border-blue-100 hover:bg-blue-50'
+                                    }
+                                `}
+                            >
+                                <tab.icon className="w-4 h-4" />
+                                {tab.label}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
+                {/* Filters Row - Only Show if Data Exists */}
+                {transactions.length > 0 && activeSubTab === 'HOLDINGS' && (
+                    <div className="flex items-center gap-3 overflow-x-auto no-scrollbar py-1 animate-in fade-in slide-in-from-top-1">
+                        <div className="flex items-center gap-1 bg-gray-50 p-1 rounded border border-gray-200">
+                            <span className="text-gray-400 px-2"><Filter className="w-4 h-4" /></span>
+                            <button 
+                                onClick={() => setSelectedBroker('ALL')} 
+                                className={`px-3 py-1 rounded text-sm font-bold transition-colors whitespace-nowrap ${selectedBroker === 'ALL' ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-500 hover:bg-gray-200'}`}
+                            >全部券商</button>
+                            {Array.from(new Set(transactions.map(t=>t.broker))).map(b => (
+                                <button 
+                                    key={b} 
+                                    onClick={() => setSelectedBroker(b)} 
+                                    className={`px-3 py-1 rounded text-sm font-bold transition-colors whitespace-nowrap ${selectedBroker === b ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-500 hover:bg-gray-200'}`}
+                                >{b}</button>
+                            ))}
+                        </div>
+
+                        <div className="h-6 w-px bg-gray-300"></div>
+
+                        <div className="flex items-center gap-1 bg-gray-50 p-1 rounded border border-gray-200">
+                            <span className="text-gray-400 px-2"><Book className="w-4 h-4" /></span>
+                            <button 
+                                onClick={() => setSelectedCategory('ALL')} 
+                                className={`px-3 py-1 rounded text-sm font-bold transition-colors whitespace-nowrap ${selectedCategory === 'ALL' ? 'bg-indigo-600 text-white shadow-sm' : 'text-gray-500 hover:bg-gray-200'}`}
+                            >全部分類</button>
+                            {Array.from(new Set(transactions.map(t=>t.category))).filter(c=>c).map(c => (
+                                <button 
+                                    key={c} 
+                                    onClick={() => setSelectedCategory(c)} 
+                                    className={`px-3 py-1 rounded text-sm font-bold transition-colors whitespace-nowrap ${selectedCategory === c ? 'bg-indigo-600 text-white shadow-sm' : 'text-gray-500 hover:bg-gray-200'}`}
+                                >{c}</button>
+                            ))}
+                        </div>
+                    </div>
+                )}
             </div>
 
             {/* 2. Main Content Area */}
             {activeSubTab === 'HOLDINGS' ? (
                 <div className="flex-1 flex gap-2 p-2 overflow-hidden min-h-0">
                     
-                    {/* LEFT PANEL: Master List (Positions) */}
-                    <div className="w-[340px] flex-none bg-white rounded-xl shadow-sm border border-blue-200 flex flex-col overflow-hidden">
-                        {/* Header */}
-                        <div className="p-3 bg-blue-50 border-b border-blue-100 flex flex-col gap-2">
-                            <div className="flex justify-between items-center">
-                                <h3 className="font-bold text-blue-900 text-lg flex items-center gap-2">
-                                    <Wallet className="w-5 h-5" /> 庫存總覽
-                                </h3>
-                                <span className="bg-blue-200 text-blue-800 px-2 py-0.5 rounded text-sm font-bold">
-                                    {positions.length} 檔
-                                </span>
-                            </div>
-                            
-                            {/* Filter Dropdowns */}
-                            {positions.length > 0 && (
-                                <div className="flex gap-2 animate-in fade-in slide-in-from-top-2">
-                                    <select value={selectedBroker} onChange={e => setSelectedBroker(e.target.value)} className="w-1/2 p-1.5 rounded border border-blue-200 text-base font-bold text-gray-700 bg-white">
-                                        <option value="">全部證券戶</option>
-                                        {brokerOptions.map(b => <option key={b} value={b}>{b}</option>)}
-                                    </select>
-                                    <select value={selectedCategory} onChange={e => setSelectedCategory(e.target.value)} className="w-1/2 p-1.5 rounded border border-blue-200 text-base font-bold text-gray-700 bg-white">
-                                        <option value="">全部分類</option>
-                                        {categoryOptions.map(c => <option key={c} value={c}>{c}</option>)}
-                                    </select>
-                                </div>
-                            )}
+                    {/* LEFT PANEL: Master List (Positions) - Simplified Columns */}
+                    <div className="w-[360px] flex-none bg-white rounded-xl shadow-sm border border-blue-200 flex flex-col overflow-hidden">
+                        <div className="p-3 bg-blue-50 border-b border-blue-100 flex justify-between items-center gap-2">
+                            <h3 className="font-bold text-blue-900 text-lg flex items-center gap-2">
+                                <Wallet className="w-5 h-5" /> 庫存總覽
+                            </h3>
+                            <span className="bg-blue-200 text-blue-800 px-2 py-0.5 rounded text-sm font-bold">
+                                {positions.length} 檔
+                            </span>
                         </div>
 
-                        {/* List */}
                         <div className="flex-1 overflow-y-auto p-2 space-y-2 bg-gray-50/50">
                             {positions.length === 0 ? (
                                 <div className="flex flex-col items-center justify-center h-48 text-gray-400">
@@ -316,38 +458,36 @@ const TabPerformance: React.FC = () => {
                                         key={pos.code}
                                         onClick={() => setSelectedCode(pos.code)}
                                         className={`
-                                            p-3 rounded-lg cursor-pointer border transition-all relative group
+                                            p-3 rounded-lg cursor-pointer border transition-all relative group flex flex-col gap-1
                                             ${selectedCode === pos.code 
                                                 ? 'bg-blue-50 border-blue-500 shadow-md ring-1 ring-blue-500' 
                                                 : 'bg-white border-gray-200 hover:border-blue-300 hover:shadow-sm'
                                             }
                                         `}
                                     >
-                                        <div className="flex justify-between items-start mb-1">
-                                            <div>
-                                                <span className="text-lg font-bold text-blue-800 font-mono mr-2">{pos.code}</span>
+                                        <div className="flex justify-between items-center">
+                                            <div className="flex items-baseline gap-2">
+                                                <span className="text-xl font-bold text-blue-800 font-mono">{pos.code}</span>
                                                 <span className="text-base font-bold text-gray-700">{pos.name}</span>
                                             </div>
-                                            <span className="text-sm bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full font-bold">
-                                                {pos.broker || '未分類'}
-                                            </span>
+                                            <div className={`absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity ${selectedCode === pos.code ? 'text-blue-500' : 'text-gray-300'}`}>
+                                                <ChevronRight className="w-6 h-6" />
+                                            </div>
                                         </div>
-                                        <div className="flex justify-between items-center text-base mt-2">
+                                        
+                                        <div className="grid grid-cols-3 gap-2 mt-1">
                                             <div className="flex flex-col">
-                                                <span className="text-gray-400 text-sm font-bold">累積股數</span>
-                                                <span className="font-bold font-mono text-gray-800">{fmtNum(pos.totalQty)}</span>
+                                                <span className="text-gray-400 text-xs font-bold">累積股數</span>
+                                                <span className="font-bold font-mono text-gray-800 text-base">{fmtMoney(pos.totalQty)}</span>
                                             </div>
                                             <div className="flex flex-col items-end">
-                                                <span className="text-gray-400 text-sm font-bold">平均成本</span>
-                                                <span className="font-bold font-mono text-gray-800">{fmtNum(Math.round(pos.avgCost * 100) / 100)}</span>
+                                                <span className="text-gray-400 text-xs font-bold">平均成本</span>
+                                                <span className="font-bold font-mono text-gray-800 text-base">{fmtPrice(Math.round(pos.avgCost * 100) / 100)}</span>
                                             </div>
                                             <div className="flex flex-col items-end">
-                                                <span className="text-gray-400 text-sm font-bold">累積金額</span>
-                                                <span className="font-bold font-mono text-blue-600">{fmtNum(pos.totalCost)}</span>
+                                                <span className="text-gray-400 text-xs font-bold">累積金額</span>
+                                                <span className="font-bold font-mono text-blue-600 text-base">{fmtMoney(pos.totalCost)}</span>
                                             </div>
-                                        </div>
-                                        <div className={`absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity ${selectedCode === pos.code ? 'text-blue-500' : 'text-gray-300'}`}>
-                                            <ChevronRight className="w-6 h-6" />
                                         </div>
                                     </div>
                                 ))
@@ -375,13 +515,13 @@ const TabPerformance: React.FC = () => {
                             </div>
                             
                             <div className="flex items-center gap-2">
-                                <button onClick={openAddModal} className="flex items-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 shadow-sm transition-colors text-base">
+                                <button onClick={openAddModal} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 shadow-sm transition-colors text-base">
                                     <Plus className="w-4 h-4" /> 新增資料
                                 </button>
-                                <button onClick={() => setShowImportModal(true)} className="flex items-center gap-2 px-3 py-2 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg font-bold hover:bg-emerald-100 shadow-sm transition-colors text-base">
+                                <button onClick={() => setShowImportModal(true)} className="flex items-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg font-bold hover:bg-emerald-100 shadow-sm transition-colors text-base">
                                     <Upload className="w-4 h-4" /> 匯入資料
                                 </button>
-                                <button className="flex items-center gap-2 px-3 py-2 bg-gray-50 text-gray-600 border border-gray-200 rounded-lg font-bold hover:bg-gray-100 shadow-sm transition-colors text-base" disabled={transactions.length === 0}>
+                                <button onClick={handleExportReport} className="flex items-center gap-2 px-4 py-2 bg-gray-50 text-gray-600 border border-gray-200 rounded-lg font-bold hover:bg-gray-100 shadow-sm transition-colors text-base" disabled={transactions.length === 0}>
                                     <Download className="w-4 h-4" /> 匯出報表
                                 </button>
                             </div>
@@ -394,8 +534,7 @@ const TabPerformance: React.FC = () => {
                                         <th className="p-3 font-bold text-gray-700 text-base whitespace-nowrap">證券戶</th>
                                         <th className="p-3 font-bold text-gray-700 text-base whitespace-nowrap">分類</th>
                                         <th className="p-3 font-bold text-gray-700 text-base whitespace-nowrap">日期</th>
-                                        <th className="p-3 font-bold text-gray-700 text-base whitespace-nowrap">股號</th>
-                                        <th className="p-3 font-bold text-gray-700 text-base whitespace-nowrap">股名</th>
+                                        {/* Hidden Code/Name columns from view, but data exists */}
                                         <th className="p-3 font-bold text-gray-700 text-base text-right whitespace-nowrap">成交單價</th>
                                         <th className="p-3 font-bold text-gray-700 text-base text-right whitespace-nowrap">成交股數</th>
                                         <th className="p-3 font-bold text-gray-700 text-base text-right whitespace-nowrap">成交價金</th>
@@ -410,13 +549,12 @@ const TabPerformance: React.FC = () => {
                                             <td className="p-3 text-gray-700">{t.broker}</td>
                                             <td className="p-3 text-gray-600"><span className="bg-gray-100 px-2 py-0.5 rounded text-sm">{t.category}</span></td>
                                             <td className="p-3 font-mono text-gray-600">{t.date}</td>
-                                            <td className="p-3 font-mono text-blue-600 font-bold">{t.code}</td>
-                                            <td className="p-3 text-gray-800 font-bold">{t.name}</td>
-                                            <td className="p-3 font-mono text-right">{fmtNum(t.price)}</td>
-                                            <td className="p-3 font-mono text-right font-bold">{fmtNum(t.quantity)}</td>
-                                            <td className="p-3 font-mono text-right text-gray-500">{fmtNum(t.totalAmount)}</td>
-                                            <td className="p-3 font-mono text-right text-gray-400">{fmtNum(t.fee)}</td>
-                                            <td className="p-3 font-mono text-right font-bold text-blue-700">{fmtNum(t.cost)}</td>
+                                            
+                                            <td className="p-3 font-mono text-right">{fmtPrice(t.price)}</td>
+                                            <td className="p-3 font-mono text-right font-bold">{fmtMoney(t.quantity)}</td>
+                                            <td className="p-3 font-mono text-right text-gray-500">{fmtMoney(t.totalAmount)}</td>
+                                            <td className="p-3 font-mono text-right text-gray-400">{fmtMoney(t.fee)}</td>
+                                            <td className="p-3 font-mono text-right font-bold text-blue-700">{fmtMoney(t.cost)}</td>
                                             <td className="p-3 text-center">
                                                 <div className="flex items-center justify-center gap-2">
                                                     <button onClick={(e) => { e.stopPropagation(); handleEdit(t); }} className="p-1.5 text-blue-400 hover:text-blue-600 hover:bg-blue-100 rounded transition-colors" title="編輯">
@@ -429,7 +567,7 @@ const TabPerformance: React.FC = () => {
                                             </td>
                                         </tr>
                                     ))}
-                                    {detailData.length === 0 && (<tr><td colSpan={11} className="p-10 text-center text-gray-400 font-bold">{selectedCode ? '此標的尚無交易紀錄' : '👈 請先從左側選擇一檔標的'}</td></tr>)}
+                                    {detailData.length === 0 && (<tr><td colSpan={9} className="p-10 text-center text-gray-400 font-bold">{selectedCode ? '此標的尚無交易紀錄' : '👈 請先從左側選擇一檔標的'}</td></tr>)}
                                 </tbody>
                             </table>
                         </div>
@@ -441,10 +579,10 @@ const TabPerformance: React.FC = () => {
                 </div>
             )}
 
-            {/* --- ADD/EDIT TRANSACTION MODAL --- */}
+            {/* --- ADD/EDIT TRANSACTION MODAL (Wide Layout) --- */}
             {showAddModal && (
                 <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-                    <div className="bg-white rounded-xl w-full max-w-lg shadow-2xl animate-in zoom-in-95 flex flex-col max-h-[90vh]">
+                    <div className="bg-white rounded-xl w-full max-w-4xl shadow-2xl animate-in zoom-in-95 flex flex-col max-h-[90vh]">
                         <div className="p-4 border-b bg-blue-50 rounded-t-xl flex justify-between items-center shrink-0">
                             <h3 className="font-bold text-xl text-blue-900 flex items-center gap-2">
                                 {editingId ? <Edit className="w-6 h-6" /> : <Plus className="w-6 h-6" />} 
@@ -453,81 +591,89 @@ const TabPerformance: React.FC = () => {
                             <button onClick={() => setShowAddModal(false)}><X className="w-6 h-6 text-gray-500" /></button>
                         </div>
                         
-                        <div className="p-6 space-y-5 overflow-y-auto">
-                            {/* 1. Date */}
-                            <div className="space-y-1">
-                                <label className="text-base font-bold text-gray-700">日期</label>
-                                <input type="date" value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} className="w-full border rounded-lg p-2.5 text-base font-mono font-bold bg-gray-50 focus:bg-white focus:ring-2 ring-blue-200 outline-none transition-all" />
-                            </div>
+                        <div className="p-8 overflow-y-auto">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
+                                {/* Left Column */}
+                                <div className="space-y-6">
+                                    {/* Date */}
+                                    <div className="flex items-center gap-4">
+                                        <label className="w-24 text-right text-base font-bold text-gray-500 shrink-0">日期</label>
+                                        <input type="date" value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} className="flex-1 border rounded-lg p-2 text-base font-mono font-bold bg-gray-50 focus:bg-white focus:ring-2 ring-blue-200 outline-none" />
+                                    </div>
 
-                            {/* 2. Broker with Lexicon */}
-                            <div className="space-y-1">
-                                <div className="flex justify-between items-end">
-                                    <label className="text-base font-bold text-gray-700">證券戶</label>
-                                    <button onClick={() => setShowLexiconModal('BROKER')} className="text-sm font-bold text-blue-600 hover:bg-blue-50 px-2 py-0.5 rounded flex items-center gap-1 transition-colors"><Book className="w-4 h-4"/> 詞庫管理</button>
-                                </div>
-                                <select value={formData.broker} onChange={e => setFormData({...formData, broker: e.target.value})} className="w-full border rounded-lg p-2.5 text-base font-bold bg-white focus:ring-2 ring-blue-200 outline-none">
-                                    {brokerOptions.map(opt => <option key={opt} value={opt}>{opt}</option>)}
-                                </select>
-                            </div>
+                                    {/* Broker */}
+                                    <div className="flex items-center gap-4">
+                                        <div className="w-24 flex flex-col items-end shrink-0">
+                                            <label className="text-base font-bold text-gray-500">證券戶</label>
+                                            <button onClick={() => setShowLexiconModal('BROKER')} className="text-xs font-bold text-blue-600 hover:underline flex items-center gap-1"><Book className="w-3 h-3"/>詞庫</button>
+                                        </div>
+                                        <select value={formData.broker} onChange={e => setFormData({...formData, broker: e.target.value})} className="flex-1 border rounded-lg p-2 text-base font-bold bg-white focus:ring-2 ring-blue-200 outline-none">
+                                            {brokerOptions.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                                        </select>
+                                    </div>
 
-                            {/* 3. Category with Lexicon */}
-                            <div className="space-y-1">
-                                <div className="flex justify-between items-end">
-                                    <label className="text-base font-bold text-gray-700">分類</label>
-                                    <button onClick={() => setShowLexiconModal('CATEGORY')} className="text-sm font-bold text-blue-600 hover:bg-blue-50 px-2 py-0.5 rounded flex items-center gap-1 transition-colors"><Book className="w-4 h-4"/> 詞庫管理</button>
-                                </div>
-                                <select value={formData.category} onChange={e => setFormData({...formData, category: e.target.value})} className="w-full border rounded-lg p-2.5 text-base font-bold bg-white focus:ring-2 ring-blue-200 outline-none">
-                                    {categoryOptions.map(opt => <option key={opt} value={opt}>{opt}</option>)}
-                                </select>
-                            </div>
+                                    {/* Category */}
+                                    <div className="flex items-center gap-4">
+                                        <div className="w-24 flex flex-col items-end shrink-0">
+                                            <label className="text-base font-bold text-gray-500">分類</label>
+                                            <button onClick={() => setShowLexiconModal('CATEGORY')} className="text-xs font-bold text-blue-600 hover:underline flex items-center gap-1"><Book className="w-3 h-3"/>詞庫</button>
+                                        </div>
+                                        <select value={formData.category} onChange={e => setFormData({...formData, category: e.target.value})} className="flex-1 border rounded-lg p-2 text-base font-bold bg-white focus:ring-2 ring-blue-200 outline-none">
+                                            {categoryOptions.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                                        </select>
+                                    </div>
 
-                            {/* 4. Code & Name */}
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-1">
-                                    <label className="text-base font-bold text-gray-700">股號</label>
-                                    <input type="text" placeholder="輸入代碼" value={formData.code} onChange={e => setFormData({...formData, code: e.target.value})} className="w-full border rounded-lg p-2.5 text-base font-mono font-bold text-blue-700 focus:ring-2 ring-blue-200 outline-none uppercase" />
-                                </div>
-                                <div className="space-y-1">
-                                    <label className="text-base font-bold text-gray-700">股名 (自動帶入)</label>
-                                    <input type="text" placeholder="系統自動搜尋" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full border rounded-lg p-2.5 text-base font-bold bg-gray-50 text-gray-600 focus:bg-white focus:ring-2 ring-blue-200 outline-none" />
-                                </div>
-                            </div>
+                                    {/* Code */}
+                                    <div className="flex items-center gap-4">
+                                        <label className="w-24 text-right text-base font-bold text-gray-500 shrink-0">股號</label>
+                                        <input type="text" placeholder="輸入代碼" value={formData.code} onChange={e => setFormData({...formData, code: e.target.value})} className="flex-1 border rounded-lg p-2 text-base font-mono font-bold text-blue-700 focus:ring-2 ring-blue-200 outline-none uppercase" />
+                                    </div>
 
-                            {/* 5. Price & Qty */}
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-1">
-                                    <label className="text-base font-bold text-gray-700">成交單價</label>
-                                    <input type="number" placeholder="0.00" value={formData.price} onChange={e => setFormData({...formData, price: e.target.value})} className="w-full border rounded-lg p-2.5 text-base font-mono font-bold text-right focus:ring-2 ring-blue-200 outline-none" />
+                                    {/* Name */}
+                                    <div className="flex items-center gap-4">
+                                        <label className="w-24 text-right text-base font-bold text-gray-500 shrink-0">股名</label>
+                                        <input type="text" placeholder="系統自動帶入" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="flex-1 border rounded-lg p-2 text-base font-bold bg-gray-50 text-gray-600 focus:bg-white focus:ring-2 ring-blue-200 outline-none" />
+                                    </div>
                                 </div>
-                                <div className="space-y-1">
-                                    <label className="text-base font-bold text-gray-700">成交股數</label>
-                                    <input type="number" placeholder="0" value={formData.quantity} onChange={e => setFormData({...formData, quantity: e.target.value})} className="w-full border rounded-lg p-2.5 text-base font-mono font-bold text-right focus:ring-2 ring-blue-200 outline-none" />
-                                </div>
-                            </div>
 
-                            {/* 6. Amount & Fee */}
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-1">
-                                    <label className="text-base font-bold text-gray-700">成交價金</label>
-                                    <input type="number" placeholder="0" value={formData.totalAmount} onChange={e => setFormData({...formData, totalAmount: e.target.value})} className="w-full border rounded-lg p-2.5 text-base font-mono font-bold text-right focus:ring-2 ring-blue-200 outline-none" />
-                                </div>
-                                <div className="space-y-1">
-                                    <label className="text-base font-bold text-gray-700">手續費</label>
-                                    <input type="number" placeholder="0" value={formData.fee} onChange={e => setFormData({...formData, fee: e.target.value})} className="w-full border rounded-lg p-2.5 text-base font-mono font-bold text-right focus:ring-2 ring-blue-200 outline-none" />
-                                </div>
-                            </div>
+                                {/* Right Column */}
+                                <div className="space-y-6">
+                                    {/* Price */}
+                                    <div className="flex items-center gap-4">
+                                        <label className="w-24 text-right text-base font-bold text-gray-500 shrink-0">成交單價</label>
+                                        <input type="number" step="0.01" placeholder="0.00" value={formData.price} onChange={e => setFormData({...formData, price: e.target.value})} className="flex-1 border rounded-lg p-2 text-base font-mono font-bold text-right focus:ring-2 ring-blue-200 outline-none" />
+                                    </div>
 
-                            {/* 7. Cost (Calculated) */}
-                            <div className="bg-blue-50 p-4 rounded-lg flex justify-between items-center border border-blue-200">
-                                <span className="font-bold text-base text-blue-900">購買成本 (系統計算)</span>
-                                <span className="font-mono font-bold text-2xl text-blue-700">{fmtNum(formData.cost)}</span>
+                                    {/* Qty */}
+                                    <div className="flex items-center gap-4">
+                                        <label className="w-24 text-right text-base font-bold text-gray-500 shrink-0">成交股數</label>
+                                        <input type="number" placeholder="0" value={formData.quantity} onChange={e => setFormData({...formData, quantity: e.target.value})} className="flex-1 border rounded-lg p-2 text-base font-mono font-bold text-right focus:ring-2 ring-blue-200 outline-none" />
+                                    </div>
+
+                                    {/* Amount */}
+                                    <div className="flex items-center gap-4">
+                                        <label className="w-24 text-right text-base font-bold text-gray-500 shrink-0">成交價金</label>
+                                        <input type="number" placeholder="0" value={formData.totalAmount} onChange={e => setFormData({...formData, totalAmount: e.target.value})} className="flex-1 border rounded-lg p-2 text-base font-mono font-bold text-right focus:ring-2 ring-blue-200 outline-none" />
+                                    </div>
+
+                                    {/* Fee */}
+                                    <div className="flex items-center gap-4">
+                                        <label className="w-24 text-right text-base font-bold text-gray-500 shrink-0">手續費</label>
+                                        <input type="number" placeholder="0" value={formData.fee} onChange={e => setFormData({...formData, fee: e.target.value})} className="flex-1 border rounded-lg p-2 text-base font-mono font-bold text-right focus:ring-2 ring-blue-200 outline-none" />
+                                    </div>
+
+                                    {/* Cost Display */}
+                                    <div className="flex items-center gap-4 bg-blue-50 p-3 rounded-lg border border-blue-200">
+                                        <label className="w-24 text-right text-base font-bold text-blue-900 shrink-0">購買成本</label>
+                                        <div className="flex-1 text-right font-mono font-bold text-2xl text-blue-700">{fmtMoney(formData.cost)}</div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
-                        <div className="p-4 border-t bg-gray-50 rounded-b-xl flex gap-3 shrink-0">
-                            <button onClick={() => setShowAddModal(false)} className="flex-1 py-3 rounded-xl border border-gray-300 text-gray-600 font-bold hover:bg-gray-100 transition-colors text-base">取消</button>
-                            <button onClick={handleSaveTransaction} className="flex-1 py-3 rounded-xl bg-blue-600 text-white font-bold hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all active:scale-95 flex items-center justify-center gap-2 text-base">
+                        <div className="p-4 border-t bg-gray-50 rounded-b-xl flex gap-3 shrink-0 justify-end">
+                            <button onClick={() => setShowAddModal(false)} className="px-6 py-3 rounded-xl border border-gray-300 text-gray-600 font-bold hover:bg-gray-100 transition-colors text-base">取消</button>
+                            <button onClick={handleSaveTransaction} className="px-8 py-3 rounded-xl bg-blue-600 text-white font-bold hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all active:scale-95 flex items-center justify-center gap-2 text-base">
                                 <Save className="w-5 h-5" /> 存檔
                             </button>
                         </div>
@@ -584,16 +730,26 @@ const TabPerformance: React.FC = () => {
                             <button onClick={() => setShowImportModal(false)}><X className="w-6 h-6 text-gray-500" /></button>
                         </div>
                         <div className="p-8 flex flex-col items-center text-center space-y-6">
-                            <div className="w-full border-2 border-dashed border-gray-300 rounded-xl p-10 bg-gray-50 hover:bg-emerald-50/50 hover:border-emerald-400 transition-colors cursor-pointer group">
+                            <div 
+                                className="w-full border-2 border-dashed border-gray-300 rounded-xl p-10 bg-gray-50 hover:bg-emerald-50/50 hover:border-emerald-400 transition-colors cursor-pointer group relative"
+                                onClick={() => fileInputRef.current?.click()}
+                            >
+                                <input 
+                                    type="file" 
+                                    ref={fileInputRef} 
+                                    className="hidden" 
+                                    accept=".csv,.xlsx,.xls" 
+                                    onChange={handleImportFile}
+                                />
                                 <Upload className="w-12 h-12 text-gray-400 group-hover:text-emerald-500 mx-auto mb-4 transition-colors" />
                                 <p className="text-lg font-bold text-gray-600 group-hover:text-emerald-700">點擊選擇檔案 或 拖曳至此</p>
-                                <p className="text-base text-gray-400 mt-2 font-bold">支援格式: .csv, .xlsx</p>
+                                <p className="text-base text-gray-400 mt-2 font-bold">支援格式: .csv</p>
                             </div>
 
                             <div className="w-full text-left bg-blue-50 p-4 rounded-lg border border-blue-100 text-sm space-y-2">
                                 <div className="font-bold text-base text-blue-800 flex items-center gap-2">
                                     <AlertCircle className="w-4 h-4" />
-                                    匯入說明與欄位順序
+                                    匯入說明與欄位順序 (CSV)
                                 </div>
                                 <ul className="list-disc list-inside text-blue-700 space-y-1 ml-1 text-base font-bold">
                                     <li>檔案第一列必須為標題列。</li>
