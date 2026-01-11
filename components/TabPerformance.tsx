@@ -2,7 +2,8 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
     Wallet, PieChart, TrendingUp, Plus, Upload, Download, 
     Trash2, Edit, X, FileSpreadsheet, AlertCircle, ChevronRight,
-    Book, Save, Filter, RefreshCcw, AlertTriangle, Coins
+    Book, Save, Filter, RefreshCcw, AlertTriangle, Coins,
+    LayoutDashboard, ChevronDown, ChevronUp, FolderOpen, Layers
 } from 'lucide-react';
 import { UserTransaction, UserPosition, BasicInfo, DividendData } from '../types';
 import { getBasicInfo, getDividendData, exportToCSV } from '../services/dataService';
@@ -37,6 +38,11 @@ const TabPerformance: React.FC = () => {
     const [showAddModal, setShowAddModal] = useState(false);
     const [showImportModal, setShowImportModal] = useState(false);
     const [showLexiconModal, setShowLexiconModal] = useState<'BROKER' | 'CATEGORY' | null>(null);
+    const [showSummaryModal, setShowSummaryModal] = useState(false); // New Summary Modal
+
+    // Summary Modal State
+    const [summaryViewMode, setSummaryViewMode] = useState<'ACCOUNT' | 'STOCK'>('ACCOUNT');
+    const [expandedSummaryRows, setExpandedSummaryRows] = useState<Set<string>>(new Set());
 
     // File Input Ref for Import
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -168,33 +174,25 @@ const TabPerformance: React.FC = () => {
     }, [selectedCode, filteredTransactions]);
 
     // 4. Detail Data (Dividend Analysis View)
-    // Core Logic: Iterate System Dividends -> Check User Holdings at Ex-Date
     const dividendDetailData = useMemo(() => {
         if (!selectedCode || systemDividends.length === 0) return [];
 
-        // 1. Get all system dividends for this code
         const targetDividends = systemDividends
             .filter(d => d.etfCode === selectedCode)
-            .sort((a, b) => b.exDate.localeCompare(a.exDate)); // Newest first
+            .sort((a, b) => b.exDate.localeCompare(a.exDate));
 
         const results: any[] = [];
 
         targetDividends.forEach(div => {
-            // 2. For each dividend, calculate held shares BEFORE ex-date
-            // Filter transactions: Same Code AND Date < ExDate
             const validTrans = transactions.filter(t => 
                 t.code === selectedCode && 
                 t.date < div.exDate && 
                 t.type === 'Buy'
             );
 
-            // 3. Group by Broker + Category
-            // User might have shares in different buckets
-            const groupMap = new Map<string, number>(); // Key: "Broker|Category", Value: Qty
+            const groupMap = new Map<string, number>();
 
             validTrans.forEach(t => {
-                // Apply Global Filters to Dividend Calculation as well?
-                // Usually Dividend Analysis implies "All Holdings", but if filters are active, we should respect them.
                 if (selectedBroker !== 'ALL' && t.broker !== selectedBroker) return;
                 if (selectedCategory !== 'ALL' && t.category !== selectedCategory) return;
 
@@ -203,7 +201,6 @@ const TabPerformance: React.FC = () => {
                 groupMap.set(key, current + t.quantity);
             });
 
-            // 4. Create Result Rows
             groupMap.forEach((qty, key) => {
                 if (qty > 0) {
                     const [broker, category] = key.split('|');
@@ -225,6 +222,83 @@ const TabPerformance: React.FC = () => {
 
         return results;
     }, [selectedCode, systemDividends, transactions, selectedBroker, selectedCategory]);
+
+    // --- SUMMARY CALCULATIONS ---
+    const summaryData = useMemo(() => {
+        // Use ALL transactions, ignore current view filters for the "Summary Modal" unless desired otherwise
+        // Usually Summary implies "Total Portfolio Summary"
+        const source = transactions.filter(t => t.type === 'Buy');
+
+        if (summaryViewMode === 'ACCOUNT') {
+            // Group by Broker + Category
+            const groups = new Map<string, { broker: string, category: string, totalQty: number, totalCost: number, items: Map<string, any> }>();
+            
+            source.forEach(t => {
+                const key = `${t.broker}|${t.category}`;
+                if (!groups.has(key)) {
+                    groups.set(key, { broker: t.broker, category: t.category, totalQty: 0, totalCost: 0, items: new Map() });
+                }
+                const g = groups.get(key)!;
+                g.totalQty += t.quantity;
+                g.totalCost += t.cost;
+
+                const itemKey = t.code;
+                if (!g.items.has(itemKey)) {
+                    g.items.set(itemKey, { code: t.code, name: t.name, qty: 0, cost: 0 });
+                }
+                const i = g.items.get(itemKey)!;
+                i.qty += t.quantity;
+                i.cost += t.cost;
+            });
+
+            return Array.from(groups.values()).map(g => ({
+                id: `${g.broker}|${g.category}`,
+                group1: g.broker,
+                group2: g.category,
+                totalQty: g.totalQty,
+                totalCost: g.totalCost,
+                details: Array.from(g.items.values()).sort((a,b) => a.code.localeCompare(b.code))
+            })).sort((a,b) => (a.group1 + a.group2).localeCompare(b.group1 + b.group2));
+
+        } else {
+            // Group by Code (Stock)
+            const groups = new Map<string, { code: string, name: string, totalQty: number, totalCost: number, items: Map<string, any> }>();
+
+            source.forEach(t => {
+                const key = t.code;
+                if (!groups.has(key)) {
+                    groups.set(key, { code: t.code, name: t.name, totalQty: 0, totalCost: 0, items: new Map() });
+                }
+                const g = groups.get(key)!;
+                g.totalQty += t.quantity;
+                g.totalCost += t.cost;
+
+                const itemKey = `${t.broker}|${t.category}`;
+                if (!g.items.has(itemKey)) {
+                    g.items.set(itemKey, { broker: t.broker, category: t.category, qty: 0, cost: 0 });
+                }
+                const i = g.items.get(itemKey)!;
+                i.qty += t.quantity;
+                i.cost += t.cost;
+            });
+
+            return Array.from(groups.values()).map(g => ({
+                id: g.code,
+                group1: g.code,
+                group2: g.name,
+                totalQty: g.totalQty,
+                totalCost: g.totalCost,
+                details: Array.from(g.items.values()).sort((a,b) => (a.broker + a.category).localeCompare(b.broker + b.category))
+            })).sort((a,b) => a.group1.localeCompare(b.group1));
+        }
+    }, [transactions, summaryViewMode]);
+
+    const toggleSummaryRow = (id: string) => {
+        const newSet = new Set(expandedSummaryRows);
+        if (newSet.has(id)) newSet.delete(id);
+        else newSet.add(id);
+        setExpandedSummaryRows(newSet);
+    };
 
     // --- HANDLERS ---
     const handleBrokerChange = (broker: string) => {
@@ -624,6 +698,9 @@ const TabPerformance: React.FC = () => {
 
                 {/* Right: Actions */}
                 <div className="flex items-center gap-2 shrink-0">
+                    <button onClick={() => setShowSummaryModal(true)} className="flex items-center gap-2 px-3 py-1.5 bg-purple-600 text-white rounded-lg font-bold hover:bg-purple-700 shadow-sm transition-colors text-sm">
+                        <LayoutDashboard className="w-4 h-4" /> 總表
+                    </button>
                     <button onClick={openAddModal} className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 shadow-sm transition-colors text-sm">
                         <Plus className="w-4 h-4" /> 新增
                     </button>
@@ -648,7 +725,7 @@ const TabPerformance: React.FC = () => {
                 {/* LEFT PANEL: Master List (Shared for HOLDINGS & DIVIDEND) */}
                 <div className="w-[360px] flex-none bg-white rounded-xl shadow-sm border border-blue-200 flex flex-col overflow-hidden">
                     {/* Header Summary Dashboard */}
-                    <div className="p-2 bg-blue-50 border-b border-blue-100 grid grid-cols-3 gap-2 shrink-0">
+                    <div className="p-2 bg-blue-100 border-b border-blue-200 grid grid-cols-3 gap-2 shrink-0">
                         <div className="flex flex-col items-center justify-center bg-blue-100 p-1.5 rounded-lg border border-blue-200 shadow-sm">
                             <span className="text-xs font-bold text-gray-500">檔數</span>
                             <span className="text-base font-bold text-blue-900 font-mono">{positions.length}</span>
@@ -841,6 +918,110 @@ const TabPerformance: React.FC = () => {
                     </div>
                 )}
             </div>
+
+            {/* --- SUMMARY ANALYSIS MODAL --- */}
+            {showSummaryModal && (
+                <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-xl w-full max-w-5xl h-[85vh] shadow-2xl animate-in zoom-in-95 flex flex-col overflow-hidden">
+                        <div className="bg-indigo-50 p-4 border-b border-indigo-100 flex justify-between items-center shrink-0">
+                            <h3 className="font-bold text-xl text-indigo-900 flex items-center gap-2">
+                                <LayoutDashboard className="w-6 h-6" /> 總資產分析表
+                            </h3>
+                            <div className="flex gap-2">
+                                <button 
+                                    onClick={() => setSummaryViewMode('ACCOUNT')}
+                                    className={`px-4 py-2 rounded-lg font-bold text-base transition-colors flex items-center gap-2 ${summaryViewMode === 'ACCOUNT' ? 'bg-indigo-600 text-white shadow-md' : 'bg-white text-indigo-600 border border-indigo-200'}`}
+                                >
+                                    <FolderOpen className="w-4 h-4"/> 依帳戶檢視
+                                </button>
+                                <button 
+                                    onClick={() => setSummaryViewMode('STOCK')}
+                                    className={`px-4 py-2 rounded-lg font-bold text-base transition-colors flex items-center gap-2 ${summaryViewMode === 'STOCK' ? 'bg-indigo-600 text-white shadow-md' : 'bg-white text-indigo-600 border border-indigo-200'}`}
+                                >
+                                    <Layers className="w-4 h-4"/> 依標的檢視
+                                </button>
+                                <div className="w-px h-8 bg-indigo-200 mx-2"></div>
+                                <button onClick={() => setShowSummaryModal(false)} className="p-2 hover:bg-white rounded-full text-gray-500 transition-colors"><X className="w-6 h-6" /></button>
+                            </div>
+                        </div>
+
+                        <div className="flex-1 overflow-auto bg-white p-0">
+                            <table className="w-full text-left border-collapse">
+                                <thead className="bg-gray-50 sticky top-0 z-10 border-b border-gray-200 text-base font-bold text-gray-700 shadow-sm">
+                                    <tr>
+                                        <th className="p-3 w-12 text-center">#</th>
+                                        <th className="p-3">{summaryViewMode === 'ACCOUNT' ? '證券戶' : '股號'}</th>
+                                        <th className="p-3">{summaryViewMode === 'ACCOUNT' ? '分類' : '股名'}</th>
+                                        <th className="p-3 text-right">持股張數 (總計)</th>
+                                        <th className="p-3 text-right">持股金額 (總計)</th>
+                                        <th className="p-3 w-10"></th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-100 text-base">
+                                    {summaryData.map((group) => {
+                                        const isExpanded = expandedSummaryRows.has(group.id);
+                                        return (
+                                            <React.Fragment key={group.id}>
+                                                <tr 
+                                                    className={`cursor-pointer transition-colors hover:bg-indigo-50/50 ${isExpanded ? 'bg-indigo-50 border-indigo-100' : ''}`}
+                                                    onClick={() => toggleSummaryRow(group.id)}
+                                                >
+                                                    <td className="p-3 text-center text-gray-400">
+                                                        {isExpanded ? <ChevronDown className="w-5 h-5 mx-auto text-indigo-600" /> : <ChevronRight className="w-5 h-5 mx-auto" />}
+                                                    </td>
+                                                    <td className={`p-3 font-bold ${summaryViewMode === 'STOCK' ? 'font-mono text-blue-700 text-lg' : 'text-gray-800'}`}>{group.group1}</td>
+                                                    <td className="p-3 font-bold text-gray-600">{group.group2}</td>
+                                                    <td className="p-3 text-right font-mono font-bold text-gray-800 text-lg">{fmtMoney(group.totalQty)}</td>
+                                                    <td className="p-3 text-right font-mono font-bold text-indigo-600 text-lg">{fmtMoney(group.totalCost)}</td>
+                                                    <td></td>
+                                                </tr>
+                                                {isExpanded && (
+                                                    <tr className="bg-slate-50 border-y border-slate-200 shadow-inner">
+                                                        <td colSpan={6} className="p-0">
+                                                            <div className="py-3 px-12">
+                                                                <table className="w-full text-sm border border-slate-200 rounded-lg overflow-hidden bg-white">
+                                                                    <thead className="bg-slate-100 text-slate-600 font-bold border-b border-slate-200">
+                                                                        <tr>
+                                                                            <th className="p-2 pl-4">{summaryViewMode === 'ACCOUNT' ? '股號' : '證券戶'}</th>
+                                                                            <th className="p-2">{summaryViewMode === 'ACCOUNT' ? '股名' : '分類'}</th>
+                                                                            <th className="p-2 text-right">持股張數</th>
+                                                                            <th className="p-2 text-right pr-4">持股金額</th>
+                                                                        </tr>
+                                                                    </thead>
+                                                                    <tbody className="divide-y divide-slate-100">
+                                                                        {group.details.map((item: any, idx: number) => (
+                                                                            <tr key={idx} className="hover:bg-slate-50">
+                                                                                <td className={`p-2 pl-4 font-bold ${summaryViewMode === 'ACCOUNT' ? 'font-mono text-blue-600' : 'text-gray-700'}`}>
+                                                                                    {summaryViewMode === 'ACCOUNT' ? item.code : item.broker}
+                                                                                </td>
+                                                                                <td className="p-2 text-gray-600 font-medium">
+                                                                                    {summaryViewMode === 'ACCOUNT' ? item.name : item.category}
+                                                                                </td>
+                                                                                <td className="p-2 text-right font-mono font-bold text-gray-800">{fmtMoney(item.qty)}</td>
+                                                                                <td className="p-2 text-right pr-4 font-mono font-bold text-blue-600">{fmtMoney(item.cost)}</td>
+                                                                            </tr>
+                                                                        ))}
+                                                                    </tbody>
+                                                                </table>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                )}
+                                            </React.Fragment>
+                                        );
+                                    })}
+                                    {summaryData.length === 0 && (
+                                        <tr><td colSpan={6} className="p-10 text-center text-gray-400 font-bold text-lg">無持股資料</td></tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                        <div className="p-3 bg-gray-50 border-t border-gray-200 text-right text-gray-500 text-sm font-bold">
+                            資料來源：持股明細 (交易紀錄彙整)
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* --- ADD/EDIT TRANSACTION MODAL (Wide Layout) --- */}
             {showAddModal && (
