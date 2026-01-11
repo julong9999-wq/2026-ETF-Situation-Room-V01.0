@@ -150,12 +150,13 @@ const TabDividends: React.FC<TabDividendsProps> = ({
   const filteredMaster = useMemo(() => {
       let result = basicInfo;
       const getStr = (val: string | undefined) => String(val || '');
+      // STRICT FILTERING LOGIC
       if (mainFilter !== '全部') {
           if (mainFilter === '債券') result = result.filter(d => getStr(d.category).includes('債'));
           else if (mainFilter === '季配') result = result.filter(d => getStr(d.dividendFreq).includes('季') && !getStr(d.category).includes('債'));
-          else if (mainFilter === '月配') result = result.filter(d => getStr(d.dividendFreq).includes('月') && !getStr(d.category).includes('債') && !getStr(d.category).includes('主動'));
-          else if (mainFilter === '主動') result = result.filter(d => getStr(d.category).includes('主動') || getStr(d.etfType).includes('主動'));
-          else if (mainFilter === '國際') result = result.filter(d => d.etfCode === '00911' || getStr(d.category).includes('國際') || getStr(d.marketType).includes('國外'));
+          else if (mainFilter === '月配') result = result.filter(d => getStr(d.dividendFreq).includes('月') && !getStr(d.category).includes('債')); // No Active check
+          else if (mainFilter === '主動') result = result.filter(d => getStr(d.category).includes('主動'));
+          else if (mainFilter === '國際') result = result.filter(d => d.etfCode === '00911' || getStr(d.category).includes('國際') || getStr(d.category).includes('國外') || getStr(d.marketType).includes('國外'));
           else if (mainFilter === '半年') result = result.filter(d => d.etfCode !== '00911' && (getStr(d.category).includes('半年') || getStr(d.dividendFreq).includes('半年')));
       }
       if (subFilter !== 'ALL') {

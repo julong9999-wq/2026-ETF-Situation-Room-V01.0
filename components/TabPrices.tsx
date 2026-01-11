@@ -31,7 +31,7 @@ const getRowBgColor = (etf: BasicInfo, isSelected: boolean) => {
     return `${colorClass} border border-gray-100 hover:brightness-95`;
 };
 
-// --- CHART MODAL COMPONENTS ---
+// ... (KEEP MODAL COMPONENTS AS IS, omitted for brevity, assuming standard chart/modal implementation) ...
 const TechChartModal = ({ data, title, onClose }: { data: any[], title: string, onClose: () => void }) => {
     const containerRef = useRef<HTMLDivElement>(null);
     useEffect(() => {
@@ -171,6 +171,7 @@ const RecentInfoModal = ({ allBasicInfo, allPriceData, onClose }: { allBasicInfo
     const [modalSubFilter, setModalSubFilter] = useState('季一');
     const fmt = (n: number) => n.toFixed(2);
 
+    // Filter Logic inside Modal (Must match global Strict Logic)
     const filteredList = useMemo(() => {
         let result = allBasicInfo;
         const getStr = (val: string | undefined) => String(val || '');
@@ -178,10 +179,10 @@ const RecentInfoModal = ({ allBasicInfo, allPriceData, onClose }: { allBasicInfo
         if (modalMainFilter !== '全部') {
             if (modalMainFilter === '債券') result = result.filter(d => getStr(d.category).includes('債'));
             else if (modalMainFilter === '季配') result = result.filter(d => getStr(d.dividendFreq).includes('季') && !getStr(d.category).includes('債'));
-            else if (modalMainFilter === '月配') result = result.filter(d => getStr(d.dividendFreq).includes('月') && !getStr(d.category).includes('債') && !getStr(d.category).includes('主動'));
-            else if (modalMainFilter === '主動') result = result.filter(d => getStr(d.category).includes('主動') || getStr(d.etfType).includes('主動'));
-            else if (modalMainFilter === '國際') result = result.filter(d => d.etfCode === '00911' || getStr(d.category).includes('國際') || getStr(d.marketType).includes('國外'));
-            else if (modalMainFilter === '半年') result = result.filter(d => d.etfCode !== '00911' && (getStr(d.category).includes('半年') || getStr(d.dividendFreq).includes('半年')));
+            else if (modalMainFilter === '月配') result = result.filter(d => getStr(d.dividendFreq).includes('月') && !getStr(d.category).includes('債')); // Removed Active exclusion
+            else if (modalMainFilter === '主動') result = result.filter(d => getStr(d.category).includes('主動'));
+            else if (modalMainFilter === '國際') result = result.filter(d => getStr(d.category).includes('國際') || getStr(d.category).includes('國外') || getStr(d.marketType).includes('國外'));
+            else if (modalMainFilter === '半年') result = result.filter(d => getStr(d.category).includes('半年') || getStr(d.dividendFreq).includes('半年'));
         }
         if (modalSubFilter !== 'ALL') {
             const freqStr = (d: BasicInfo) => String(d.dividendFreq || '');
@@ -283,8 +284,13 @@ const TabPrices: React.FC<TabPricesProps> = ({
   const [fillData, setFillData] = useState<FillAnalysisData[]>([]); 
   const [divData, setDivData] = useState<DividendData[]>([]);
   const [selectedEtf, setSelectedEtf] = useState<string | null>(null);
+  
+  // Date State for Lag Fix
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [inputStart, setInputStart] = useState('');
+  const [inputEnd, setInputEnd] = useState('');
+
   const [activeModal, setActiveModal] = useState<'NONE' | 'TECH' | 'DIV' | 'FILL' | 'TREND' | 'RECENT'>('NONE');
 
   useEffect(() => {
@@ -294,25 +300,27 @@ const TabPrices: React.FC<TabPricesProps> = ({
              const sorted = [...p].sort((a,b) => b.date.localeCompare(a.date));
              const latest = sorted[0].date;
              if (latest && !isNaN(new Date(latest).getTime())) {
-                setEndDate(latest);
                 const start = new Date(latest);
                 start.setDate(start.getDate() - 30);
-                setStartDate(start.toISOString().split('T')[0]);
+                const sStr = start.toISOString().split('T')[0];
+                setEndDate(latest); setStartDate(sStr);
+                setInputEnd(latest); setInputStart(sStr);
              }
         }
     });
   }, []);
 
+  // --- FILTER HELPERS (Strict Category Only) ---
   const filteredMaster = useMemo(() => {
       let result = basicInfo;
       const getStr = (val: string | undefined) => String(val || '');
       if (mainFilter !== '全部') {
-          if (mainFilter === '債券') result = result.filter(d => getStr(d.category).includes('債'));
-          else if (mainFilter === '季配') result = result.filter(d => getStr(d.dividendFreq).includes('季') && !getStr(d.category).includes('債'));
-          else if (mainFilter === '月配') result = result.filter(d => getStr(d.dividendFreq).includes('月') && !getStr(d.category).includes('債') && !getStr(d.category).includes('主動'));
-          else if (mainFilter === '主動') result = result.filter(d => getStr(d.category).includes('主動') || getStr(d.etfType).includes('主動'));
-          else if (mainFilter === '國際') result = result.filter(d => d.etfCode === '00911' || getStr(d.category).includes('國際') || getStr(d.marketType).includes('國外'));
-          else if (mainFilter === '半年') result = result.filter(d => d.etfCode !== '00911' && (getStr(d.category).includes('半年') || getStr(d.dividendFreq).includes('半年')));
+          if (mainFilter === '債券') result = result.filter(d => getStr(d.category).includes('債')); // Strict
+          else if (mainFilter === '季配') result = result.filter(d => getStr(d.dividendFreq).includes('季') && !getStr(d.category).includes('債')); 
+          else if (mainFilter === '月配') result = result.filter(d => getStr(d.dividendFreq).includes('月') && !getStr(d.category).includes('債')); // Strict: No name/type checks. No active exclusion.
+          else if (mainFilter === '主動') result = result.filter(d => getStr(d.category).includes('主動')); // Strict
+          else if (mainFilter === '國際') result = result.filter(d => getStr(d.category).includes('國際') || getStr(d.category).includes('國外') || getStr(d.marketType).includes('國外'));
+          else if (mainFilter === '半年') result = result.filter(d => getStr(d.category).includes('半年') || getStr(d.dividendFreq).includes('半年'));
       }
       if (subFilter !== 'ALL') {
           const freqStr = (d: BasicInfo) => String(d.dividendFreq || '');
@@ -418,7 +426,6 @@ const TabPrices: React.FC<TabPricesProps> = ({
           const exInfo = fillData.find(f => f.etfCode === selectedEtf && f.exDate === d.date);
           const fillInfo = fillData.find(f => f.etfCode === selectedEtf && f.fillDate === d.date);
           let note = '';
-          // 3 decimals in export note
           if (exInfo) note = `除息: 配息${fmtDiv(exInfo.amount)}`;
           else if (fillInfo) note = `填息: ${fillInfo.daysToFill}天`;
           let calcPrev = d.prevClose;
@@ -443,12 +450,10 @@ const TabPrices: React.FC<TabPricesProps> = ({
           return divData.filter(d => d.etfCode === selectedEtf).sort((a,b) => b.exDate.localeCompare(a.exDate)).map(d => {
               let yieldStr = '-';
               if (latestPrice > 0) yieldStr = ((d.amount / latestPrice) * 100).toFixed(2) + '%';
-              // 3 decimals in modal
               return { '年月': d.yearMonth, '除息日': d.exDate, '金額': fmtDiv(d.amount), '單次殖利率': yieldStr, '發放日': d.paymentDate || '-' };
           });
       }
       if (activeModal === 'FILL') {
-          // 3 decimals in modal
           return fillData.filter(d => d.etfCode === selectedEtf).sort((a,b) => b.exDate.localeCompare(a.exDate)).map(d => ({ '除息日': d.exDate, '金額': fmtDiv(d.amount), '前日股價': d.pricePreEx, '參考價': d.priceReference, '填息日': d.fillDate || '-', '填息天數': d.daysToFill }));
       }
       return [];
@@ -477,9 +482,9 @@ const TabPrices: React.FC<TabPricesProps> = ({
               
               <div className="flex items-center gap-2 shrink-0 pl-2 border-l border-gray-100">
                 <div className="flex items-center gap-2 bg-gray-50 px-2 py-1.5 rounded-md border border-gray-200 shadow-inner">
-                    <input type="date" value={startDate} onChange={e=>setStartDate(e.target.value)} className="bg-transparent text-[15px] w-32 font-mono outline-none text-gray-700 font-bold"/>
+                    <input type="date" value={inputStart} onChange={e=>setInputStart(e.target.value)} onBlur={()=>setStartDate(inputStart)} onKeyDown={e=>e.key==='Enter'&&setStartDate(inputStart)} className="bg-transparent text-[15px] w-32 font-mono outline-none text-gray-700 font-bold"/>
                     <span className="text-sm text-gray-400">~</span>
-                    <input type="date" value={endDate} onChange={e=>setEndDate(e.target.value)} className="bg-transparent text-[15px] w-32 font-mono outline-none text-gray-700 font-bold"/>
+                    <input type="date" value={inputEnd} onChange={e=>setInputEnd(e.target.value)} onBlur={()=>setEndDate(inputEnd)} onKeyDown={e=>e.key==='Enter'&&setEndDate(inputEnd)} className="bg-transparent text-[15px] w-32 font-mono outline-none text-gray-700 font-bold"/>
                 </div>
                 {/* RECENT INFO BUTTON */}
                 <button onClick={() => setActiveModal('RECENT')} className="flex items-center gap-2 px-3 py-1.5 bg-amber-50 text-amber-700 border border-amber-200 rounded-lg hover:bg-amber-100 font-bold text-base whitespace-nowrap shadow-sm">

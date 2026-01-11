@@ -19,19 +19,17 @@ const checkSeason = (freqStr: string | undefined, season: 'Q1'|'Q2'|'Q3') => {
 
 const getSmartCategoryClass = (d: BasicInfo) => {
     const cat = (d.category || '').trim();
-    const type = (d.etfType || '').trim();
-    const name = (d.etfName || '').trim();
     const freq = (d.dividendFreq || '').trim();
-    const market = (d.marketType || '').trim();
-
-    if (freq.includes('季') && (cat.includes('主動') || type.includes('主動') || name.includes('主動'))) return 'bg-indigo-100 text-indigo-800 border-indigo-200 font-bold'; 
+    
+    // Strict styling based on Category mainly
     if (cat.includes('債')) return 'bg-amber-100 text-amber-800 border-amber-200';
-    if (cat.includes('主動') || type.includes('主動') || name.includes('主動')) return 'bg-rose-100 text-rose-800 border-rose-200';
-    if (cat.includes('國際') || type.includes('國際') || market.includes('國外') || d.etfCode === '00911') return 'bg-sky-100 text-sky-800 border-sky-200';
+    if (cat.includes('主動')) return 'bg-rose-100 text-rose-800 border-rose-200';
+    if (cat.includes('國際') || cat.includes('國外')) return 'bg-sky-100 text-sky-800 border-sky-200';
+    
+    // Fallback to freq/type only for styling colors if category is generic
     if (freq.includes('月')) return 'bg-fuchsia-100 text-fuchsia-800 border-fuchsia-200';
     if (freq.includes('季')) return 'bg-teal-100 text-teal-800 border-teal-200';
-    if ((freq.includes('半年') || cat.includes('半年')) && d.etfCode !== '00911') return 'bg-purple-100 text-purple-800 border-purple-200';
-
+    
     return 'bg-gray-100 text-gray-600 border-gray-200';
 };
 
@@ -103,13 +101,49 @@ const TabBasicInfo: React.FC<TabBasicInfoProps> = ({
         let result = data;
         const getStr = (val: string | undefined) => String(val || '');
 
+        // --- STRICT FILTERING LOGIC ---
+        // 1. Only use Category (商品分類) and DividendFreq (配息週期).
+        // 2. Ignore Name (ETF名稱) and Type (ETF類型).
+        
         if (mainFilter !== '全部') {
-            if (mainFilter === '債券') result = result.filter(d => getStr(d.category).includes('債'));
-            else if (mainFilter === '季配') result = result.filter(d => getStr(d.dividendFreq).includes('季') && !getStr(d.category).includes('債'));
-            else if (mainFilter === '月配') result = result.filter(d => getStr(d.dividendFreq).includes('月') && !getStr(d.category).includes('債') && !getStr(d.category).includes('主動') && !getStr(d.etfType).includes('主動') && !getStr(d.etfName).includes('主動'));
-            else if (mainFilter === '主動') result = result.filter(d => getStr(d.category).includes('主動') || getStr(d.etfType).includes('主動') || getStr(d.etfName).includes('主動'));
-            else if (mainFilter === '國際') result = result.filter(d => d.etfCode === '00911' || getStr(d.category).includes('國際') || getStr(d.etfType).includes('國際') || getStr(d.marketType).includes('國外'));
-            else if (mainFilter === '半年') result = result.filter(d => d.etfCode !== '00911' && (getStr(d.category).includes('半年') || getStr(d.dividendFreq).includes('半年')));
+            if (mainFilter === '債券') {
+                // Rule: Only if Category contains '債'
+                result = result.filter(d => getStr(d.category).includes('債')); 
+            }
+            else if (mainFilter === '季配') {
+                // Rule: Freq contains '季' AND Category does NOT contain '債'
+                result = result.filter(d => 
+                    getStr(d.dividendFreq).includes('季') && 
+                    !getStr(d.category).includes('債')
+                );
+            }
+            else if (mainFilter === '月配') {
+                // Rule: Freq contains '月' AND Category does NOT contain '債'.
+                // CRITICAL: Do NOT exclude '主動' (Active). 00985A must show here.
+                result = result.filter(d => 
+                    getStr(d.dividendFreq).includes('月') && 
+                    !getStr(d.category).includes('債')
+                );
+            }
+            else if (mainFilter === '主動') {
+                // Rule: Only if Category contains '主動'
+                result = result.filter(d => getStr(d.category).includes('主動'));
+            }
+            else if (mainFilter === '國際') {
+                // Rule: Category contains '國際' or '國外' or MarketType contains '國外'
+                result = result.filter(d => 
+                    getStr(d.category).includes('國際') || 
+                    getStr(d.category).includes('國外') ||
+                    getStr(d.marketType).includes('國外')
+                );
+            }
+            else if (mainFilter === '半年') {
+                // Rule: Category or Freq contains '半年'
+                result = result.filter(d => 
+                    getStr(d.category).includes('半年') || 
+                    getStr(d.dividendFreq).includes('半年')
+                );
+            }
         }
 
         if (subFilter !== 'ALL') {

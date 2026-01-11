@@ -19,12 +19,17 @@ interface ErrorBoundaryState {
   errorInfo: any;
 }
 
+// Fixed: Use Component explicitly and declare state property
 class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   public state: ErrorBoundaryState = {
     hasError: false,
     error: null,
     errorInfo: null
   };
+
+  constructor(props: ErrorBoundaryProps) {
+    super(props);
+  }
 
   static getDerivedStateFromError(error: any): Partial<ErrorBoundaryState> {
     return { hasError: true, error };
