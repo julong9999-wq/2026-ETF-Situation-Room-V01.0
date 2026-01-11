@@ -92,7 +92,7 @@ const InfoListModal = ({ title, columns, data, onClose, type = 'NORMAL' }: any) 
                 <div className="flex-1 overflow-auto p-0 min-h-0">
                     <table className="w-full text-left text-base">
                         <thead className="bg-gray-100 sticky top-0 border-b z-10"><tr>{columns.map((c:string) => <th key={c} className="p-4 font-bold">{c}</th>)}</tr></thead>
-                        <tbody className="divide-y">{data.map((row: any, i: number) => ( <tr key={i} className="hover:bg-gray-50">{Object.entries(row).map(([key, val]: [string, any], j) => ( <td key={j} className="p-4 font-mono"><span className={key === '金額' ? 'font-bold' : ''}>{val}</span></td> ))}</tr> ))} {data.length === 0 && <tr><td colSpan={columns.length} className="p-8 text-center text-gray-400">無資料</td></tr>}</tbody>
+                        <tbody className="divide-y">{data.map((row: any, i: number) => { let rowClass = "hover:bg-gray-50"; if (type === 'DIV') { const exDate = row['除息日']; if (exDate > 2099) rowClass = "bg-red-50 hover:bg-red-100 text-red-900"; } return ( <tr key={i} className={rowClass}> {Object.entries(row).map(([key, val]: [string, any], j) => ( <td key={j} className="p-4 font-mono"><span className={key === '金額' ? 'font-bold' : ''}>{val}</span></td> ))} </tr> ); })} {data.length === 0 && <tr><td colSpan={columns.length} className="p-8 text-center text-gray-400">無資料</td></tr>}</tbody>
                     </table>
                 </div>
             </div>
@@ -383,7 +383,7 @@ const TabDividends: React.FC<TabDividendsProps> = ({
                         </div>
                         <div className="flex-1 overflow-y-auto min-h-0">
                             <table className="w-full text-left border-collapse">
-                                <thead className="bg-blue-50 sticky top-0 text-base z-10 text-blue-900 font-bold border-b border-blue-100">
+                                <thead className="bg-blue-200 sticky top-0 text-base z-10 text-blue-900 font-bold border-b border-blue-300">
                                     <tr>
                                         <th className="p-2.5 pl-4 w-1/6">年月</th>
                                         <th className="p-2.5 w-1/6">除息日期</th>
@@ -418,42 +418,40 @@ const TabDividends: React.FC<TabDividendsProps> = ({
 
        {showAnnoModal && (
             <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-               <div className="bg-white rounded-xl w-full max-w-4xl h-[80vh] flex flex-col shadow-2xl animate-in zoom-in-95">
-                   <div className="p-5 border-b flex flex-col gap-3 bg-blue-50 rounded-t-xl shrink-0">
-                       <div className="flex justify-between items-center">
-                           <h3 className="font-bold text-xl text-blue-900">配息公告</h3>
-                           <button onClick={()=>setShowAnnoModal(false)}><X className="w-6 h-6 text-gray-500" /></button>
-                       </div>
-                       <div className="flex gap-2">
-                           {['ALL', '季配', '月配', '債券', '其他'].map((f) => (
-                               <button key={f} onClick={() => setAnnoFilter(f as any)} className={`px-4 py-1.5 rounded-full text-sm font-bold transition-colors ${annoFilter === f ? 'bg-blue-600 text-white' : 'bg-white text-blue-600 border border-blue-200 hover:bg-blue-100'}`}>
-                                   {f === 'ALL' ? '全部' : f}
-                               </button>
-                           ))}
-                       </div>
+               <div className="bg-white rounded-xl w-full max-w-4xl h-[80vh] flex flex-col animate-in zoom-in-95">
+                   <div className="p-4 border-b flex justify-between items-center bg-blue-50 rounded-t-xl">
+                       <h3 className="font-bold text-lg text-blue-900 flex items-center gap-2"><Megaphone className="w-5 h-5"/> 即將除息公告 (公告中)</h3>
+                       <button onClick={() => setShowAnnoModal(false)}><X className="w-6 h-6 text-gray-500" /></button>
                    </div>
-                   <div className="flex-1 overflow-auto p-4 min-h-0">
-                       <table className="w-full text-base">
-                           <thead className="bg-gray-100 text-gray-700 sticky top-0 font-bold">
-                               <tr><th className="p-4 text-left">日期</th><th className="p-4 text-left">代碼/名稱</th><th className="p-4 text-left">分類</th><th className="p-4 text-right">金額</th><th className="p-4 text-center">狀態</th></tr>
+                   <div className="p-2 bg-gray-50 border-b flex gap-2 overflow-x-auto">
+                       {['ALL', '季配', '月配', '債券', '其他'].map(f => (
+                           <button key={f} onClick={() => setAnnoFilter(f as any)} className={`px-3 py-1 rounded-full text-sm font-bold border ${annoFilter === f ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300'}`}>{f}</button>
+                       ))}
+                   </div>
+                   <div className="flex-1 overflow-auto p-0">
+                       <table className="w-full text-left">
+                           <thead className="bg-gray-100 sticky top-0">
+                               <tr><th className="p-3 font-bold">代碼</th><th className="p-3 font-bold">名稱</th><th className="p-3 font-bold">除息日</th><th className="p-3 text-right font-bold">金額</th><th className="p-3 font-bold">週期</th><th className="p-3 font-bold">發放日</th></tr>
                            </thead>
-                           <tbody className="divide-y text-[15px]">
-                               {getAnnouncements().length === 0 ? (<tr><td colSpan={5} className="p-10 text-center text-gray-400">目前無相關配息公告資料</td></tr>) : getAnnouncements().map((d, i) => (
-                                   <tr key={i} className="hover:bg-blue-50 bg-red-50">
-                                       <td className="p-4 font-mono text-blue-700 font-medium">{d.exDate}</td>
-                                       <td className="p-4"><div className="font-bold text-lg">{d.etfCode}</div><div className="text-sm text-gray-500">{d.etfName}</div></td>
-                                       <td className="p-4"><span className="bg-gray-100 px-2 py-1 rounded text-sm font-bold">{d.category}</span></td>
-                                       <td className="p-4 text-right font-bold text-emerald-600 text-lg">{fmtDiv(d.amount)}</td>
-                                       <td className="p-4 text-center text-orange-500 text-base font-bold">{d.status}</td>
+                           <tbody className="divide-y text-sm font-bold">
+                               {getAnnouncements().map((d,i) => (
+                                   <tr key={i} className="hover:bg-blue-50">
+                                       <td className="p-3 font-mono text-blue-700">{d.etfCode}</td>
+                                       <td className="p-3 text-gray-800">{d.etfName}</td>
+                                       <td className="p-3 font-mono text-red-600">{d.exDate}</td>
+                                       <td className="p-3 text-right font-mono text-lg text-emerald-600">{fmtDiv(d.amount)}</td>
+                                       <td className="p-3 text-gray-500">{d.freq}</td>
+                                       <td className="p-3 text-gray-500">{d.paymentDate}</td>
                                    </tr>
                                ))}
+                               {getAnnouncements().length === 0 && <tr><td colSpan={6} className="p-8 text-center text-gray-400">目前無符合條件的公告</td></tr>}
                            </tbody>
                        </table>
                    </div>
                </div>
-          </div>
+            </div>
        )}
-
+       
        {activeModal === 'TECH' && selectedEtf && <TechChartModal data={getModalData()} title={`${selectedEtf} ${basicInfo.find(b=>b.etfCode===selectedEtf)?.etfName || ''}`} onClose={() => setActiveModal('NONE')} />}
        {activeModal === 'TREND' && selectedEtf && <TrendChartModal historyData={historyData.filter(d => d.etfCode === selectedEtf)} priceData={priceData.filter(d => d.etfCode === selectedEtf)} divData={divData.filter(d => d.etfCode === selectedEtf)} title={`${selectedEtf} ${basicInfo.find(b=>b.etfCode===selectedEtf)?.etfName || ''}`} onClose={() => setActiveModal('NONE')} />}
        {activeModal === 'FILL' && selectedEtf && <InfoListModal title={`${selectedEtf} 填息分析`} columns={['除息日','金額','前日股價','參考價','填息日','填息天數']} data={getModalData()} onClose={() => setActiveModal('NONE')} type="FILL" />}

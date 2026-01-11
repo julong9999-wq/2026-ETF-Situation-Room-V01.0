@@ -20,17 +20,12 @@ const checkSeason = (freqStr: string | undefined, season: 'Q1'|'Q2'|'Q3') => {
 const getSmartCategoryClass = (d: BasicInfo) => {
     const cat = (d.category || '').trim();
     const freq = (d.dividendFreq || '').trim();
-    
-    // Strict styling based on Category mainly
     if (cat.includes('債')) return 'bg-amber-100 text-amber-800 border-amber-200';
     if (cat.includes('主動')) return 'bg-rose-100 text-rose-800 border-rose-200';
     if (cat.includes('國際') || cat.includes('國外')) return 'bg-sky-100 text-sky-800 border-sky-200';
-    
-    // Fallback to freq/type only for styling colors if category is generic
     if (freq.includes('月')) return 'bg-fuchsia-100 text-fuchsia-800 border-fuchsia-200';
     if (freq.includes('季')) return 'bg-teal-100 text-teal-800 border-teal-200';
-    
-    return 'bg-gray-100 text-gray-600 border-gray-200';
+    return 'bg-gray-100 text-gray-700 border-gray-200';
 };
 
 const TabBasicInfo: React.FC<TabBasicInfoProps> = ({ 
@@ -100,56 +95,14 @@ const TabBasicInfo: React.FC<TabBasicInfoProps> = ({
       try {
         let result = data;
         const getStr = (val: string | undefined) => String(val || '');
-
-        // --- STRICT FILTERING LOGIC ---
-        // 1. Only use Category (商品分類) and DividendFreq (配息週期).
-        // 2. Ignore Name (ETF名稱) and Type (ETF類型).
-        
         if (mainFilter !== '全部') {
-            if (mainFilter === '債券') {
-                // Rule: Only if Category contains '債'
-                result = result.filter(d => getStr(d.category).includes('債')); 
-            }
-            else if (mainFilter === '季配') {
-                // Rule: Freq contains '季' AND Category does NOT contain '債'
-                result = result.filter(d => 
-                    getStr(d.dividendFreq).includes('季') && 
-                    !getStr(d.category).includes('債')
-                );
-            }
-            else if (mainFilter === '月配') {
-                // Rule: Freq contains '月' AND Category does NOT contain '債' AND Category does NOT contain '主動'.
-                // Exclude 00985A (Active Monthly)
-                result = result.filter(d => 
-                    getStr(d.dividendFreq).includes('月') && 
-                    !getStr(d.category).includes('債') &&
-                    !getStr(d.category).includes('主動')
-                );
-            }
-            else if (mainFilter === '主動') {
-                // Rule: Only if Category contains '主動'
-                result = result.filter(d => getStr(d.category).includes('主動'));
-            }
-            else if (mainFilter === '國際') {
-                // Rule: Category contains '國際' or '國外' or MarketType contains '國外'
-                result = result.filter(d => 
-                    getStr(d.category).includes('國際') || 
-                    getStr(d.category).includes('國外') ||
-                    getStr(d.marketType).includes('國外')
-                );
-            }
-            else if (mainFilter === '半年') {
-                // Rule: Category or Freq contains '半年'. 
-                // Exclude International (e.g. 00911)
-                result = result.filter(d => 
-                    (getStr(d.category).includes('半年') || getStr(d.dividendFreq).includes('半年')) &&
-                    !getStr(d.category).includes('國際') && 
-                    !getStr(d.category).includes('國外') &&
-                    !getStr(d.marketType).includes('國外')
-                );
-            }
+            if (mainFilter === '債券') result = result.filter(d => getStr(d.category).includes('債')); 
+            else if (mainFilter === '季配') result = result.filter(d => getStr(d.dividendFreq).includes('季') && !getStr(d.category).includes('債'));
+            else if (mainFilter === '月配') result = result.filter(d => getStr(d.dividendFreq).includes('月') && !getStr(d.category).includes('債') && !getStr(d.category).includes('主動'));
+            else if (mainFilter === '主動') result = result.filter(d => getStr(d.category).includes('主動'));
+            else if (mainFilter === '國際') result = result.filter(d => getStr(d.category).includes('國際') || getStr(d.category).includes('國外') || getStr(d.marketType).includes('國外'));
+            else if (mainFilter === '半年') result = result.filter(d => (getStr(d.category).includes('半年') || getStr(d.dividendFreq).includes('半年')) && !getStr(d.category).includes('國際') && !getStr(d.category).includes('國外') && !getStr(d.marketType).includes('國外'));
         }
-
         if (subFilter !== 'ALL') {
             const freqStr = (d: BasicInfo) => String(d.dividendFreq || '');
             if (subFilter === '季一') result = result.filter(d => checkSeason(freqStr(d), 'Q1'));
@@ -161,9 +114,7 @@ const TabBasicInfo: React.FC<TabBasicInfoProps> = ({
             else if (subFilter === '無配') result = result.filter(d => freqStr(d).includes('不') || freqStr(d) === '' || freqStr(d).includes('無'));
         }
         return result;
-      } catch (e) {
-        return [];
-      }
+      } catch (e) { return []; }
   }, [data, mainFilter, subFilter]);
 
   const handleExport = () => {
@@ -217,7 +168,6 @@ const TabBasicInfo: React.FC<TabBasicInfoProps> = ({
     <div className="h-full flex flex-col p-2 gap-2 relative overflow-hidden">
       <div className="bg-white p-3 rounded-lg shadow-sm border border-blue-200 flex items-center justify-between gap-2 flex-none overflow-hidden">
         
-        {/* Single Row Filter: Main | Sub */}
         <div className="flex items-center gap-2 overflow-x-auto no-scrollbar mask-gradient-right flex-1">
             {['全部', '季配', '月配', '債券', '主動', '國際', '半年'].map(cat => (
                 <button
@@ -255,7 +205,6 @@ const TabBasicInfo: React.FC<TabBasicInfoProps> = ({
             )}
         </div>
 
-        {/* Right Actions */}
         <div className="flex items-center gap-2 shrink-0 border-l border-gray-100 pl-2">
             <div className="flex items-center gap-2 text-blue-600 text-base font-bold bg-blue-50 px-3 py-1.5 rounded-lg border border-blue-100 whitespace-nowrap">
                 <span>Count:</span>
@@ -269,7 +218,7 @@ const TabBasicInfo: React.FC<TabBasicInfoProps> = ({
 
       <div className="flex-1 overflow-auto bg-white rounded-lg shadow-sm border border-blue-200 min-h-0">
         <table className="w-full text-left border-collapse">
-            <thead className="bg-blue-50 sticky top-0 z-10 shadow-sm border-b border-blue-100">
+            <thead className="bg-blue-200 sticky top-0 z-10 shadow-sm border-b border-blue-300">
                 <tr>
                     <th className="p-2.5 font-bold text-blue-900 text-base whitespace-nowrap">ETF 代碼</th>
                     <th className="p-2.5 font-bold text-blue-900 text-base whitespace-nowrap">ETF 名稱</th>
@@ -281,7 +230,7 @@ const TabBasicInfo: React.FC<TabBasicInfoProps> = ({
                     <th className="p-2.5 font-bold text-blue-900 text-base whitespace-nowrap">規模趨勢</th>
                 </tr>
             </thead>
-            <tbody className="divide-y divide-blue-100 text-[15px]">
+            <tbody className="divide-y divide-gray-100 text-base font-bold">
                 {filteredData.length === 0 ? (
                     <tr>
                         <td colSpan={8} className="p-8 text-center text-gray-400 text-lg font-medium">
@@ -290,7 +239,7 @@ const TabBasicInfo: React.FC<TabBasicInfoProps> = ({
                     </tr>
                 ) : filteredData.map((row, index) => (
                     <tr key={String(row?.etfCode) || `row-${index}`} className="hover:bg-blue-50 transition-colors">
-                        <td className="p-2.5 font-mono font-bold text-blue-700">{row?.etfCode || '-'}</td>
+                        <td className="p-2.5 font-mono font-bold text-blue-800">{row?.etfCode || '-'}</td>
                         <td className="p-2.5 font-bold text-gray-800">{row?.etfName || '-'}</td>
                         <td className="p-2.5">
                             <span className={`px-2 py-0.5 rounded text-sm font-bold whitespace-nowrap border ${getSmartCategoryClass(row)}`}>
@@ -298,12 +247,12 @@ const TabBasicInfo: React.FC<TabBasicInfoProps> = ({
                             </span>
                         </td>
                         <td className="p-2.5">
-                             <span className="px-2 py-0.5 rounded text-sm font-bold whitespace-nowrap bg-gray-50 text-gray-600 border border-gray-200">
+                             <span className="px-2 py-0.5 rounded text-sm font-bold whitespace-nowrap bg-gray-100 text-gray-600 border border-gray-200">
                                 {row?.dividendFreq || '-'}
                             </span>
                         </td>
-                        <td className="p-2.5 text-gray-700 whitespace-nowrap font-medium">{row?.issuer || '-'}</td>
-                        <td className="p-2.5 text-gray-700 whitespace-nowrap font-medium">{row?.etfType || '-'}</td>
+                        <td className="p-2.5 text-gray-700 whitespace-nowrap">{row?.issuer || '-'}</td>
+                        <td className="p-2.5 text-gray-700 whitespace-nowrap">{row?.etfType || '-'}</td>
                         <td className="p-2.5 text-right font-mono font-bold text-blue-900">
                             {row.size > 0 ? row.size.toLocaleString() : <span className="text-gray-300">-</span>}
                         </td>
