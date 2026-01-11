@@ -139,8 +139,8 @@ const TabGlobalMarket: React.FC = () => {
                         className={`
                             px-4 py-1.5 rounded-md text-base font-bold whitespace-nowrap transition-all 
                             ${mainFilter === cat 
-                                ? 'bg-white text-blue-700 shadow border border-blue-200' 
-                                : 'text-blue-500 hover:bg-blue-100 hover:text-blue-700'}
+                                ? 'bg-blue-600 text-white shadow-sm' 
+                                : 'bg-blue-50 text-blue-600 hover:bg-blue-100'}
                         `}
                       >
                           {cat === 'TW' ? '台股' : '美股'}
@@ -157,10 +157,10 @@ const TabGlobalMarket: React.FC = () => {
                                     key={sub} 
                                     onClick={() => setSubFilter(sub)}
                                     className={`
-                                        px-3 py-1.5 rounded text-base whitespace-nowrap transition-colors font-bold border
+                                        px-3 py-1.5 rounded-md text-base whitespace-nowrap transition-colors font-bold
                                         ${subFilter === sub
-                                            ? 'bg-blue-600 text-white border-blue-600 shadow-sm' 
-                                            : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50 hover:text-blue-600 hover:border-blue-300'}
+                                            ? 'bg-blue-600 text-white shadow-sm' 
+                                            : 'bg-blue-50 text-blue-600 hover:bg-blue-100'}
                                     `}
                                >
                                    {sub}
@@ -180,7 +180,7 @@ const TabGlobalMarket: React.FC = () => {
              </div>
              
              <div className="flex gap-2">
-                <button onClick={() => setShowChartModal(true)} className="flex items-center justify-center gap-1 px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-bold text-base whitespace-nowrap shadow-md transition-colors">
+                <button onClick={() => setShowChartModal(true)} className="flex items-center justify-center gap-1 px-3 py-1.5 bg-blue-50 text-blue-700 border border-blue-200 rounded-lg hover:bg-blue-100 font-bold text-base whitespace-nowrap shadow-sm transition-colors">
                     <LineChartIcon className="w-4 h-4" /> 技術線圖
                 </button>
                 <button onClick={() => setShowRecentModal(true)} className="flex items-center justify-center gap-1 px-3 py-1.5 bg-amber-50 text-amber-700 border border-amber-200 rounded-lg hover:bg-amber-100 font-bold text-base whitespace-nowrap shadow-sm">

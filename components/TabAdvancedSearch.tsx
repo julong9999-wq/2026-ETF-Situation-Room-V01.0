@@ -761,10 +761,10 @@ const TabAdvancedSearch: React.FC = () => {
                         </div>
                         <div className="flex items-center gap-2">
                             <span className="text-base font-bold text-gray-600 mr-2">(共 {getCurrentCount()} 筆)</span>
-                            <button onClick={handleCopyScript} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 transition-colors shadow-sm text-base">
+                            <button onClick={handleCopyScript} className="flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-700 border border-blue-200 rounded-lg hover:bg-blue-100 font-bold text-base whitespace-nowrap shadow-sm">
                                 <Code className="w-4 h-4" /> 自動化腳本
                             </button>
-                            <button onClick={handleExport} className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg font-bold hover:bg-emerald-700 transition-colors shadow-sm text-base">
+                            <button onClick={handleExport} className="flex items-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg hover:bg-emerald-100 font-bold text-base whitespace-nowrap shadow-sm">
                                 <Download className="w-4 h-4" /> 匯出 CSV
                             </button>
                         </div>
@@ -779,8 +779,8 @@ const TabAdvancedSearch: React.FC = () => {
                                 className={`
                                     flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-base border transition-all whitespace-nowrap min-w-[120px] justify-center
                                     ${currentSubTabId === btn.id 
-                                        ? `bg-gray-700 text-white border-gray-700 shadow-md` 
-                                        : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'
+                                        ? `bg-blue-600 text-white border-blue-600 shadow-md` 
+                                        : 'bg-blue-50 text-blue-600 border-blue-100 hover:bg-blue-100 hover:text-blue-700'
                                     }
                                 `}
                             >

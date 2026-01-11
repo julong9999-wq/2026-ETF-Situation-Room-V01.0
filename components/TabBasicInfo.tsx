@@ -174,10 +174,10 @@ const TabBasicInfo: React.FC<TabBasicInfoProps> = ({
                     key={cat}
                     onClick={() => { setMainFilter(cat); setSubFilter('ALL'); }}
                     className={`
-                        px-3 py-1.5 rounded-lg text-base font-bold whitespace-nowrap transition-all border shrink-0
+                        px-3 py-1.5 rounded-md text-base font-bold whitespace-nowrap transition-all border shrink-0
                         ${mainFilter === cat 
-                            ? 'bg-blue-600 text-white border-blue-600 shadow-md' 
-                            : 'bg-white text-blue-500 border-blue-100 hover:bg-blue-50 hover:text-blue-700'}
+                            ? 'bg-blue-600 text-white border-blue-600 shadow-sm' 
+                            : 'bg-blue-50 text-blue-600 border-blue-100 hover:bg-blue-100 hover:text-blue-700'}
                     `}
                 >
                     {cat}
@@ -192,10 +192,10 @@ const TabBasicInfo: React.FC<TabBasicInfoProps> = ({
                             key={sub}
                             onClick={() => setSubFilter(sub === '全部' ? 'ALL' : sub)} 
                             className={`
-                                px-3 py-1.5 rounded-lg text-base whitespace-nowrap transition-colors font-bold border shrink-0
+                                px-3 py-1.5 rounded-md text-base whitespace-nowrap transition-colors font-bold border shrink-0
                                 ${(subFilter === sub || (subFilter === 'ALL' && sub === '全部'))
-                                    ? 'bg-blue-800 text-white border-blue-800 shadow-sm' 
-                                    : 'bg-gray-50 text-gray-500 border-gray-200 hover:bg-white hover:text-blue-600 hover:border-blue-200'}
+                                    ? 'bg-blue-600 text-white border-blue-600 shadow-sm' 
+                                    : 'bg-blue-50 text-blue-600 border-blue-100 hover:bg-blue-100 hover:text-blue-700'}
                             `}
                         >
                             {sub}
