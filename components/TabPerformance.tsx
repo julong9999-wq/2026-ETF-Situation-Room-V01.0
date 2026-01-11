@@ -129,7 +129,6 @@ const TabPerformance: React.FC = () => {
 
     const detailData = useMemo(() => {
         if (!selectedCode) return [];
-        // Only return necessary fields for UI, but keeping full object for edit
         return filteredTransactions.filter(t => t.code === selectedCode).sort((a, b) => b.date.localeCompare(a.date));
     }, [selectedCode, filteredTransactions]);
 
@@ -167,7 +166,6 @@ const TabPerformance: React.FC = () => {
         setTransactions(updatedTransactions);
         localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updatedTransactions));
         
-        // Update Lexicon if new items
         if (newItem.broker && !brokerOptions.includes(newItem.broker)) {
              const newBrokers = [...brokerOptions, newItem.broker];
              setBrokerOptions(newBrokers);
@@ -179,7 +177,6 @@ const TabPerformance: React.FC = () => {
              localStorage.setItem(KEY_CATEGORIES, JSON.stringify(newCats));
         }
 
-        // Reset Form
         setFormData({
             date: new Date().toISOString().split('T')[0],
             broker: '', category: '', code: '', name: '',
@@ -214,7 +211,7 @@ const TabPerformance: React.FC = () => {
         }
     };
 
-    // --- IMPORT LOGIC (ROBUST CSV PARSER) ---
+    // --- IMPORT LOGIC (ROBUST CSV PARSER with Big5 Support) ---
     const parseCSVRow = (str: string) => {
         const result = [];
         let current = '';
@@ -230,7 +227,6 @@ const TabPerformance: React.FC = () => {
     };
 
     const normalizeDate = (d: string) => {
-        // Handle 2023/3/5 -> 2023-03-05
         if (!d) return '';
         const parts = d.replace(/\//g, '-').split('-');
         if (parts.length === 3) {
@@ -244,92 +240,129 @@ const TabPerformance: React.FC = () => {
         return parseFloat(v.replace(/,/g, '').replace(/"/g, '')) || 0;
     };
 
+    const processCSVText = (text: string) => {
+        const lines = text.split(/\r?\n/);
+        if (lines.length < 2) return { success: false, msg: '檔案內容為空' };
+
+        // Parse Header Row using CSV logic (handles quotes)
+        const headers = parseCSVRow(lines[0]);
+        const getIdx = (name: string) => headers.findIndex(h => h.includes(name));
+        
+        // Debugging logs
+        console.log("Detected Headers:", headers);
+
+        // Allow flexibility in column names
+        const dateIdx = Math.max(getIdx('日期'), getIdx('Date'));
+        const codeIdx = Math.max(getIdx('股號'), getIdx('代碼'), getIdx('Code'));
+        const nameIdx = Math.max(getIdx('股名'), getIdx('名稱'), getIdx('Name'));
+        const priceIdx = Math.max(getIdx('價格'), getIdx('成交單價'), getIdx('單價'), getIdx('Price'));
+        const qtyIdx = Math.max(getIdx('股數'), getIdx('成交股數'), getIdx('Qty'));
+        const feeIdx = Math.max(getIdx('手續費'), getIdx('Fee'));
+        const brokerIdx = Math.max(getIdx('證券戶'), getIdx('Broker'));
+        const catIdx = Math.max(getIdx('分類'), getIdx('Category'));
+
+        // Critical Check
+        if (codeIdx === -1 || priceIdx === -1 || qtyIdx === -1) {
+            return { 
+                success: false, 
+                msg: `找不到必要的欄位。\n\n偵測到的標題: [${headers.join(', ')}]\n\n請檢查 CSV 是否為 Big5 或 UTF-8 編碼，或欄位名稱是否正確 (需包含: 股號, 價格, 股數)。` 
+            };
+        }
+
+        const newTransactions: UserTransaction[] = [];
+        let dupCount = 0;
+
+        for (let i = 1; i < lines.length; i++) {
+            if (!lines[i].trim()) continue;
+            const row = parseCSVRow(lines[i]);
+            
+            const rawDate = row[dateIdx] || new Date().toISOString().split('T')[0];
+            const date = normalizeDate(rawDate);
+            const code = row[codeIdx];
+            const price = cleanNum(row[priceIdx]);
+            const qty = cleanNum(row[qtyIdx]);
+
+            if (code && price > 0 && qty > 0) {
+                // Check Duplicate
+                const isDup = transactions.some(t => 
+                    t.code === code && t.date === date && t.price === price && t.quantity === qty
+                );
+                
+                if (!isDup) {
+                    const fee = feeIdx > -1 ? cleanNum(row[feeIdx]) : 0;
+                    const totalAmt = Math.floor(price * qty);
+                    
+                    newTransactions.push({
+                        id: crypto.randomUUID(),
+                        date: date,
+                        code: code,
+                        name: row[nameIdx] || '',
+                        type: 'Buy',
+                        price: price,
+                        quantity: qty,
+                        fee: fee,
+                        tax: 0,
+                        totalAmount: totalAmt,
+                        cost: totalAmt + fee,
+                        broker: brokerIdx > -1 ? (row[brokerIdx] || brokerOptions[0] || '') : (brokerOptions[0] || ''),
+                        category: catIdx > -1 ? (row[catIdx] || categoryOptions[0] || '') : (categoryOptions[0] || '')
+                    });
+                } else {
+                    dupCount++;
+                }
+            }
+        }
+
+        if (newTransactions.length > 0) {
+            const updated = [...transactions, ...newTransactions];
+            setTransactions(updated);
+            localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updated));
+            return { success: true, msg: `成功匯入 ${newTransactions.length} 筆資料 (已忽略 ${dupCount} 筆重複)` };
+        } else {
+            return { success: true, msg: `未發現新資料 (${dupCount} 筆重複資料已忽略，或內容為空)` }; // success true to close modal usually, but here alert
+        }
+    };
+
     const handleImportFile = (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
         if (!file) return;
 
         const reader = new FileReader();
         reader.onload = (e) => {
-            const text = e.target?.result as string;
-            if (!text) return;
+            const buffer = e.target?.result as ArrayBuffer;
+            if (!buffer) return;
 
-            const lines = text.split('\n');
-            if (lines.length < 2) return;
-
-            // Header mapping
-            const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
-            const getIdx = (name: string) => headers.findIndex(h => h.includes(name));
-            
-            // Allow flexibility in column names
-            const dateIdx = Math.max(getIdx('日期'), getIdx('Date'));
-            const codeIdx = Math.max(getIdx('股號'), getIdx('代碼'), getIdx('Code'));
-            const nameIdx = Math.max(getIdx('股名'), getIdx('名稱'), getIdx('Name'));
-            const priceIdx = Math.max(getIdx('價格'), getIdx('成交單價'), getIdx('單價'), getIdx('Price'));
-            const qtyIdx = Math.max(getIdx('股數'), getIdx('成交股數'), getIdx('Qty'));
-            const feeIdx = Math.max(getIdx('手續費'), getIdx('Fee'));
-            const brokerIdx = Math.max(getIdx('證券戶'), getIdx('Broker'));
-            const catIdx = Math.max(getIdx('分類'), getIdx('Category'));
-
-            if (codeIdx === -1 || priceIdx === -1 || qtyIdx === -1) {
-                alert('匯入失敗：找不到必要的欄位 (股號, 價格, 股數)。請檢查 CSV 標題列。');
+            // 1. Check for XLSX signature (PK\x03\x04) - Simple check
+            const view = new Uint8Array(buffer.slice(0, 4));
+            if (view[0] === 0x50 && view[1] === 0x4B && view[2] === 0x03 && view[3] === 0x04) {
+                alert('系統偵測到您上傳的可能是 Excel (.xlsx) 檔。\n\n目前僅支援 CSV 格式。請在 Excel 中選擇 "另存新檔" -> "CSV (逗號分隔)"，然後重新上傳該 CSV 檔案。');
                 return;
             }
 
-            const newTransactions: UserTransaction[] = [];
-            let dupCount = 0;
-
-            for (let i = 1; i < lines.length; i++) {
-                if (!lines[i].trim()) continue;
-                const row = parseCSVRow(lines[i]);
-                
-                const rawDate = row[dateIdx] || new Date().toISOString().split('T')[0];
-                const date = normalizeDate(rawDate);
-                const code = row[codeIdx];
-                const price = cleanNum(row[priceIdx]);
-                const qty = cleanNum(row[qtyIdx]);
-
-                if (code && price > 0 && qty > 0) {
-                    // Check Duplicate
-                    const isDup = transactions.some(t => 
-                        t.code === code && t.date === date && t.price === price && t.quantity === qty
-                    );
-                    
-                    if (!isDup) {
-                        const fee = feeIdx > -1 ? cleanNum(row[feeIdx]) : 0;
-                        const totalAmt = Math.floor(price * qty);
-                        
-                        newTransactions.push({
-                            id: crypto.randomUUID(),
-                            date: date,
-                            code: code,
-                            name: row[nameIdx] || '',
-                            type: 'Buy',
-                            price: price,
-                            quantity: qty,
-                            fee: fee,
-                            tax: 0,
-                            totalAmount: totalAmt,
-                            cost: totalAmt + fee,
-                            broker: brokerIdx > -1 ? (row[brokerIdx] || brokerOptions[0] || '') : (brokerOptions[0] || ''),
-                            category: catIdx > -1 ? (row[catIdx] || categoryOptions[0] || '') : (categoryOptions[0] || '')
-                        });
-                    } else {
-                        dupCount++;
-                    }
+            // 2. Try Decode as UTF-8
+            let text = new TextDecoder('utf-8').decode(buffer);
+            
+            // Check if headers look valid in UTF-8
+            // If we see diamond questions marks or cant find "Date"/"股號", assume failed decode
+            const hasHeader = text.includes('日期') || text.includes('Date') || text.includes('股號') || text.includes('Code');
+            
+            if (!hasHeader) {
+                // 3. Try Decode as Big5 (Common in Taiwan Excel CSV)
+                try {
+                    console.log("UTF-8 Check Failed, trying Big5...");
+                    text = new TextDecoder('big5').decode(buffer);
+                } catch (err) {
+                    console.warn("Big5 decode not supported or failed", err);
                 }
             }
 
-            if (newTransactions.length > 0) {
-                const updated = [...transactions, ...newTransactions];
-                setTransactions(updated);
-                localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updated));
-                alert(`成功匯入 ${newTransactions.length} 筆資料 (已忽略 ${dupCount} 筆重複)`);
+            const result = processCSVText(text);
+            alert(result.msg);
+            if (result.success) {
                 setShowImportModal(false);
-            } else {
-                alert(`未發現新資料。(${dupCount} 筆重複資料已忽略，或格式不符)`);
             }
         };
-        reader.readAsText(file);
+        reader.readAsArrayBuffer(file); // Read as binary buffer to handle encoding manually
         event.target.value = '';
     };
 
