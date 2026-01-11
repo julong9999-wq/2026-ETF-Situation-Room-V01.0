@@ -130,9 +130,9 @@ const TabGlobalMarket: React.FC = () => {
           </div>
       </div>
 
-      {/* UNIFIED TABLE STYLE */}
+      {/* UNIFIED TABLE STYLE - 16px (text-base) */}
       <div className="flex-1 overflow-auto bg-white rounded-lg shadow-sm border border-blue-200 min-h-0">
-        <table className="w-full text-left border-collapse text-sm">
+        <table className="w-full text-left border-collapse text-base">
             <thead className="bg-blue-50 sticky top-0 z-10 border-b border-blue-200 font-bold text-blue-900">
                 <tr>
                     <th className="p-3 whitespace-nowrap">指數名稱</th>

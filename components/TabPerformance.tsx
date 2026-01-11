@@ -412,7 +412,7 @@ const TabPerformance: React.FC = () => {
                         {!selectedCode ? <div className="h-full flex flex-col items-center justify-center text-gray-400"><Wallet className="w-16 h-16 mb-4 opacity-30" /><p>請選擇左側 ETF 查看詳情</p></div> : (
                             <>
                                 {topTab === 'HOLDINGS' && (
-                                    <table className="w-full text-left border-collapse text-sm">
+                                    <table className="w-full text-left border-collapse text-base">
                                         <thead className="bg-blue-50 sticky top-0 border-b border-blue-200 font-bold text-blue-900 z-10">
                                             <tr>
                                                 <th className="p-3 whitespace-nowrap">日期</th><th className="p-3 whitespace-nowrap">證券戶</th><th className="p-3 whitespace-nowrap">分類</th><th className="p-3 whitespace-nowrap">股號</th><th className="p-3 whitespace-nowrap">股名</th><th className="p-3 whitespace-nowrap text-right">成交單價</th><th className="p-3 whitespace-nowrap text-right">成交股數</th><th className="p-3 whitespace-nowrap text-right">成交價金</th><th className="p-3 whitespace-nowrap text-right">手續費</th><th className="p-3 whitespace-nowrap text-right">購買成本</th><th className="p-3 whitespace-nowrap text-center">操作</th>
@@ -430,7 +430,7 @@ const TabPerformance: React.FC = () => {
                                     </table>
                                 )}
                                 {topTab === 'DIVIDEND' && (
-                                    <table className="w-full text-left border-collapse text-sm">
+                                    <table className="w-full text-left border-collapse text-base">
                                         <thead className="bg-blue-50 sticky top-0 border-b border-blue-200 font-bold text-blue-900 z-10">
                                             <tr><th className="p-3 whitespace-nowrap">證券戶</th><th className="p-3 whitespace-nowrap">分類</th><th className="p-3 whitespace-nowrap">年月</th><th className="p-3 whitespace-nowrap text-right">除息金額</th><th className="p-3 whitespace-nowrap text-right">持有張數</th><th className="p-3 whitespace-nowrap text-right">股息金額</th><th className="p-3 whitespace-nowrap text-right">除息日期</th></tr>
                                         </thead>
@@ -470,7 +470,7 @@ const TabPerformance: React.FC = () => {
                             </div>
                         </div>
                         <div className="flex-1 overflow-auto bg-white p-0">
-                            <table className="w-full text-left border-collapse text-sm">
+                            <table className="w-full text-left border-collapse text-base">
                                 <thead className="bg-blue-50 sticky top-0 z-10 border-b border-blue-200 font-bold text-blue-900">
                                     <tr><th className="p-3 w-12 text-center">#</th><th className="p-3">{summaryViewMode === 'ACCOUNT' ? '證券戶' : '股號'}</th><th className="p-3">{summaryViewMode === 'ACCOUNT' ? '' : '股名'}</th><th className="p-3 text-right">持有張數 (總計)</th><th className="p-3 text-right">持有金額 (總計)</th></tr>
                                 </thead>

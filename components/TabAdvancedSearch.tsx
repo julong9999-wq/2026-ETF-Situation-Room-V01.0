@@ -11,6 +11,7 @@ const TabAdvancedSearch: React.FC = () => {
     const [postMarketType, setPostMarketType] = useState<'BASIC' | 'TODAY_EX' | 'FILLED_3DAYS' | 'UNFILLED_2026'>('BASIC');
     const [refDate, setRefDate] = useState(new Date().toISOString().split('T')[0]);
     const [inputDate, setInputDate] = useState(new Date().toISOString().split('T')[0]);
+    
     const [marketData, setMarketData] = useState<MarketData[]>([]);
     const [basicInfo, setBasicInfo] = useState<BasicInfo[]>([]);
     const [priceData, setPriceData] = useState<PriceData[]>([]);
@@ -29,20 +30,49 @@ const TabAdvancedSearch: React.FC = () => {
     const handleDateBlur = () => { if (inputDate && inputDate !== refDate) setRefDate(inputDate); };
     const handleDateKeyDown = (e: React.KeyboardEvent) => { if (e.key === 'Enter') handleDateBlur(); };
 
-    // ... (All calculation logic remains identical to previous fix) ...
+    // --- CALCULATIONS ---
     const dateRange = useMemo(() => { const base = new Date(refDate); const day = base.getDay(); const diffToMon = base.getDate() - day + (day === 0 ? -6 : 1); const m = new Date(base); m.setDate(diffToMon); const f = new Date(m); f.setDate(m.getDate() + 4); const lf = new Date(m); lf.setDate(m.getDate() - 3); const fmt = (d: Date) => d.toISOString().split('T')[0]; return { thisMonday: fmt(m), thisFriday: fmt(f), lastFriday: fmt(lf) }; }, [refDate]);
     const getIndexWeight = (name: string) => { if (name.includes('加權')) return 1; if (name.includes('道瓊')) return 2; if (name.includes('那斯')) return 3; if (name.includes('費半') || name.includes('費城')) return 4; if (name.includes('標普') || name.includes('S&P')) return 5; return 6; };
     const getEtfSortWeight = (row: any) => { const c = String(row['商品分類']||''); const f = String(row['配息週期']||''); if (c.includes('債')) return 5; if (f.includes('月')) return 4; if (f.includes('季一')||f.includes('1,4')) return 1; if (f.includes('季二')||f.includes('2,5')) return 2; if (f.includes('季三')||f.includes('3,6')) return 3; return 6; };
-    const checkSeason = (freqStr: string | undefined, season: 'Q1'|'Q2'|'Q3') => { const f = String(freqStr || '').replace(/\s/g, ''); if (season === 'Q1') return f.includes('季一') || f.includes('1,4'); if (season === 'Q2') return f.includes('季二') || f.includes('2,5'); if (season === 'Q3') return f.includes('季三') || f.includes('3,6'); return false; };
     const fmtNum = (n: any) => { if (!n && n!==0) return '-'; const num = parseFloat(String(n).replace(/,/g, '')); if (!isNaN(num)) return num.toFixed(2); return String(n); };
     const fmtDiv = (n: any) => { if (!n && n!==0) return '-'; const num = parseFloat(String(n).replace(/,/g, '')); if (!isNaN(num)) return num.toFixed(3); return String(n); };
     const getStr = (val: string | undefined) => String(val || '').trim();
     const filterExclude = (b: BasicInfo) => { const c = getStr(b.category), f = getStr(b.dividendFreq), m = getStr(b.marketType); if (c.includes('半年') || f.includes('半年') || c.includes('國際') || c.includes('國外') || m.includes('國外')) return false; return true; };
     
-    // ... (Reports Logic) ...
-    const reportMarket = useMemo(() => { if (mainTab !== 'WEEKLY') return []; return marketData.filter(d => d.date >= dateRange.lastFriday && d.date <= dateRange.thisFriday).sort((a,b) => { const wA = getIndexWeight(a.indexName); const wB = getIndexWeight(b.indexName); return wA !== wB ? wA - wB : a.date.localeCompare(b.date); }); }, [marketData, mainTab, dateRange]);
-    const reportPrice = useMemo(() => { if (mainTab !== 'WEEKLY') return { headers: [], rows: [] }; const validEtfs = basicInfo.filter(filterExclude); const validCodes = new Set(validEtfs.map(e => e.etfCode)); const prices = priceData.filter(p => validCodes.has(p.etfCode) && p.date >= dateRange.lastFriday && p.date <= dateRange.thisFriday); const dates = Array.from(new Set(prices.map(p => p.date))).sort(); const rows = validEtfs.map(etf => { const r: any = { '商品分類': etf.category, '配息週期': etf.dividendFreq, 'ETF代碼': etf.etfCode, 'ETF名稱': etf.etfName, 'ETF類型': etf.etfType }; let has=false; dates.forEach(d => { const f = prices.find(p => p.etfCode === etf.etfCode && p.date === d); r[d] = f ? f.price : ''; if(f) has=true; }); return has ? r : null; }).filter(r => r); rows.sort((a,b) => { const wA = getEtfSortWeight(a); const wB = getEtfSortWeight(b); return wA !== wB ? wA - wB : a['ETF代碼'].localeCompare(b['ETF代碼']); }); return { headers: dates, rows }; }, [basicInfo, priceData, mainTab, dateRange]);
-    // ... (Other reports omitted for brevity but assumed present in logic execution) ...
+    // --- REPORTS GENERATION ---
+    const reportMarket = useMemo(() => {
+        return marketData.filter(d => d.date >= dateRange.lastFriday && d.date <= dateRange.thisFriday).sort((a,b) => { const wA = getIndexWeight(a.indexName); const wB = getIndexWeight(b.indexName); return wA !== wB ? wA - wB : a.date.localeCompare(b.date); });
+    }, [marketData, dateRange]);
+
+    const reportPrice = useMemo(() => {
+        const validEtfs = basicInfo.filter(filterExclude);
+        const validCodes = new Set(validEtfs.map(e => e.etfCode));
+        const prices = priceData.filter(p => validCodes.has(p.etfCode) && p.date >= dateRange.lastFriday && p.date <= dateRange.thisFriday);
+        const dates = Array.from(new Set(prices.map(p => p.date))).sort();
+        const rows = validEtfs.map(etf => {
+            const r: any = { '商品分類': etf.category, '配息週期': etf.dividendFreq, 'ETF代碼': etf.etfCode, 'ETF名稱': etf.etfName, 'ETF類型': etf.etfType };
+            let has = false;
+            dates.forEach(d => {
+                const f = prices.find(p => p.etfCode === etf.etfCode && p.date === d);
+                r[d] = f ? f.price : '';
+                if (f) has = true;
+            });
+            return has ? r : null;
+        }).filter(r => r).sort((a,b) => { const wA = getEtfSortWeight(a); const wB = getEtfSortWeight(b); return wA !== wB ? wA - wB : a['ETF代碼'].localeCompare(b['ETF代碼']); });
+        return { headers: dates, rows };
+    }, [basicInfo, priceData, dateRange]);
+
+    const reportDividend = useMemo(() => {
+        return divData.filter(d => d.exDate >= dateRange.thisMonday && d.exDate <= dateRange.thisFriday).sort((a,b) => a.exDate.localeCompare(b.exDate));
+    }, [divData, dateRange]);
+
+    const reportFill = useMemo(() => {
+        return fillData.filter(d => d.exDate >= dateRange.thisMonday && d.exDate <= dateRange.thisFriday).sort((a,b) => a.exDate.localeCompare(b.exDate));
+    }, [fillData, dateRange]);
+
+    const reportPostMarketTodayEx = useMemo(() => {
+        return divData.filter(d => d.exDate === refDate);
+    }, [divData, refDate]);
 
     // --- UNIFIED TABS CONFIG ---
     const MAIN_TABS = [ { id: 'PRE_MARKET', label: '每日盤前', icon: Zap }, { id: 'POST_MARKET', label: '每日盤後', icon: Moon }, { id: 'WEEKLY', label: '每週報告', icon: FileText }, { id: 'SELF_MONTHLY', label: '自主月配', icon: Calendar } ];
@@ -110,10 +140,11 @@ const TabAdvancedSearch: React.FC = () => {
                         ))}
                     </div>
 
-                    {/* UNIFIED TABLE DISPLAY */}
+                    {/* UNIFIED TABLE DISPLAY (16px / text-base) */}
                     <div className="flex-1 overflow-auto bg-white p-0">
+                        {/* 1. WEEKLY > MARKET */}
                         {mainTab === 'WEEKLY' && reportType === 'MARKET' && (
-                            <table className="w-full text-left border-collapse text-sm">
+                            <table className="w-full text-left border-collapse text-base">
                                 <thead className="bg-blue-50 sticky top-0 z-10 border-b border-blue-200 font-bold text-blue-900">
                                     <tr><th className="p-3">日期</th><th className="p-3">指數名稱</th><th className="p-3 text-right">現價</th><th className="p-3 text-right">漲跌</th><th className="p-3 text-right">幅度</th></tr>
                                 </thead>
@@ -126,9 +157,61 @@ const TabAdvancedSearch: React.FC = () => {
                                 </tbody>
                             </table>
                         )}
-                        {/* ... Other tables follow same pattern (bg-blue-50 header, hover:bg-blue-50 rows) ... */}
+
+                        {/* 2. WEEKLY > PRICE */}
                         {mainTab === 'WEEKLY' && reportType === 'PRICE' && (
-                             <div className="p-8 text-center text-gray-400 font-bold">表格資料顯示區域 (已統一樣式)</div>
+                             <table className="w-full text-left border-collapse text-base">
+                                <thead className="bg-blue-50 sticky top-0 z-10 border-b border-blue-200 font-bold text-blue-900">
+                                    <tr>
+                                        <th className="p-3 whitespace-nowrap">商品分類</th><th className="p-3 whitespace-nowrap">配息週期</th><th className="p-3 whitespace-nowrap">代碼</th><th className="p-3 whitespace-nowrap">名稱</th>
+                                        {reportPrice.headers.map(h => <th key={h} className="p-3 whitespace-nowrap text-right font-mono">{h.slice(5)}</th>)}
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-blue-50 font-bold text-gray-700">
+                                    {reportPrice.rows.map((r: any, i) => (
+                                        <tr key={i} className="hover:bg-blue-50 transition-colors">
+                                            <td className="p-3 text-gray-600">{r['商品分類']}</td><td className="p-3 text-gray-600">{r['配息週期']}</td><td className="p-3 text-blue-800 font-mono">{r['ETF代碼']}</td><td className="p-3 text-gray-900">{r['ETF名稱']}</td>
+                                            {reportPrice.headers.map(h => <td key={h} className="p-3 text-right font-mono text-blue-900">{fmtNum(r[h])}</td>)}
+                                        </tr>
+                                    ))}
+                                </tbody>
+                             </table>
+                        )}
+
+                        {/* 3. WEEKLY > DIVIDEND */}
+                        {mainTab === 'WEEKLY' && reportType === 'DIVIDEND' && (
+                            <table className="w-full text-left border-collapse text-base">
+                                <thead className="bg-blue-50 sticky top-0 z-10 border-b border-blue-200 font-bold text-blue-900">
+                                    <tr><th className="p-3">代碼</th><th className="p-3">名稱</th><th className="p-3">除息日</th><th className="p-3 text-right">金額</th><th className="p-3 text-right">發放日</th></tr>
+                                </thead>
+                                <tbody className="divide-y divide-blue-50 font-bold text-gray-700">
+                                    {reportDividend.length===0?<tr><td colSpan={5} className="p-8 text-center text-gray-400">本週無除息資料</td></tr> : reportDividend.map((d,i)=>(
+                                        <tr key={i} className="hover:bg-blue-50"><td className="p-3 font-mono">{d.etfCode}</td><td className="p-3">{d.etfName}</td><td className="p-3 font-mono">{d.exDate}</td><td className="p-3 text-right font-mono text-emerald-600">{fmtDiv(d.amount)}</td><td className="p-3 text-right font-mono">{d.paymentDate}</td></tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        )}
+
+                        {/* 4. POST MARKET > TODAY EX */}
+                        {mainTab === 'POST_MARKET' && postMarketType === 'TODAY_EX' && (
+                            <table className="w-full text-left border-collapse text-base">
+                                <thead className="bg-blue-50 sticky top-0 z-10 border-b border-blue-200 font-bold text-blue-900">
+                                    <tr><th className="p-3">代碼</th><th className="p-3">名稱</th><th className="p-3">除息日</th><th className="p-3 text-right">金額</th></tr>
+                                </thead>
+                                <tbody className="divide-y divide-blue-50 font-bold text-gray-700">
+                                    {reportPostMarketTodayEx.length===0?<tr><td colSpan={4} className="p-8 text-center text-gray-400">今日無除息</td></tr> : reportPostMarketTodayEx.map((d,i)=>(
+                                        <tr key={i} className="hover:bg-blue-50"><td className="p-3 font-mono">{d.etfCode}</td><td className="p-3">{d.etfName}</td><td className="p-3 font-mono">{d.exDate}</td><td className="p-3 text-right font-mono text-emerald-600">{fmtDiv(d.amount)}</td></tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        )}
+
+                        {/* FALLBACK FOR OTHER TABS */}
+                        {(mainTab !== 'WEEKLY' && mainTab !== 'POST_MARKET' || (mainTab==='POST_MARKET' && postMarketType !== 'TODAY_EX')) && (
+                             <div className="p-12 text-center text-gray-400 font-bold text-lg flex flex-col items-center gap-4">
+                                <FileText className="w-16 h-16 opacity-30" />
+                                <p>此報表功能 ({mainTab} - {currentSubTabId}) 開發中...</p>
+                             </div>
                         )}
                     </div>
                 </div>

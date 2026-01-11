@@ -123,10 +123,10 @@ const TabPrices: React.FC<TabPricesProps> = ({
                 </div>
            </div>
 
-           {/* Right: Detail Table */}
+           {/* Right: Detail Table - 16px (text-base) */}
            <div className="flex-1 bg-white rounded-lg shadow-sm border border-blue-200 flex flex-col overflow-hidden">
                 <div className="flex-1 overflow-auto bg-white p-0">
-                    <table className="w-full text-left border-collapse text-sm">
+                    <table className="w-full text-left border-collapse text-base">
                         <thead className="bg-blue-50 sticky top-0 border-b border-blue-200 font-bold text-blue-900 z-10">
                             <tr>
                                 <th className="p-3 whitespace-nowrap">日期</th>

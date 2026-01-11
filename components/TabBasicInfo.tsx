@@ -113,9 +113,9 @@ const TabBasicInfo: React.FC<TabBasicInfoProps> = ({
         </div>
       </div>
 
-      {/* UNIFIED TABLE STYLE */}
+      {/* UNIFIED TABLE STYLE - 16px (text-base) */}
       <div className="flex-1 overflow-auto bg-white rounded-lg shadow-sm border border-blue-200 min-h-0">
-        <table className="w-full text-left border-collapse text-sm">
+        <table className="w-full text-left border-collapse text-base">
             <thead className="bg-blue-50 sticky top-0 z-10 border-b border-blue-200 font-bold text-blue-900">
                 <tr>
                     <th className="p-3">ETF 代碼</th><th className="p-3">ETF 名稱</th><th className="p-3">商品分類</th><th className="p-3">配息週期</th><th className="p-3">發行投信</th><th className="p-3">ETF類型</th><th className="p-3 text-right">規模(億)</th><th className="p-3">規模趨勢</th>
