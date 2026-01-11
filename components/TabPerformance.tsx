@@ -4,7 +4,7 @@ import {
     Trash2, Edit, X, FileSpreadsheet, AlertCircle, ChevronRight,
     Book, Save, Filter, RefreshCcw, AlertTriangle, Coins,
     LayoutDashboard, ChevronDown, ChevronUp, FolderOpen, Layers,
-    Check, Eraser, FileText
+    Check, Eraser, FileText, Briefcase
 } from 'lucide-react';
 import { UserTransaction, UserPosition, BasicInfo, DividendData } from '../types';
 import { getBasicInfo, getDividendData, exportToCSV } from '../services/dataService';
@@ -443,32 +443,68 @@ const TabPerformance: React.FC = () => {
              {/* Action Bar (Filters + Buttons) */}
              <div className="bg-white p-3 rounded-lg shadow-sm border border-blue-200 flex flex-col gap-3 flex-none">
                 <div className="flex flex-wrap items-center justify-between gap-3">
-                    {/* Filters - Only enabled if data exists */}
-                    <div className={`flex items-center gap-2 overflow-x-auto no-scrollbar ${transactions.length === 0 ? 'opacity-50 pointer-events-none' : ''}`}>
-                         <div className="flex items-center gap-1 bg-blue-50 p-1 rounded border border-blue-200 shrink-0">
-                             <span className="text-blue-400 px-2"><Filter className="w-4 h-4" /></span>
-                             <select value={selectedBroker} onChange={(e) => setSelectedBroker(e.target.value)} className="bg-transparent text-sm font-bold text-blue-900 outline-none">
-                                 <option value="ALL">全部證券戶</option>
-                                 {availableBrokers.map(b => <option key={b} value={b}>{b}</option>)}
-                             </select>
+                    
+                    {/* Filters - REPLACED DROPDOWNS WITH BUTTONS */}
+                    <div className={`flex flex-col gap-2 flex-1 overflow-hidden ${transactions.length === 0 ? 'opacity-50 pointer-events-none' : ''}`}>
+                         {/* Row 1: Brokers */}
+                         <div className="flex items-center gap-2 overflow-x-auto no-scrollbar mask-gradient-right">
+                             <div className="flex items-center gap-1 bg-blue-50 px-2 py-1.5 rounded border border-blue-200 shrink-0">
+                                 <Briefcase className="w-4 h-4 text-blue-500" />
+                                 <span className="text-sm font-bold text-blue-900">證券戶:</span>
+                             </div>
+                             <button 
+                                onClick={() => setSelectedBroker('ALL')}
+                                className={`px-3 py-1.5 rounded-lg text-sm font-bold whitespace-nowrap transition-all border shrink-0 
+                                    ${selectedBroker === 'ALL' ? 'bg-blue-600 text-white border-blue-600 shadow-sm' : 'bg-blue-50 text-blue-600 border-blue-100 hover:bg-blue-100'}`}
+                             >
+                                 全部證券戶
+                             </button>
+                             {availableBrokers.map(b => (
+                                 <button 
+                                    key={b} 
+                                    onClick={() => setSelectedBroker(b)}
+                                    className={`px-3 py-1.5 rounded-lg text-sm font-bold whitespace-nowrap transition-all border shrink-0 
+                                        ${selectedBroker === b ? 'bg-blue-600 text-white border-blue-600 shadow-sm' : 'bg-blue-50 text-blue-600 border-blue-100 hover:bg-blue-100'}`}
+                                 >
+                                     {b}
+                                 </button>
+                             ))}
                          </div>
-                         <div className="flex items-center gap-1 bg-blue-50 p-1 rounded border border-blue-200 shrink-0">
-                             <span className="text-blue-400 px-2"><Book className="w-4 h-4" /></span>
-                             <select value={selectedCategory} onChange={(e) => setSelectedCategory(e.target.value)} className="bg-transparent text-sm font-bold text-blue-900 outline-none">
-                                 <option value="ALL">全部策略</option>
-                                 {availableCategories.map(c => <option key={c} value={c}>{c}</option>)}
-                             </select>
+
+                         {/* Row 2: Categories (Linked) */}
+                         <div className="flex items-center gap-2 overflow-x-auto no-scrollbar mask-gradient-right">
+                             <div className="flex items-center gap-1 bg-blue-50 px-2 py-1.5 rounded border border-blue-200 shrink-0">
+                                 <Book className="w-4 h-4 text-blue-500" />
+                                 <span className="text-sm font-bold text-blue-900">分類:</span>
+                             </div>
+                             <button 
+                                onClick={() => setSelectedCategory('ALL')}
+                                className={`px-3 py-1.5 rounded-lg text-sm font-bold whitespace-nowrap transition-all border shrink-0 
+                                    ${selectedCategory === 'ALL' ? 'bg-blue-600 text-white border-blue-600 shadow-sm' : 'bg-blue-50 text-blue-600 border-blue-100 hover:bg-blue-100'}`}
+                             >
+                                 全部策略
+                             </button>
+                             {availableCategories.map(c => (
+                                 <button 
+                                    key={c} 
+                                    onClick={() => setSelectedCategory(c)}
+                                    className={`px-3 py-1.5 rounded-lg text-sm font-bold whitespace-nowrap transition-all border shrink-0 
+                                        ${selectedCategory === c ? 'bg-blue-600 text-white border-blue-600 shadow-sm' : 'bg-blue-50 text-blue-600 border-blue-100 hover:bg-blue-100'}`}
+                                 >
+                                     {c}
+                                 </button>
+                             ))}
                          </div>
                     </div>
                     
-                    {/* Actions - Grouped to Right */}
+                    {/* Actions - Grouped to Right with 5 Distinct Colors */}
                     {topTab === 'HOLDINGS' && (
-                        <div className="flex items-center gap-2 shrink-0 ml-auto">
-                            <button onClick={() => setShowSummaryModal(true)} disabled={transactions.length===0} className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-100 font-bold text-sm shadow-sm transition-colors disabled:opacity-50"><LayoutDashboard className="w-4 h-4" /> 總表</button>
-                            <button onClick={() => { setEditingId(null); setFormData({ ...formData, broker: brokerOptions[0]||'', category: categoryOptions[0]||'' }); setShowAddModal(true); }} className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-100 font-bold text-sm shadow-sm transition-colors"><Plus className="w-4 h-4" /> 新增</button>
-                            <button onClick={() => setShowImportModal(true)} className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-100 font-bold text-sm shadow-sm transition-colors"><Upload className="w-4 h-4" /> 匯入</button>
-                            <button onClick={handleExport} disabled={transactions.length===0} className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-100 font-bold text-sm shadow-sm transition-colors disabled:opacity-50"><Download className="w-4 h-4" /> 匯出</button>
-                            <button onClick={handleClearAll} disabled={transactions.length===0} className="flex items-center gap-2 px-3 py-1.5 bg-red-50 text-red-600 border border-red-200 rounded-lg hover:bg-red-100 font-bold text-sm shadow-sm transition-colors disabled:opacity-50"><Eraser className="w-4 h-4" /> 清除</button>
+                        <div className="flex items-center gap-2 shrink-0 ml-auto border-l border-gray-100 pl-2">
+                            <button onClick={() => setShowSummaryModal(true)} disabled={transactions.length===0} className="flex items-center gap-2 px-3 py-1.5 bg-purple-50 text-purple-700 border border-purple-200 rounded-lg hover:bg-purple-100 font-bold text-sm shadow-sm transition-colors disabled:opacity-50"><LayoutDashboard className="w-4 h-4" /> 總表</button>
+                            <button onClick={() => { setEditingId(null); setFormData({ ...formData, broker: brokerOptions[0]||'', category: categoryOptions[0]||'' }); setShowAddModal(true); }} className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 text-blue-700 border border-blue-200 rounded-lg hover:bg-blue-100 font-bold text-sm shadow-sm transition-colors"><Plus className="w-4 h-4" /> 新增</button>
+                            <button onClick={() => setShowImportModal(true)} className="flex items-center gap-2 px-3 py-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg hover:bg-emerald-100 font-bold text-sm shadow-sm transition-colors"><Upload className="w-4 h-4" /> 匯入</button>
+                            <button onClick={handleExport} disabled={transactions.length===0} className="flex items-center gap-2 px-3 py-1.5 bg-amber-50 text-amber-700 border border-amber-200 rounded-lg hover:bg-amber-100 font-bold text-sm shadow-sm transition-colors disabled:opacity-50"><Download className="w-4 h-4" /> 匯出</button>
+                            <button onClick={handleClearAll} disabled={transactions.length===0} className="flex items-center gap-2 px-3 py-1.5 bg-red-50 text-red-700 border border-red-200 rounded-lg hover:bg-red-100 font-bold text-sm shadow-sm transition-colors disabled:opacity-50"><Eraser className="w-4 h-4" /> 清除</button>
                         </div>
                     )}
                 </div>

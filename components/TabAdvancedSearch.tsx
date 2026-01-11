@@ -167,50 +167,29 @@ const TabAdvancedSearch: React.FC = () => {
     // --- FILTER HELPERS ---
     const getStr = (val: string | undefined) => String(val || '').trim();
     
-    // Logic A: Exclude Half-Year & International
-    // STRICT MODE: NO Name/Type checks.
     const filterExcludeHalfYearAndIntl = (b: BasicInfo) => {
         const cat = getStr(b.category);
         const freq = getStr(b.dividendFreq);
         const market = getStr(b.marketType);
-
-        // 1. Exclude Half Year (Category or Freq)
         if (cat.includes('半年') || freq.includes('半年')) return false;
-        
-        // 2. Exclude International (Category or Market)
         if (cat.includes('國際') || cat.includes('國外') || market.includes('國外')) return false;
-
         return true;
     };
 
-    // Logic B: Pre-Market Specific (Strict Filter)
-    // 1. Exclude HalfYear/Intl (via Helper)
-    // 2. Exclude Monthly (UNLESS Active/主動)
-    // 3. Exclude Bond (ONLY via Category)
     const filterPreMarket = (b: BasicInfo) => {
-        // Step 1
         if (!filterExcludeHalfYearAndIntl(b)) return false; 
-        
         const cat = getStr(b.category);
         const freq = getStr(b.dividendFreq);
-
-        // Step 2. Exclude Bond (Category only)
         if (cat.includes('債')) return false;
-
-        // Step 3. Exclude Monthly, UNLESS it is Active (主動)
         const isMonthly = freq.includes('月');
         const isActive = cat.includes('主動');
-        
         if (isMonthly && !isActive) return false; 
-
         return true;
     };
 
     // --- PRE MARKET DATA PROCESSING ---
     const preMarketReports = useMemo(() => {
         if (mainTab !== 'PRE_MARKET') return { market: [], etf: { headers: [], rows: [] } };
-
-        // 1. GLOBAL MARKET
         const allMarketDates = Array.from<string>(new Set(marketData.map(d => d.date))).sort().reverse().slice(0, 10);
         const marketDateSet = new Set(allMarketDates);
         const market = marketData
@@ -221,207 +200,92 @@ const TabAdvancedSearch: React.FC = () => {
                 if (wA !== wB) return wA - wB;
                 return b.date.localeCompare(a.date);
             });
-
-        // 2. ETF PRICE
-        // Filter: Strict Pre-Market Filter
         const targets = basicInfo.filter(filterPreMarket); 
-
         const allEtfDates: string[] = Array.from<string>(new Set(priceData.map(p => p.date))).sort().reverse().slice(0, 10);
-        
         const etfRows = targets.map(etf => {
-            const row: any = {
-                'ETF代碼': etf.etfCode,
-                'ETF名稱': etf.etfName,
-                'ETF類型': etf.etfType
-            };
+            const row: any = { 'ETF代碼': etf.etfCode, 'ETF名稱': etf.etfName, 'ETF類型': etf.etfType };
             allEtfDates.forEach((d: string) => {
                 const found = priceData.find(p => p.etfCode === etf.etfCode && p.date === d);
                 row[d] = found ? found.price : '';
             });
             return row;
         });
-
         etfRows.sort((a, b) => a['ETF代碼'].localeCompare(b['ETF代碼']));
-
         return { market, etf: { headers: allEtfDates, rows: etfRows } };
-
     }, [marketData, basicInfo, priceData, mainTab]);
 
     // --- POST MARKET DATA PROCESSING ---
     const postMarketReports = useMemo(() => {
         if (mainTab !== 'POST_MARKET') return { basic: [], todayEx: [], filled: [], unfilled: [] };
-
-        // 1. BASIC INFO
-        // Filter: Exclude HalfYear, Intl (Keep Monthly & Bond)
         const filteredBasic = basicInfo.filter(filterExcludeHalfYearAndIntl);
-
         const basicList = filteredBasic.map(etf => {
             const currentMonthPrefix = refDate.substring(0, 7); 
             const monthPrices = priceData.filter(p => p.etfCode === etf.etfCode && p.date.startsWith(currentMonthPrefix)).sort((a,b) => a.date.localeCompare(b.date));
             const startPriceObj = monthPrices.length > 0 ? monthPrices[0] : null;
-            
             const sList = sizeData.filter(s => s.etfCode === etf.etfCode).sort((a,b) => (b.date||'').localeCompare(a.date||''));
             const size = sList.length > 0 ? sList[0].size : 0;
-
             return {
-                '商品分類': etf.category,
-                '配息週期': etf.dividendFreq,
-                'ETF代碼': etf.etfCode,
-                'ETF名稱': etf.etfName,
-                'ETF類型': etf.etfType,
-                '規模大小': size ? Math.round(size) : '-',
-                '月初日期': startPriceObj ? startPriceObj.date : '無資料',
-                '月初股價': startPriceObj ? startPriceObj.price : '無資料'
+                '商品分類': etf.category, '配息週期': etf.dividendFreq, 'ETF代碼': etf.etfCode, 'ETF名稱': etf.etfName, 'ETF類型': etf.etfType, '規模大小': size ? Math.round(size) : '-', '月初日期': startPriceObj ? startPriceObj.date : '無資料', '月初股價': startPriceObj ? startPriceObj.price : '無資料'
             };
         });
-
         basicList.sort((a, b) => {
             const getScore = (row: any) => {
                 let cScore = 4;
-                const c = row['商品分類'] || ''; // Strictly category
-                
-                if (c.includes('季配') && !c.includes('債')) cScore = 1;
-                else if (c.includes('月配') && !c.includes('債')) cScore = 2;
-                else if (c.includes('債')) cScore = 3;
-
+                const c = row['商品分類'] || ''; 
+                if (c.includes('季配') && !c.includes('債')) cScore = 1; else if (c.includes('月配') && !c.includes('債')) cScore = 2; else if (c.includes('債')) cScore = 3;
                 let fScore = 5;
                 const f = row['配息週期'] || '';
-                if (f.includes('月')) fScore = 1;
-                else if (checkSeason(f, 'Q1')) fScore = 2;
-                else if (checkSeason(f, 'Q2')) fScore = 3;
-                else if (checkSeason(f, 'Q3')) fScore = 4;
-
+                if (f.includes('月')) fScore = 1; else if (checkSeason(f, 'Q1')) fScore = 2; else if (checkSeason(f, 'Q2')) fScore = 3; else if (checkSeason(f, 'Q3')) fScore = 4;
                 return { cScore, fScore, code: row['ETF代碼'] };
             };
-            const sA = getScore(a);
-            const sB = getScore(b);
+            const sA = getScore(a); const sB = getScore(b);
             if (sA.cScore !== sB.cScore) return sA.cScore - sB.cScore;
             if (sA.fScore !== sB.fScore) return sA.fScore - sB.fScore;
             return sA.code.localeCompare(sB.code);
         });
-
-        // 2. TODAY EX-DIVIDEND
         const todayEx = divData.filter(d => d.exDate === refDate).map(d => {
             const pData = priceData.filter(p => p.etfCode === d.etfCode && p.date < refDate).sort((a,b) => b.date.localeCompare(a.date));
             const prevClose = pData.length > 0 ? pData[0].price : 0;
             const refPrice = prevClose > 0 ? (prevClose - d.amount) : 0;
-            return {
-                'ETF代碼': d.etfCode,
-                'ETF名稱': d.etfName,
-                '除息日期': d.exDate,
-                '除息金額': d.amount,
-                '股利發放': d.paymentDate || '-',
-                '除息參考價': refPrice > 0 ? refPrice.toFixed(2) : '-'
-            };
+            return { 'ETF代碼': d.etfCode, 'ETF名稱': d.etfName, '除息日期': d.exDate, '除息金額': d.amount, '股利發放': d.paymentDate || '-', '除息參考價': refPrice > 0 ? refPrice.toFixed(2) : '-' };
         }).sort((a,b) => a['ETF代碼'].localeCompare(b['ETF代碼']));
-
-        // 3. FILLED LIST
         const uniqueDates = Array.from<string>(new Set(priceData.map(p => p.date))).sort().reverse();
         const refIndex = uniqueDates.indexOf(refDate);
         let validDates: string[] = [];
-        if (refIndex !== -1) {
-            validDates = uniqueDates.slice(refIndex, refIndex + 3);
-        } else {
-            const validStart = uniqueDates.find(d => d <= refDate);
-            if (validStart) {
-                const idx = uniqueDates.indexOf(validStart);
-                validDates = uniqueDates.slice(idx, idx + 3);
-            }
-        }
+        if (refIndex !== -1) { validDates = uniqueDates.slice(refIndex, refIndex + 3); } else { const validStart = uniqueDates.find(d => d <= refDate); if (validStart) { const idx = uniqueDates.indexOf(validStart); validDates = uniqueDates.slice(idx, idx + 3); } }
         const validDateSet = new Set(validDates);
-
-        // Strict Filter: 2026-01-02 onwards
         const filledList = fillData.filter(f => f.isFilled && validDateSet.has(f.fillDate) && f.exDate >= '2026-01-02').map(f => ({
-            'ETF代碼': f.etfCode,
-            'ETF名稱': f.etfName,
-            '除息日期': f.exDate,
-            '除息金額': f.amount,
-            '除息前一天股價': f.pricePreEx,
-            '除息參考價': f.priceReference, 
-            '分析比對日期': f.fillDate,
-            '分析比對價格': f.fillPrice,
-            '分析是否填息成功': '是',
-            '幾天填息': f.daysToFill
-        })).sort((a,b) => {
-            if (a['除息日期'] !== b['除息日期']) return b['除息日期'].localeCompare(a['除息日期']);
-            return a['ETF代碼'].localeCompare(b['ETF代碼']);
-        });
-
-        // 4. UNFILLED
-        // Strict Filter: 2026-01-02 onwards
-        const unfilledList = fillData.filter(f => {
-            const isAfter2026 = f.exDate >= '2026-01-02'; // Enforce 2026+ check
-            const isPastExDate = f.exDate <= refDate; 
-            return isAfter2026 && isPastExDate && !f.isFilled;
-        }).map(f => ({
-            'ETF代碼': f.etfCode,
-            'ETF名稱': f.etfName,
-            '除息日期': f.exDate,
-            '除息金額': f.amount,
-            '除息前一天股價': f.pricePreEx,
-            '除息參考價': f.priceReference
-        })).sort((a,b) => {
-            const codeDiff = a['ETF代碼'].localeCompare(b['ETF代碼']);
-            if (codeDiff !== 0) return codeDiff;
-            return b['除息日期'].localeCompare(a['除息日期']);
-        });
-
+            'ETF代碼': f.etfCode, 'ETF名稱': f.etfName, '除息日期': f.exDate, '除息金額': f.amount, '除息前一天股價': f.pricePreEx, '除息參考價': f.priceReference, '分析比對日期': f.fillDate, '分析比對價格': f.fillPrice, '分析是否填息成功': '是', '幾天填息': f.daysToFill
+        })).sort((a,b) => { if (a['除息日期'] !== b['除息日期']) return b['除息日期'].localeCompare(a['除息日期']); return a['ETF代碼'].localeCompare(b['ETF代碼']); });
+        const unfilledList = fillData.filter(f => { const isAfter2026 = f.exDate >= '2026-01-02'; const isPastExDate = f.exDate <= refDate; return isAfter2026 && isPastExDate && !f.isFilled; }).map(f => ({
+            'ETF代碼': f.etfCode, 'ETF名稱': f.etfName, '除息日期': f.exDate, '除息金額': f.amount, '除息前一天股價': f.pricePreEx, '除息參考價': f.priceReference
+        })).sort((a,b) => { const codeDiff = a['ETF代碼'].localeCompare(b['ETF代碼']); if (codeDiff !== 0) return codeDiff; return b['除息日期'].localeCompare(a['除息日期']); });
         return { basic: basicList, todayEx, filled: filledList, unfilled: unfilledList };
-
     }, [basicInfo, marketData, priceData, divData, fillData, sizeData, mainTab, refDate]);
-
 
     // --- WEEKLY REPORT DATA PROCESSING ---
     const reportMarket = useMemo(() => {
         if (mainTab !== 'WEEKLY') return [];
         const start = dateRange.lastFriday;
         const end = dateRange.thisFriday;
-        return marketData
-            .filter(d => d.date >= start && d.date <= end)
-            .sort((a,b) => {
-                const wA = getIndexWeight(a.indexName);
-                const wB = getIndexWeight(b.indexName);
-                if (wA !== wB) return wA - wB;
-                return a.date.localeCompare(b.date);
-            });
+        return marketData.filter(d => d.date >= start && d.date <= end).sort((a,b) => { const wA = getIndexWeight(a.indexName); const wB = getIndexWeight(b.indexName); if (wA !== wB) return wA - wB; return a.date.localeCompare(b.date); });
     }, [marketData, mainTab, dateRange]);
 
     const reportPrice = useMemo(() => {
         if (mainTab !== 'WEEKLY') return { headers: [], rows: [] };
         const start = dateRange.lastFriday;
         const end = dateRange.thisFriday;
-
-        // Filter: Exclude HalfYear, Intl (Same as Post-Market Basic)
         const validEtfs = basicInfo.filter(filterExcludeHalfYearAndIntl);
-
         const validCodes = new Set(validEtfs.map(e => e.etfCode));
         const pricesInRange = priceData.filter(p => validCodes.has(p.etfCode) && p.date >= start && p.date <= end);
         const uniqueDates = Array.from<string>(new Set(pricesInRange.map(p => p.date))).sort();
-
         const pivotRows = validEtfs.map(etf => {
-            const row: any = {
-                '商品分類': etf.category,
-                '配息週期': etf.dividendFreq,
-                'ETF代碼': etf.etfCode,
-                'ETF名稱': etf.etfName,
-                'ETF類型': etf.etfType
-            };
+            const row: any = { '商品分類': etf.category, '配息週期': etf.dividendFreq, 'ETF代碼': etf.etfCode, 'ETF名稱': etf.etfName, 'ETF類型': etf.etfType };
             let hasData = false;
-            uniqueDates.forEach((d: string) => {
-                const found = pricesInRange.find(p => p.etfCode === etf.etfCode && p.date === d);
-                row[d] = found ? found.price : '';
-                if (found) hasData = true;
-            });
+            uniqueDates.forEach((d: string) => { const found = pricesInRange.find(p => p.etfCode === etf.etfCode && p.date === d); row[d] = found ? found.price : ''; if (found) hasData = true; });
             return hasData ? row : null;
         }).filter(r => r !== null);
-
-        pivotRows.sort((a: any, b: any) => {
-            const wA = getEtfSortWeight(a);
-            const wB = getEtfSortWeight(b);
-            if (wA !== wB) return wA - wB;
-            return a['ETF代碼'].localeCompare(b['ETF代碼']);
-        });
-
+        pivotRows.sort((a: any, b: any) => { const wA = getEtfSortWeight(a); const wB = getEtfSortWeight(b); if (wA !== wB) return wA - wB; return a['ETF代碼'].localeCompare(b['ETF代碼']); });
         return { headers: uniqueDates, rows: pivotRows };
     }, [basicInfo, priceData, mainTab, dateRange]);
 
@@ -429,50 +293,23 @@ const TabAdvancedSearch: React.FC = () => {
         if (mainTab !== 'WEEKLY') return [];
         const start = dateRange.thisMonday;
         const end = dateRange.thisFriday;
-        return divData
-            .filter(d => d.exDate >= start && d.exDate <= end)
-            .sort((a,b) => a.exDate.localeCompare(b.exDate));
+        return divData.filter(d => d.exDate >= start && d.exDate <= end).sort((a,b) => a.exDate.localeCompare(b.exDate));
     }, [divData, mainTab, dateRange]);
 
     const reportFill = useMemo(() => {
         if (mainTab !== 'WEEKLY') return [];
         const start = dateRange.thisMonday;
         const end = dateRange.thisFriday;
-        return fillData
-            .filter(d => {
-                if (!d.exDate) return false;
-                // Strict check 2026-01-02
-                return d.isFilled && d.fillDate >= start && d.fillDate <= end && d.exDate >= '2026-01-02';
-            })
-            .sort((a,b) => a.fillDate.localeCompare(b.fillDate));
+        return fillData.filter(d => { if (!d.exDate) return false; return d.isFilled && d.fillDate >= start && d.fillDate <= end && d.exDate >= '2026-01-02'; }).sort((a,b) => a.fillDate.localeCompare(b.fillDate));
     }, [fillData, mainTab, dateRange]);
 
     // --- SELF MONTHLY LOGIC ---
     const selfMonthlyData = useMemo(() => {
         if (mainTab !== 'SELF_MONTHLY') return { list: [], div: [] };
-
         const sizeMap = new Map<string, number>();
         const sizeGroups = new Map<string, SizeData[]>();
-        sizeData.forEach(s => {
-            if (s && s.etfCode) {
-                const code = s.etfCode.trim();
-                if (!sizeMap.has(code) || (s.date && s.date > (sizeMap.get(code + '_date') as any))) {
-                     sizeMap.set(code, s.size);
-                }
-                if (!sizeGroups.has(code)) sizeGroups.set(code, []);
-                sizeGroups.get(code)!.push(s);
-            }
-        });
-
-        // Filter: Quarterly & Active Quarterly. (Exclude Bond)
-        const targets = basicInfo.filter(b => {
-            const freq = getStr(b.dividendFreq);
-            const cat = getStr(b.category);
-            const isQuarterly = freq.includes('季');
-            const isBond = cat.includes('債'); // Strict Category Check
-            return isQuarterly && !isBond;
-        });
-
+        sizeData.forEach(s => { if (s && s.etfCode) { const code = s.etfCode.trim(); if (!sizeMap.has(code) || (s.date && s.date > (sizeMap.get(code + '_date') as any))) { sizeMap.set(code, s.size); } if (!sizeGroups.has(code)) sizeGroups.set(code, []); sizeGroups.get(code)!.push(s); } });
+        const targets = basicInfo.filter(b => { const freq = getStr(b.dividendFreq); const cat = getStr(b.category); const isQuarterly = freq.includes('季'); const isBond = cat.includes('債'); return isQuarterly && !isBond; });
         const refDateObj = new Date(refDate); 
         const currentYear = refDateObj.getFullYear();
         const currentMonth = refDateObj.getMonth() + 1;
@@ -480,84 +317,18 @@ const TabAdvancedSearch: React.FC = () => {
         const targetMonth = currentMonth;
         const targetMonthStr = String(targetMonth).padStart(2, '0');
         const targetYearMonth = `${targetYear}-${targetMonthStr}`; 
-
         const list = targets.map(etf => {
             const latestPrices = priceData.filter(p => p.etfCode === etf.etfCode).sort((a,b) => b.date.localeCompare(a.date));
             const latest = latestPrices.length > 0 ? latestPrices[0] : null;
-
-            let startPrice = 0;
-            let startDate = '-';
-            let dateWarning = false;
-
-            if (targetYear <= 2025) {
-                const hist = historyData.find(h => h.etfCode === etf.etfCode && h.date.startsWith(targetYearMonth));
-                if (hist) {
-                    startPrice = hist.price;
-                    startDate = hist.date;
-                }
-            } else {
-                const dailyMatches = priceData
-                    .filter(p => p.etfCode === etf.etfCode && p.date.startsWith(targetYearMonth))
-                    .sort((a,b) => a.date.localeCompare(b.date));
-                
-                if (dailyMatches.length > 0) {
-                    startPrice = dailyMatches[0].price;
-                    startDate = dailyMatches[0].date;
-                    const dayNum = parseInt(startDate.split('-')[2] || '1');
-                    if (dayNum > 10) dateWarning = true;
-                }
-            }
-
-            const etfSizes = sizeGroups.get(etf.etfCode) || [];
-            etfSizes.sort((a,b) => (b.date || '').localeCompare(a.date || ''));
-            const latestSize = etfSizes.length > 0 ? etfSizes[0].size : 0;
-
-            return {
-                '商品分類': etf.category,
-                '配息週期': etf.dividendFreq,
-                'ETF代碼': etf.etfCode,
-                'ETF名稱': etf.etfName,
-                'ETF類型': etf.etfType,
-                '規模大小': latestSize ? Math.round(latestSize) : '-',
-                '起始日期': startDate,
-                '起始股價': startPrice || '-',
-                '最近日期': latest ? latest.date : '-',
-                '最近股價': latest ? latest.price : '-',
-                'dateWarning': dateWarning
-            };
+            let startPrice = 0; let startDate = '-'; let dateWarning = false;
+            if (targetYear <= 2025) { const hist = historyData.find(h => h.etfCode === etf.etfCode && h.date.startsWith(targetYearMonth)); if (hist) { startPrice = hist.price; startDate = hist.date; } } else { const dailyMatches = priceData.filter(p => p.etfCode === etf.etfCode && p.date.startsWith(targetYearMonth)).sort((a,b) => a.date.localeCompare(b.date)); if (dailyMatches.length > 0) { startPrice = dailyMatches[0].price; startDate = dailyMatches[0].date; const dayNum = parseInt(startDate.split('-')[2] || '1'); if (dayNum > 10) dateWarning = true; } }
+            const etfSizes = sizeGroups.get(etf.etfCode) || []; etfSizes.sort((a,b) => (b.date || '').localeCompare(a.date || '')); const latestSize = etfSizes.length > 0 ? etfSizes[0].size : 0;
+            return { '商品分類': etf.category, '配息週期': etf.dividendFreq, 'ETF代碼': etf.etfCode, 'ETF名稱': etf.etfName, 'ETF類型': etf.etfType, '規模大小': latestSize ? Math.round(latestSize) : '-', '起始日期': startDate, '起始股價': startPrice || '-', '最近日期': latest ? latest.date : '-', '最近股價': latest ? latest.price : '-', 'dateWarning': dateWarning };
         });
-
-        list.sort((a, b) => {
-            const scoreA = getSelfMonthlySortScore(a['商品分類'], a['配息週期'], a['ETF代碼']);
-            const scoreB = getSelfMonthlySortScore(b['商品分類'], b['配息週期'], b['ETF代碼']);
-            if (scoreA.catScore !== scoreB.catScore) return scoreA.catScore - scoreB.catScore;
-            if (scoreA.freqScore !== scoreB.freqScore) return scoreA.freqScore - scoreB.freqScore;
-            return scoreA.code.localeCompare(scoreB.code);
-        });
-
+        list.sort((a, b) => { const scoreA = getSelfMonthlySortScore(a['商品分類'], a['配息週期'], a['ETF代碼']); const scoreB = getSelfMonthlySortScore(b['商品分類'], b['配息週期'], b['ETF代碼']); if (scoreA.catScore !== scoreB.catScore) return scoreA.catScore - scoreB.catScore; if (scoreA.freqScore !== scoreB.freqScore) return scoreA.freqScore - scoreB.freqScore; return scoreA.code.localeCompare(scoreB.code); });
         const targetCodes = new Set(targets.map(t => t.etfCode));
-        const divList = divData
-            .filter(d => targetCodes.has(d.etfCode))
-            .map(d => ({
-                '商品分類': basicInfo.find(b => b.etfCode === d.etfCode)?.category || '',
-                '配息週期': basicInfo.find(b => b.etfCode === d.etfCode)?.dividendFreq || '',
-                'ETF代碼': d.etfCode,
-                'ETF名稱': d.etfName,
-                '年月': d.yearMonth,
-                '除息日期': d.exDate,
-                '除息金額': d.amount,
-                'hasDiv': true 
-            }));
-
-        divList.sort((a, b) => {
-            const scoreA = getSelfMonthlySortScore(a['商品分類'], a['配息週期'], a['ETF代碼']);
-            const scoreB = getSelfMonthlySortScore(b['商品分類'], b['配息週期'], b['ETF代碼']);
-            if (scoreA.catScore !== scoreB.catScore) return scoreA.catScore - scoreB.catScore;
-            if (scoreA.freqScore !== scoreB.freqScore) return scoreA.freqScore - scoreB.freqScore;
-            if (scoreA.code !== scoreB.code) return scoreA.code.localeCompare(scoreB.code);
-            return b['除息日期'].localeCompare(a['除息日期']);
-        });
-
+        const divList = divData.filter(d => targetCodes.has(d.etfCode)).map(d => ({ '商品分類': basicInfo.find(b => b.etfCode === d.etfCode)?.category || '', '配息週期': basicInfo.find(b => b.etfCode === d.etfCode)?.dividendFreq || '', 'ETF代碼': d.etfCode, 'ETF名稱': d.etfName, '年月': d.yearMonth, '除息日期': d.exDate, '除息金額': d.amount, 'hasDiv': true }));
+        divList.sort((a, b) => { const scoreA = getSelfMonthlySortScore(a['商品分類'], a['配息週期'], a['ETF代碼']); const scoreB = getSelfMonthlySortScore(b['商品分類'], b['配息週期'], b['ETF代碼']); if (scoreA.catScore !== scoreB.catScore) return scoreA.catScore - scoreB.catScore; if (scoreA.freqScore !== scoreB.freqScore) return scoreA.freqScore - scoreB.freqScore; if (scoreA.code !== scoreB.code) return scoreA.code.localeCompare(scoreB.code); return b['除息日期'].localeCompare(a['除息日期']); });
         return { list, div: divList };
     }, [basicInfo, priceData, historyData, divData, sizeData, mainTab, refDate]);
 
@@ -584,65 +355,20 @@ const TabAdvancedSearch: React.FC = () => {
     };
 
     // --- EXPORT HANDLER ---
-    // (Export logic kept same)
     const handleExport = () => {
         const timestamp = new Date().toISOString().split('T')[0];
         if (mainTab === 'SELF_MONTHLY') {
-            if (selfMonthlySubTab === 'QUARTERLY_LIST') {
-                const headers = ['商品分類', '配息週期', 'ETF代碼', 'ETF名稱', 'ETF類型', '規模大小', '起始日期', '起始股價', '最近日期', '最近股價'];
-                exportToCSV(`自主月配_季配名單_${timestamp}`, headers, selfMonthlyData.list);
-            } else {
-                const headers = ['ETF代碼', 'ETF名稱', '年月', '除息日期', '除息金額'];
-                exportToCSV(`自主月配_除息資料_${timestamp}`, headers, selfMonthlyData.div.map(d => ({ ...d, '除息金額': fmtDiv(d['除息金額']) })));
-            }
-            return;
+            if (selfMonthlySubTab === 'QUARTERLY_LIST') { const headers = ['商品分類', '配息週期', 'ETF代碼', 'ETF名稱', 'ETF類型', '規模大小', '起始日期', '起始股價', '最近日期', '最近股價']; exportToCSV(`自主月配_季配名單_${timestamp}`, headers, selfMonthlyData.list); } else { const headers = ['ETF代碼', 'ETF名稱', '年月', '除息日期', '除息金額']; exportToCSV(`自主月配_除息資料_${timestamp}`, headers, selfMonthlyData.div.map(d => ({ ...d, '除息金額': fmtDiv(d['除息金額']) }))); } return;
         }
-        // ... (rest of export logic truncated for brevity as no style changes needed here)
         if (mainTab === 'PRE_MARKET') {
-            if (preMarketType === 'GLOBAL_MARKET') {
-                const headers = ['日期', '指數名稱', '昨日收盤', '開盤', '高價', '低價', '現價', '漲跌點數', '漲跌幅度'];
-                const data = preMarketReports.market.map(d => ({ '日期': d.date, '指數名稱': d.indexName, '昨日收盤': d.prevClose, '開盤': d.open, '高價': d.high, '低價': d.low, '現價': d.price, '漲跌點數': d.change, '漲跌幅度': `${d.changePercent}%` }));
-                exportToCSV(`每日盤前_國際大盤_${timestamp}`, headers, data);
-            } else {
-                 const { headers: dateHeaders, rows } = preMarketReports.etf;
-                 const fixedHeaders = ['ETF代碼', 'ETF名稱', 'ETF類型'];
-                 const allHeaders = [...fixedHeaders, ...dateHeaders];
-                 const exportRows = rows.map((r:any) => {
-                     const obj:any = { 'ETF代碼': r['ETF代碼'], 'ETF名稱': r['ETF名稱'], 'ETF類型': r['ETF類型'] };
-                     dateHeaders.forEach(d => obj[d] = r[d]);
-                     return obj;
-                 });
-                 exportToCSV(`每日盤前_ETF股價_${timestamp}`, allHeaders, exportRows);
-            }
-            return;
+            if (preMarketType === 'GLOBAL_MARKET') { const headers = ['日期', '指數名稱', '昨日收盤', '開盤', '高價', '低價', '現價', '漲跌點數', '漲跌幅度']; const data = preMarketReports.market.map(d => ({ '日期': d.date, '指數名稱': d.indexName, '昨日收盤': d.prevClose, '開盤': d.open, '高價': d.high, '低價': d.low, '現價': d.price, '漲跌點數': d.change, '漲跌幅度': `${d.changePercent}%` })); exportToCSV(`每日盤前_國際大盤_${timestamp}`, headers, data); } else { const { headers: dateHeaders, rows } = preMarketReports.etf; const fixedHeaders = ['ETF代碼', 'ETF名稱', 'ETF類型']; const allHeaders = [...fixedHeaders, ...dateHeaders]; const exportRows = rows.map((r:any) => { const obj:any = { 'ETF代碼': r['ETF代碼'], 'ETF名稱': r['ETF名稱'], 'ETF類型': r['ETF類型'] }; dateHeaders.forEach(d => obj[d] = r[d]); return obj; }); exportToCSV(`每日盤前_ETF股價_${timestamp}`, allHeaders, exportRows); } return;
         }
         if (mainTab === 'POST_MARKET') {
-            if (postMarketType === 'BASIC') {
-                const headers = ['商品分類', '配息週期', 'ETF代碼', 'ETF名稱', 'ETF類型', '規模大小', '月初日期', '月初股價'];
-                exportToCSV(`每日盤後_基本資料_${timestamp}`, headers, postMarketReports.basic);
-            } else if (postMarketType === 'TODAY_EX') {
-                const data = postMarketReports.todayEx.length > 0 ? postMarketReports.todayEx : [{'ETF名稱': '本日無除息資料'}];
-                const headers = ['ETF代碼', 'ETF名稱', '除息日期', '除息金額', '股利發放', '除息參考價'];
-                exportToCSV(`每日盤後_本日除息_${timestamp}`, headers, data.map(d => ({...d, '除息金額': fmtDiv(d['除息金額'])})));
-            } else if (postMarketType === 'FILLED_3DAYS') {
-                const data = postMarketReports.filled.length > 0 ? postMarketReports.filled : [{'ETF名稱': '本日無填息資料'}];
-                const headers = ['ETF代碼', 'ETF名稱', '除息日期', '除息金額', '除息前一天股價', '除息參考價', '分析比對日期', '分析比對價格', '分析是否填息成功', '幾天填息'];
-                exportToCSV(`每日盤後_填息名單_${timestamp}`, headers, data.map(d => ({...d, '除息金額': fmtDiv(d['除息金額'])})));
-            } else if (postMarketType === 'UNFILLED_2026') {
-                const data = postMarketReports.unfilled.length > 0 ? postMarketReports.unfilled : [{'ETF名稱': '本日無比對資料'}];
-                const headers = ['ETF代碼', 'ETF名稱', '除息日期', '除息金額', '除息前一天股價', '除息參考價'];
-                exportToCSV(`每日盤後_是否填息_${timestamp}`, headers, data.map(d => ({...d, '除息金額': fmtDiv(d['除息金額'])})));
-            }
-            return;
+            if (postMarketType === 'BASIC') { const headers = ['商品分類', '配息週期', 'ETF代碼', 'ETF名稱', 'ETF類型', '規模大小', '月初日期', '月初股價']; exportToCSV(`每日盤後_基本資料_${timestamp}`, headers, postMarketReports.basic); } else if (postMarketType === 'TODAY_EX') { const data = postMarketReports.todayEx.length > 0 ? postMarketReports.todayEx : [{'ETF名稱': '本日無除息資料'}]; const headers = ['ETF代碼', 'ETF名稱', '除息日期', '除息金額', '股利發放', '除息參考價']; exportToCSV(`每日盤後_本日除息_${timestamp}`, headers, data.map(d => ({...d, '除息金額': fmtDiv(d['除息金額'])}))); } else if (postMarketType === 'FILLED_3DAYS') { const data = postMarketReports.filled.length > 0 ? postMarketReports.filled : [{'ETF名稱': '本日無填息資料'}]; const headers = ['ETF代碼', 'ETF名稱', '除息日期', '除息金額', '除息前一天股價', '除息參考價', '分析比對日期', '分析比對價格', '分析是否填息成功', '幾天填息']; exportToCSV(`每日盤後_填息名單_${timestamp}`, headers, data.map(d => ({...d, '除息金額': fmtDiv(d['除息金額'])}))); } else if (postMarketType === 'UNFILLED_2026') { const data = postMarketReports.unfilled.length > 0 ? postMarketReports.unfilled : [{'ETF名稱': '本日無比對資料'}]; const headers = ['ETF代碼', 'ETF名稱', '除息日期', '除息金額', '除息前一天股價', '除息參考價']; exportToCSV(`每日盤後_是否填息_${timestamp}`, headers, data.map(d => ({...d, '除息金額': fmtDiv(d['除息金額'])}))); } return;
         }
-        // ... (weekly export logic)
     };
 
-    // --- REVISED COPY SCRIPT HANDLER ---
-    const handleCopyScript = () => {
-        // ... (Script Logic Omitted, no style changes)
-        alert('請手動複製 console 中的內容 (或實作複製邏輯)');
-    };
+    const handleCopyScript = () => { alert('請手動複製 console 中的內容 (或實作複製邏輯)'); };
 
     // --- RENDER ---
     const MAIN_TABS = [
@@ -701,14 +427,13 @@ const TabAdvancedSearch: React.FC = () => {
         activeTheme = 'indigo';
     }
 
-    // UPDATED TABLE STYLES: Reverted to lighter headers, kept 16px bold.
     const getTableHeadClass = () => `bg-${activeTheme}-50 text-${activeTheme}-900 sticky top-0 font-bold z-10 text-base shadow-sm border-b border-${activeTheme}-200`;
     const getTableBodyClass = () => `divide-y divide-${activeTheme}-100 text-base font-bold text-gray-800`;
     const getRowHoverClass = () => `group hover:bg-${activeTheme}-50 transition-colors`;
 
     return (
         <div className={`flex flex-col h-full bg-${activeTheme}-50`}>
-            {/* Top Navigation */}
+            {/* Top Navigation - UPDATED TO BLUE THEME */}
             <div className={`bg-white border-b border-${activeTheme}-200 p-2 flex items-center justify-between flex-none`}>
                 <div className="flex gap-2">
                     {MAIN_TABS.map(tab => (
@@ -718,8 +443,8 @@ const TabAdvancedSearch: React.FC = () => {
                             className={`
                                 flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-base transition-all 
                                 ${mainTab === tab.id 
-                                    ? `bg-gray-700 text-white shadow-md` 
-                                    : 'bg-white text-gray-500 border border-gray-100 hover:bg-gray-50' 
+                                    ? `bg-blue-600 text-white shadow-md` 
+                                    : 'bg-blue-50 text-blue-600 border-blue-100 hover:bg-blue-100' 
                                 }
                             `}
                         >
