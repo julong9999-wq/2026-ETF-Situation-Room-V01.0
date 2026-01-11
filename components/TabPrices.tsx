@@ -317,10 +317,10 @@ const TabPrices: React.FC<TabPricesProps> = ({
       if (mainFilter !== '全部') {
           if (mainFilter === '債券') result = result.filter(d => getStr(d.category).includes('債')); // Strict
           else if (mainFilter === '季配') result = result.filter(d => getStr(d.dividendFreq).includes('季') && !getStr(d.category).includes('債')); 
-          else if (mainFilter === '月配') result = result.filter(d => getStr(d.dividendFreq).includes('月') && !getStr(d.category).includes('債')); // Strict: No name/type checks. No active exclusion.
+          else if (mainFilter === '月配') result = result.filter(d => getStr(d.dividendFreq).includes('月') && !getStr(d.category).includes('債') && !getStr(d.category).includes('主動')); // Exclude Active 00985A
           else if (mainFilter === '主動') result = result.filter(d => getStr(d.category).includes('主動')); // Strict
           else if (mainFilter === '國際') result = result.filter(d => getStr(d.category).includes('國際') || getStr(d.category).includes('國外') || getStr(d.marketType).includes('國外'));
-          else if (mainFilter === '半年') result = result.filter(d => getStr(d.category).includes('半年') || getStr(d.dividendFreq).includes('半年'));
+          else if (mainFilter === '半年') result = result.filter(d => (getStr(d.category).includes('半年') || getStr(d.dividendFreq).includes('半年')) && !getStr(d.category).includes('國際') && !getStr(d.category).includes('國外') && !getStr(d.marketType).includes('國外')); // Exclude Intl 00911
       }
       if (subFilter !== 'ALL') {
           const freqStr = (d: BasicInfo) => String(d.dividendFreq || '');
@@ -500,27 +500,27 @@ const TabPrices: React.FC<TabPricesProps> = ({
       {/* Main Content: Fixed Scroll Logic */}
       <div className="flex-1 flex gap-2 overflow-hidden min-h-0">
           
-          {/* Left List */}
+          {/* Left List (COMPACT DESIGN) */}
           <div className="w-[340px] flex-none bg-white rounded-lg shadow-sm border border-blue-200 flex flex-col overflow-hidden min-h-0">
               <div className="p-3 bg-blue-50 border-b border-blue-100 font-bold text-blue-900 flex justify-between items-center text-base flex-none">
                   <div className="flex gap-2 text-sm"><span>起始: <span className="font-mono">{systemDates.start}</span></span><span>現值: <span className="font-mono">{systemDates.end}</span></span></div>
                   <span className="bg-blue-200 text-blue-800 px-3 py-0.5 rounded-full text-sm flex items-center font-bold">{filteredMaster.length}</span>
               </div>
-              <div className="flex-1 overflow-y-auto p-2 space-y-2 min-h-0">
+              <div className="flex-1 overflow-y-auto p-2 space-y-1.5 min-h-0">
                   {filteredMaster.map(item => {
                       const metrics = calculateMetrics(item);
                       return (
-                      <div key={item.etfCode} onClick={() => setSelectedEtf(item.etfCode)} className={`rounded-lg p-3 cursor-pointer transition-all duration-200 flex flex-col gap-1 relative ${getRowBgColor(item, selectedEtf === item.etfCode)}`}>
-                          <div className="flex items-baseline gap-3 border-b border-gray-200/50 pb-2 mb-2">
-                              <span className="text-xl font-bold text-blue-700 font-mono">{item.etfCode}</span>
-                              <span className="text-base font-bold text-gray-700 truncate">{item.etfName}</span>
+                      <div key={item.etfCode} onClick={() => setSelectedEtf(item.etfCode)} className={`rounded-lg p-2 cursor-pointer transition-all duration-200 flex flex-col gap-0.5 relative ${getRowBgColor(item, selectedEtf === item.etfCode)}`}>
+                          <div className="flex items-center gap-2 border-b border-gray-200/50 pb-1 mb-1">
+                              <span className="text-lg font-bold text-blue-700 font-mono leading-none">{item.etfCode}</span>
+                              <span className="text-sm font-bold text-gray-700 truncate leading-none">{item.etfName}</span>
                           </div>
-                          <div className="flex justify-between items-center leading-none mb-1.5">
+                          <div className="flex justify-between items-center leading-tight">
                               <div className="flex items-baseline gap-1"><span className="text-sm font-bold text-gray-500">現</span><span className="text-base font-bold text-gray-900 font-mono">{fmtP(metrics.latestPrice)}</span></div>
                               <div className="flex items-baseline gap-1"><span className="text-sm font-bold text-gray-500">殖</span><span className="text-base font-bold text-gray-900 font-mono">{fmtPct(metrics.yieldVal)}</span></div>
                               <div className="flex items-baseline gap-1"><span className="text-sm font-bold text-gray-500">報</span><span className={`text-base font-bold font-mono ${fmtCol(metrics.returnVal)}`}>{fmtPct(metrics.returnVal)}</span></div>
                           </div>
-                          <div className="flex justify-between items-center leading-none">
+                          <div className="flex justify-between items-center leading-tight">
                                <div className="flex items-baseline gap-1"><span className="text-sm font-bold text-gray-500">起</span><span className="text-base font-medium text-gray-500 font-mono">{fmtP(metrics.startPrice)}</span></div>
                                <div className="flex items-baseline gap-1"><span className="text-sm font-bold text-gray-500">預</span><span className="text-base font-medium text-gray-500 font-mono">{metrics.estYieldVal === null ? <span className="text-gray-400 text-xs">空值</span> : fmtPct(metrics.estYieldVal)}</span></div>
                                <div className="flex items-baseline gap-1"><span className="text-sm font-bold text-gray-500">含</span><span className={`text-base font-medium font-mono ${fmtCol(metrics.totalReturnVal)}`}>{fmtPct(metrics.totalReturnVal)}</span></div>

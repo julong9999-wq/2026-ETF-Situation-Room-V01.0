@@ -118,7 +118,7 @@ const getRowBgColor = (etf: BasicInfo, isSelected: boolean) => {
     else if (checkSeason(freq, 'Q1')) colorClass = 'bg-sky-50'; 
     else if (checkSeason(freq, 'Q2')) colorClass = 'bg-green-50'; 
     else if (checkSeason(freq, 'Q3')) colorClass = 'bg-orange-50'; 
-    if (isSelected) return `${colorClass} border-2 border-purple-500 shadow-md z-10`;
+    if (isSelected) return `${colorClass} border-2 border-blue-600 shadow-md z-10`; // Changed to blue border to match blue theme
     return `${colorClass} border border-gray-100 hover:brightness-95`;
 };
 
@@ -154,10 +154,10 @@ const TabDividends: React.FC<TabDividendsProps> = ({
       if (mainFilter !== '全部') {
           if (mainFilter === '債券') result = result.filter(d => getStr(d.category).includes('債'));
           else if (mainFilter === '季配') result = result.filter(d => getStr(d.dividendFreq).includes('季') && !getStr(d.category).includes('債'));
-          else if (mainFilter === '月配') result = result.filter(d => getStr(d.dividendFreq).includes('月') && !getStr(d.category).includes('債')); // No Active check
+          else if (mainFilter === '月配') result = result.filter(d => getStr(d.dividendFreq).includes('月') && !getStr(d.category).includes('債') && !getStr(d.category).includes('主動')); // Exclude Active 00985A
           else if (mainFilter === '主動') result = result.filter(d => getStr(d.category).includes('主動'));
-          else if (mainFilter === '國際') result = result.filter(d => d.etfCode === '00911' || getStr(d.category).includes('國際') || getStr(d.category).includes('國外') || getStr(d.marketType).includes('國外'));
-          else if (mainFilter === '半年') result = result.filter(d => d.etfCode !== '00911' && (getStr(d.category).includes('半年') || getStr(d.dividendFreq).includes('半年')));
+          else if (mainFilter === '國際') result = result.filter(d => getStr(d.category).includes('國際') || getStr(d.category).includes('國外') || getStr(d.marketType).includes('國外'));
+          else if (mainFilter === '半年') result = result.filter(d => (getStr(d.category).includes('半年') || getStr(d.dividendFreq).includes('半年')) && !getStr(d.category).includes('國際') && !getStr(d.category).includes('國外') && !getStr(d.marketType).includes('國外')); // Exclude Intl 00911
       }
       if (subFilter !== 'ALL') {
           const freqStr = (d: BasicInfo) => String(d.dividendFreq || '');
@@ -316,7 +316,7 @@ const TabDividends: React.FC<TabDividendsProps> = ({
                      <span className="text-sm text-gray-400">~</span>
                      <input type="date" value={endDate} onChange={e=>setEndDate(e.target.value)} className="bg-transparent text-[15px] w-32 font-mono outline-none text-gray-700 font-bold"/>
                  </div>
-                 <button onClick={() => setShowAnnoModal(true)} className="flex items-center gap-2 px-3 py-1.5 bg-purple-50 text-purple-700 border border-purple-200 rounded-lg hover:bg-purple-100 font-bold text-base whitespace-nowrap shadow-sm"><Megaphone className="w-4 h-4" /> 配息公告</button>
+                 <button onClick={() => setShowAnnoModal(true)} className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 text-blue-700 border border-blue-200 rounded-lg hover:bg-blue-100 font-bold text-base whitespace-nowrap shadow-sm"><Megaphone className="w-4 h-4" /> 配息公告</button>
                 <button onClick={handleExport} className="flex items-center gap-2 px-3 py-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg hover:bg-emerald-100 font-bold text-base whitespace-nowrap shadow-sm" disabled={!selectedEtf}><Download className="w-4 h-4" /> 匯出表單</button>
               </div>
           </div>
@@ -325,27 +325,27 @@ const TabDividends: React.FC<TabDividendsProps> = ({
        {/* Content */}
        <div className="flex-1 flex gap-2 overflow-hidden min-h-0">
           
-          {/* Left Panel - UPDATED */}
+          {/* Left Panel - UPDATED COMPACT UI */}
           <div className="w-[340px] flex-none bg-white rounded-lg shadow-sm border border-blue-200 flex flex-col overflow-hidden min-h-0">
               <div className="p-3 bg-blue-50 border-b border-blue-100 font-bold text-blue-900 flex justify-between items-center text-base flex-none">
                   <div className="flex gap-2 text-sm"><span>起始: <span className="font-mono">{systemDates.start}</span></span><span>現值: <span className="font-mono">{systemDates.end}</span></span></div>
                   <span className="bg-blue-200 text-blue-800 px-3 py-0.5 rounded-full text-sm flex items-center font-bold">{filteredMaster.length}</span>
               </div>
-              <div className="flex-1 overflow-y-auto p-2 space-y-2 min-h-0">
+              <div className="flex-1 overflow-y-auto p-2 space-y-1.5 min-h-0">
                   {filteredMaster.map(item => {
                       const metrics = calculateMetrics(item);
                       return (
-                      <div key={item.etfCode} onClick={() => setSelectedEtf(item.etfCode)} className={`rounded-lg p-3 cursor-pointer transition-all duration-200 flex flex-col gap-1 relative ${getRowBgColor(item, selectedEtf === item.etfCode)}`}>
-                          <div className="flex items-baseline gap-3 border-b border-gray-200/50 pb-2 mb-2">
-                              <span className="text-xl font-bold text-blue-700 font-mono">{item.etfCode}</span>
-                              <span className="text-base font-bold text-gray-700 truncate">{item.etfName}</span>
+                      <div key={item.etfCode} onClick={() => setSelectedEtf(item.etfCode)} className={`rounded-lg p-2 cursor-pointer transition-all duration-200 flex flex-col gap-0.5 relative ${getRowBgColor(item, selectedEtf === item.etfCode)}`}>
+                          <div className="flex items-center gap-2 border-b border-gray-200/50 pb-1 mb-1">
+                              <span className="text-lg font-bold text-blue-700 font-mono leading-none">{item.etfCode}</span>
+                              <span className="text-sm font-bold text-gray-700 truncate leading-none">{item.etfName}</span>
                           </div>
-                          <div className="flex justify-between items-center leading-none mb-1.5">
+                          <div className="flex justify-between items-center leading-tight">
                               <div className="flex items-baseline gap-1"><span className="text-sm font-bold text-gray-500">現</span><span className="text-base font-bold text-gray-900 font-mono">{fmtP(metrics.latestPrice)}</span></div>
                               <div className="flex items-baseline gap-1"><span className="text-sm font-bold text-gray-500">殖</span><span className="text-base font-bold text-gray-900 font-mono">{fmtPct(metrics.yieldVal)}</span></div>
                               <div className="flex items-baseline gap-1"><span className="text-sm font-bold text-gray-500">報</span><span className={`text-base font-bold font-mono ${fmtCol(metrics.returnVal)}`}>{fmtPct(metrics.returnVal)}</span></div>
                           </div>
-                          <div className="flex justify-between items-center leading-none mt-1">
+                          <div className="flex justify-between items-center leading-tight">
                                <div className="flex items-baseline gap-1"><span className="text-sm font-bold text-gray-500">起</span><span className="text-base font-medium text-gray-500 font-mono">{fmtP(metrics.startPrice)}</span></div>
                                <div className="flex items-baseline gap-1"><span className="text-sm font-bold text-gray-500">預</span><span className="text-base font-medium text-gray-500 font-mono">{metrics.estYieldVal === null ? <span className="text-gray-400 text-xs">空值</span> : fmtPct(metrics.estYieldVal)}</span></div>
                                <div className="flex items-baseline gap-1"><span className="text-sm font-bold text-gray-500">含</span><span className={`text-base font-medium font-mono ${fmtCol(metrics.totalReturnVal)}`}>{fmtPct(metrics.totalReturnVal)}</span></div>
@@ -355,7 +355,7 @@ const TabDividends: React.FC<TabDividendsProps> = ({
               </div>
           </div>
 
-          {/* Right Panel - UPDATED TABLE */}
+          {/* Right Panel - UPDATED TABLE (Blue Theme) */}
           <div className="flex-1 bg-white rounded-lg shadow-sm border border-blue-200 flex flex-col overflow-hidden min-h-0">
                 {!selectedEtf ? (
                     <div className="h-full flex flex-col items-center justify-center text-gray-400">
@@ -364,10 +364,10 @@ const TabDividends: React.FC<TabDividendsProps> = ({
                     </div>
                 ) : (
                     <>
-                         <div className="p-4 bg-purple-50 border-b border-purple-100 flex flex-wrap justify-between items-center flex-none gap-3">
+                         <div className="p-4 bg-blue-50 border-b border-blue-100 flex flex-wrap justify-between items-center flex-none gap-3">
                             <div className="flex items-center gap-3">
-                                <h3 className="font-bold text-purple-900 text-lg">{selectedEtf} 除息明細</h3>
-                                <span className="text-base font-medium text-purple-600">共 {detailData.length} 筆</span>
+                                <h3 className="font-bold text-blue-900 text-lg">{selectedEtf} 除息明細</h3>
+                                <span className="text-base font-medium text-blue-600">共 {detailData.length} 筆</span>
                             </div>
                             <div className="flex items-center gap-2">
                                 <button onClick={() => setActiveModal('TECH')} className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 text-white rounded-lg text-base font-bold hover:bg-blue-700 transition-colors shadow-sm">
@@ -383,7 +383,7 @@ const TabDividends: React.FC<TabDividendsProps> = ({
                         </div>
                         <div className="flex-1 overflow-y-auto min-h-0">
                             <table className="w-full text-left border-collapse">
-                                <thead className="bg-purple-50 sticky top-0 text-base z-10 text-purple-900 font-bold border-b border-purple-100">
+                                <thead className="bg-blue-50 sticky top-0 text-base z-10 text-blue-900 font-bold border-b border-blue-100">
                                     <tr>
                                         <th className="p-2.5 pl-4 w-1/6">年月</th>
                                         <th className="p-2.5 w-1/6">除息日期</th>
@@ -392,16 +392,16 @@ const TabDividends: React.FC<TabDividendsProps> = ({
                                         <th className="p-2.5 pr-6 text-right w-1/6">股利發放</th>
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-purple-50 text-[15px]">
+                                <tbody className="divide-y divide-blue-50 text-[15px]">
                                     {detailData.map((d, i) => {
                                         const isFuture = d.exDate > new Date().toISOString().split('T')[0];
                                         const latestPrice = priceData.filter(p => p.etfCode === selectedEtf).sort((a,b) => b.date.localeCompare(a.date))[0]?.price || 0;
                                         let yieldStr = '-';
                                         if (latestPrice > 0) { yieldStr = ((d.amount / latestPrice) * 100).toFixed(2) + '%'; }
                                         return (
-                                            <tr key={i} className={`hover:bg-purple-50/50 transition-colors ${isFuture ? 'bg-red-50' : ''}`}>
+                                            <tr key={i} className={`hover:bg-blue-50/50 transition-colors ${isFuture ? 'bg-red-50' : ''}`}>
                                                 <td className="p-2.5 pl-4 font-bold text-gray-800">{d.yearMonth}</td>
-                                                <td className="p-2.5 text-purple-700 font-mono font-medium"><div className="flex items-center gap-2"><Calendar className="w-4 h-4"/>{d.exDate}</div></td>
+                                                <td className="p-2.5 text-blue-700 font-mono font-medium"><div className="flex items-center gap-2"><Calendar className="w-4 h-4"/>{d.exDate}</div></td>
                                                 <td className="p-2.5 text-right font-bold text-emerald-600 text-lg">{fmtDiv(d.amount)}</td>
                                                 <td className="p-2.5 text-right font-bold text-amber-600 font-mono text-lg">{yieldStr}</td>
                                                 <td className="p-2.5 pr-6 text-right text-gray-600 font-medium">{d.paymentDate}</td>
@@ -419,14 +419,14 @@ const TabDividends: React.FC<TabDividendsProps> = ({
        {showAnnoModal && (
             <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
                <div className="bg-white rounded-xl w-full max-w-4xl h-[80vh] flex flex-col shadow-2xl animate-in zoom-in-95">
-                   <div className="p-5 border-b flex flex-col gap-3 bg-purple-50 rounded-t-xl shrink-0">
+                   <div className="p-5 border-b flex flex-col gap-3 bg-blue-50 rounded-t-xl shrink-0">
                        <div className="flex justify-between items-center">
-                           <h3 className="font-bold text-xl text-purple-900">配息公告</h3>
+                           <h3 className="font-bold text-xl text-blue-900">配息公告</h3>
                            <button onClick={()=>setShowAnnoModal(false)}><X className="w-6 h-6 text-gray-500" /></button>
                        </div>
                        <div className="flex gap-2">
                            {['ALL', '季配', '月配', '債券', '其他'].map((f) => (
-                               <button key={f} onClick={() => setAnnoFilter(f as any)} className={`px-4 py-1.5 rounded-full text-sm font-bold transition-colors ${annoFilter === f ? 'bg-purple-600 text-white' : 'bg-white text-purple-600 border border-purple-200 hover:bg-purple-100'}`}>
+                               <button key={f} onClick={() => setAnnoFilter(f as any)} className={`px-4 py-1.5 rounded-full text-sm font-bold transition-colors ${annoFilter === f ? 'bg-blue-600 text-white' : 'bg-white text-blue-600 border border-blue-200 hover:bg-blue-100'}`}>
                                    {f === 'ALL' ? '全部' : f}
                                </button>
                            ))}
@@ -439,8 +439,8 @@ const TabDividends: React.FC<TabDividendsProps> = ({
                            </thead>
                            <tbody className="divide-y text-[15px]">
                                {getAnnouncements().length === 0 ? (<tr><td colSpan={5} className="p-10 text-center text-gray-400">目前無相關配息公告資料</td></tr>) : getAnnouncements().map((d, i) => (
-                                   <tr key={i} className="hover:bg-purple-50 bg-red-50">
-                                       <td className="p-4 font-mono text-purple-700 font-medium">{d.exDate}</td>
+                                   <tr key={i} className="hover:bg-blue-50 bg-red-50">
+                                       <td className="p-4 font-mono text-blue-700 font-medium">{d.exDate}</td>
                                        <td className="p-4"><div className="font-bold text-lg">{d.etfCode}</div><div className="text-sm text-gray-500">{d.etfName}</div></td>
                                        <td className="p-4"><span className="bg-gray-100 px-2 py-1 rounded text-sm font-bold">{d.category}</span></td>
                                        <td className="p-4 text-right font-bold text-emerald-600 text-lg">{fmtDiv(d.amount)}</td>

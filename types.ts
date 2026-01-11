@@ -78,6 +78,41 @@ export interface FillAnalysisData extends DividendData {
   statusNote?: string; // 狀態備註 (e.g., 歷史資料, 待除息資訊)
 }
 
+// --- NEW TYPES FOR PERFORMANCE ANALYSIS ---
+
+// 單筆交易紀錄 (Raw Data)
+export interface UserTransaction {
+  id: string;           // UUID
+  date: string;         // 交易日期 (YYYY-MM-DD)
+  code: string;         // 股號
+  name: string;         // 股名
+  type: 'Buy' | 'Sell' | 'Div'; // 買入 | 賣出 | 配息 (預留)
+  price: number;        // 成交單價
+  quantity: number;     // 成交股數
+  fee: number;          // 手續費
+  tax: number;          // 交易稅
+  totalAmount: number;  // 成交價金 (不含費稅)
+  cost: number;         // 購買成本 (價金 + 手續費) / 賣出收入 (價金 - 費 - 稅)
+  broker: string;       // 證券戶 (e.g. 元大, 凱基)
+  category: string;     // 自訂分類 (e.g. 核心, 衛星, 高股息)
+  note?: string;        // 備註
+}
+
+// 持倉彙整 (Calculated View)
+export interface UserPosition {
+  code: string;
+  name: string;
+  totalQty: number;     // 累積股數 (庫存)
+  avgCost: number;      // 平均成本
+  totalCost: number;    // 累積金額 (總成本)
+  currentPrice?: number;// 現價 (from market data)
+  marketValue?: number; // 市值
+  pl?: number;          // 損益
+  plPercent?: number;   // 損益率
+  broker: string;       // 主要證券戶 (若有多個可能顯示 '多個' 或第一筆)
+  category: string;     // 分類
+}
+
 export enum UserRole {
   ADMIN = 'ADMIN',
   VIEWER = 'VIEWER',

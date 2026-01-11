@@ -118,11 +118,12 @@ const TabBasicInfo: React.FC<TabBasicInfoProps> = ({
                 );
             }
             else if (mainFilter === '月配') {
-                // Rule: Freq contains '月' AND Category does NOT contain '債'.
-                // CRITICAL: Do NOT exclude '主動' (Active). 00985A must show here.
+                // Rule: Freq contains '月' AND Category does NOT contain '債' AND Category does NOT contain '主動'.
+                // Exclude 00985A (Active Monthly)
                 result = result.filter(d => 
                     getStr(d.dividendFreq).includes('月') && 
-                    !getStr(d.category).includes('債')
+                    !getStr(d.category).includes('債') &&
+                    !getStr(d.category).includes('主動')
                 );
             }
             else if (mainFilter === '主動') {
@@ -138,10 +139,13 @@ const TabBasicInfo: React.FC<TabBasicInfoProps> = ({
                 );
             }
             else if (mainFilter === '半年') {
-                // Rule: Category or Freq contains '半年'
+                // Rule: Category or Freq contains '半年'. 
+                // Exclude International (e.g. 00911)
                 result = result.filter(d => 
-                    getStr(d.category).includes('半年') || 
-                    getStr(d.dividendFreq).includes('半年')
+                    (getStr(d.category).includes('半年') || getStr(d.dividendFreq).includes('半年')) &&
+                    !getStr(d.category).includes('國際') && 
+                    !getStr(d.category).includes('國外') &&
+                    !getStr(d.marketType).includes('國外')
                 );
             }
         }
