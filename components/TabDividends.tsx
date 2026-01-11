@@ -1,10 +1,20 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { getDividendData, getBasicInfo } from '../services/dataService';
+import { DividendData, BasicInfo } from '../types';
 import { Download, Megaphone } from 'lucide-react';
 
 const TabDividends: React.FC<any> = ({ 
     mainFilter = '季配', subFilter = '季一', setMainFilter = (_v: string) => {}, setSubFilter = (_v: string) => {} 
 }) => {
+  const [divData, setDivData] = useState<DividendData[]>([]);
+  const [basicInfo, setBasicInfo] = useState<BasicInfo[]>([]);
   const [subOptions, setSubOptions] = useState<string[]>([]);
+
+  useEffect(() => {
+      Promise.all([getDividendData(), getBasicInfo()]).then(([d, b]) => {
+          setDivData(d); setBasicInfo(b);
+      });
+  }, []);
 
   useEffect(() => {
       if (mainFilter === '全部') setSubOptions(['全部', '季一', '季二', '季三', '月配', '半年', '年配', '無配']);
@@ -12,6 +22,45 @@ const TabDividends: React.FC<any> = ({
       else if (mainFilter === '季配') setSubOptions(['全部', '季一', '季二', '季三']);
       else setSubOptions([]);
   }, [mainFilter]);
+
+  const filteredData = useMemo(() => {
+      const getStr = (val: string | undefined) => String(val || '');
+      const checkSeason = (freqStr: string | undefined, season: 'Q1'|'Q2'|'Q3') => {
+        const f = String(freqStr || '').replace(/\s/g, ''); 
+        if (season === 'Q1') return f.includes('季一') || f.includes('1,4');
+        if (season === 'Q2') return f.includes('季二') || f.includes('2,5');
+        if (season === 'Q3') return f.includes('季三') || f.includes('3,6');
+        return false;
+      };
+
+      // Filter Basic Info First
+      let validCodes = new Set<string>();
+      let targets = basicInfo;
+      
+      if (mainFilter !== '全部') {
+        if (mainFilter === '債券') targets = targets.filter(d => getStr(d.category).includes('債')); 
+        else if (mainFilter === '季配') targets = targets.filter(d => getStr(d.dividendFreq).includes('季') && !getStr(d.category).includes('債'));
+        else if (mainFilter === '月配') targets = targets.filter(d => getStr(d.dividendFreq).includes('月') && !getStr(d.category).includes('債') && !getStr(d.category).includes('主動'));
+        else if (mainFilter === '主動') targets = targets.filter(d => getStr(d.category).includes('主動'));
+        else if (mainFilter === '國際') targets = targets.filter(d => getStr(d.category).includes('國際') || getStr(d.category).includes('國外') || getStr(d.marketType).includes('國外'));
+        else if (mainFilter === '半年') targets = targets.filter(d => (getStr(d.category).includes('半年') || getStr(d.dividendFreq).includes('半年')) && !getStr(d.category).includes('國際') && !getStr(d.category).includes('國外') && !getStr(d.marketType).includes('國外'));
+      }
+
+      if (subFilter !== 'ALL') {
+         const freqStr = (d: BasicInfo) => String(d.dividendFreq || '');
+         if (subFilter === '季一') targets = targets.filter(d => checkSeason(freqStr(d), 'Q1'));
+         else if (subFilter === '季二') targets = targets.filter(d => checkSeason(freqStr(d), 'Q2'));
+         else if (subFilter === '季三') targets = targets.filter(d => checkSeason(freqStr(d), 'Q3'));
+         else if (subFilter === '月配') targets = targets.filter(d => freqStr(d).includes('月'));
+         else if (subFilter === '半年') targets = targets.filter(d => freqStr(d).includes('半年'));
+         else if (subFilter === '年配') targets = targets.filter(d => freqStr(d).includes('年') && !freqStr(d).includes('半年'));
+         else if (subFilter === '無配') targets = targets.filter(d => freqStr(d).includes('不'));
+      }
+
+      validCodes = new Set(targets.map(t => t.etfCode));
+      return divData.filter(d => validCodes.has(d.etfCode)).sort((a,b) => b.exDate.localeCompare(a.exDate));
+
+  }, [divData, basicInfo, mainFilter, subFilter]);
 
   return (
     <div className="h-full flex flex-col p-2 gap-2 bg-blue-50 overflow-hidden">
@@ -50,8 +99,32 @@ const TabDividends: React.FC<any> = ({
       </div>
 
       {/* UNIFIED CONTENT AREA */}
-      <div className="flex-1 overflow-auto bg-white rounded-lg shadow-sm border border-blue-200 min-h-0 p-8 text-center text-gray-400 font-bold text-lg">
-          除息資訊列表區域 (樣式已統一)
+      <div className="flex-1 overflow-auto bg-white rounded-lg shadow-sm border border-blue-200 min-h-0">
+          <table className="w-full text-left border-collapse">
+                <thead className="bg-blue-50 sticky top-0 z-10 border-b border-blue-200">
+                    <tr>
+                        <th className="p-3 font-bold text-blue-900 text-sm">ETF代碼</th>
+                        <th className="p-3 font-bold text-blue-900 text-sm">ETF名稱</th>
+                        <th className="p-3 font-bold text-blue-900 text-sm">年月</th>
+                        <th className="p-3 font-bold text-blue-900 text-sm">除息日期</th>
+                        <th className="p-3 font-bold text-blue-900 text-sm text-right">除息金額</th>
+                        <th className="p-3 font-bold text-blue-900 text-sm text-right">發放日</th>
+                    </tr>
+                </thead>
+                <tbody className="divide-y divide-blue-50 text-sm font-bold text-gray-700">
+                    {filteredData.map((d, i) => (
+                        <tr key={i} className="hover:bg-blue-50 transition-colors">
+                            <td className="p-3 font-mono text-blue-800">{d.etfCode}</td>
+                            <td className="p-3 text-gray-900">{d.etfName}</td>
+                            <td className="p-3 font-mono text-gray-600">{d.yearMonth}</td>
+                            <td className="p-3 font-mono text-gray-600">{d.exDate}</td>
+                            <td className="p-3 text-right font-mono text-emerald-600 font-bold">{d.amount.toFixed(3)}</td>
+                            <td className="p-3 text-right font-mono text-gray-500">{d.paymentDate || '-'}</td>
+                        </tr>
+                    ))}
+                    {filteredData.length === 0 && <tr><td colSpan={6} className="p-8 text-center text-gray-400">無符合條件的除息資料</td></tr>}
+                </tbody>
+          </table>
       </div>
     </div>
   );

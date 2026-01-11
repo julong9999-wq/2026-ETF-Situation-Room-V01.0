@@ -25,6 +25,7 @@ const TabPrices: React.FC<TabPricesProps> = ({
   useEffect(() => {
     Promise.all([getPriceData(), getBasicInfo()]).then(([p, b]) => {
         setPriceData(p); setBasicInfo(b);
+        if (b.length > 0) setSelectedEtf(b[0].etfCode);
     });
   }, []);
 
@@ -49,10 +50,19 @@ const TabPrices: React.FC<TabPricesProps> = ({
           else if (subFilter === '年配') result = result.filter(d => freqStr(d).includes('年') && !freqStr(d).includes('半年'));
           else if (subFilter === '無配') result = result.filter(d => freqStr(d).includes('不'));
       }
+      // Only show items that have Price Data
       return result.filter(b => priceData.some(p => p.etfCode === b.etfCode)).sort((a,b) => a.etfCode.localeCompare(b.etfCode));
   }, [basicInfo, mainFilter, subFilter, priceData]);
 
+  // Detail Data for the selected ETF
+  const detailData = useMemo(() => {
+      if (!selectedEtf) return [];
+      return priceData.filter(p => p.etfCode === selectedEtf).sort((a,b) => b.date.localeCompare(a.date));
+  }, [selectedEtf, priceData]);
+
   const subOptions = mainFilter === '全部' ? ['全部', '季一', '季二', '季三', '月配', '半年', '年配', '無配'] : mainFilter === '債券' ? ['全部', '月配', '季一', '季二', '季三'] : mainFilter === '季配' ? ['全部', '季一', '季二', '季三'] : [];
+
+  const fmt = (n: number) => n.toFixed(2);
 
   return (
     <div className="h-full flex flex-col p-2 gap-2 bg-blue-50 overflow-hidden">
@@ -90,9 +100,58 @@ const TabPrices: React.FC<TabPricesProps> = ({
           </div>
       </div>
 
-      {/* UNIFIED CONTENT AREA (Placeholder for now as logic was simplified in previous step, but style matches) */}
-      <div className="flex-1 overflow-auto bg-white rounded-lg shadow-sm border border-blue-200 min-h-0 p-8 text-center text-gray-400 font-bold text-lg">
-          股價資訊列表區域 (樣式已統一)
+      {/* UNIFIED CONTENT AREA */}
+      <div className="flex-1 flex gap-2 overflow-hidden min-h-0">
+           {/* Left: ETF List */}
+           <div className="w-[280px] flex-none bg-white rounded-lg shadow-sm border border-blue-200 flex flex-col overflow-hidden">
+                <div className="p-3 border-b border-blue-200 bg-blue-50 font-bold text-blue-900 text-sm">
+                    符合條件 ({filteredMaster.length})
+                </div>
+                <div className="flex-1 overflow-y-auto p-2 space-y-1">
+                    {filteredMaster.map(b => (
+                        <div key={b.etfCode} onClick={() => setSelectedEtf(b.etfCode)} className={`p-2 rounded cursor-pointer border transition-colors ${selectedEtf === b.etfCode ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-700 border-gray-200 hover:bg-blue-50'}`}>
+                            <div className="font-bold flex justify-between">
+                                <span className="font-mono">{b.etfCode}</span>
+                                <span className="text-xs bg-white/20 px-1 rounded">{b.dividendFreq}</span>
+                            </div>
+                            <div className="text-sm truncate opacity-90">{b.etfName}</div>
+                        </div>
+                    ))}
+                </div>
+           </div>
+
+           {/* Right: Detail Table */}
+           <div className="flex-1 bg-white rounded-lg shadow-sm border border-blue-200 flex flex-col overflow-hidden">
+                <div className="flex-1 overflow-auto bg-white p-0">
+                    <table className="w-full text-left border-collapse">
+                        <thead className="bg-blue-50 sticky top-0 border-b border-blue-200 text-sm font-bold text-blue-900 z-10">
+                            <tr>
+                                <th className="p-3 whitespace-nowrap">日期</th>
+                                <th className="p-3 whitespace-nowrap text-right">開盤</th>
+                                <th className="p-3 whitespace-nowrap text-right">最高</th>
+                                <th className="p-3 whitespace-nowrap text-right">最低</th>
+                                <th className="p-3 whitespace-nowrap text-right">收盤</th>
+                                <th className="p-3 whitespace-nowrap text-right">昨收</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-blue-50 text-sm font-bold text-gray-700">
+                            {detailData.map((d, i) => (
+                                <tr key={i} className="hover:bg-blue-50 transition-colors">
+                                    <td className="p-3 font-mono text-gray-900">{d.date}</td>
+                                    <td className="p-3 text-right font-mono text-gray-600">{fmt(d.open)}</td>
+                                    <td className="p-3 text-right font-mono text-red-600">{fmt(d.high)}</td>
+                                    <td className="p-3 text-right font-mono text-green-600">{fmt(d.low)}</td>
+                                    <td className="p-3 text-right font-mono text-blue-800">{fmt(d.price)}</td>
+                                    <td className="p-3 text-right font-mono text-gray-500">{fmt(d.prevClose)}</td>
+                                </tr>
+                            ))}
+                            {detailData.length === 0 && (
+                                <tr><td colSpan={6} className="p-8 text-center text-gray-400">請選擇左側 ETF</td></tr>
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+           </div>
       </div>
     </div>
   );
