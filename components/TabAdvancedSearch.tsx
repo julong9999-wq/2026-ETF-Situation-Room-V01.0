@@ -160,26 +160,37 @@ const TabAdvancedSearch: React.FC = () => {
         const market = getStr(b.marketType);
         const code = getStr(b.etfCode);
 
-        // Exclude Half Year
+        // 1. Exclude Half Year (排除半年配)
         if (cat.includes('半年') || freq.includes('半年')) return false;
         
-        // Exclude International (Special case 00911 usually excluded if intl excluded)
+        // 2. Exclude International (排除國際)
+        // Special case 00911 usually excluded if intl excluded
         if (code === '00911' || cat.includes('國際') || type.includes('國際') || market.includes('國外') || cat.includes('國外')) return false;
 
         return true;
     };
 
-    // Logic B: Pre-Market Specific
-    // Exclude: HalfYear, Intl, Monthly, Bond
-    // Effectively keeping: Quarterly, Active, Quarterly(Active)
+    // Logic B: Pre-Market Specific (Strict Filter)
+    // Goal: Remaining count approx 41 (from 94)
+    // 1. Exclude HalfYear
+    // 2. Exclude Intl
+    // 3. Exclude Monthly
+    // 4. Exclude Bond
     const filterPreMarket = (b: BasicInfo) => {
-        if (!filterExcludeHalfYearAndIntl(b)) return false; // Already excludes HalfYear & Intl
+        // Step 1 & 2
+        if (!filterExcludeHalfYearAndIntl(b)) return false; 
         
         const cat = getStr(b.category);
         const freq = getStr(b.dividendFreq);
+        const name = getStr(b.etfName);
+        const type = getStr(b.etfType);
 
-        if (freq.includes('月')) return false; // Exclude Monthly
-        if (cat.includes('債')) return false;   // Exclude Bond
+        // Step 3. Exclude Monthly (排除月配)
+        if (freq.includes('月')) return false; 
+
+        // Step 4. Exclude Bond (排除債券)
+        // Check Category, Type, and Name for '債' to capture all bonds (including 00985A/00985 types)
+        if (cat.includes('債') || type.includes('債') || name.includes('債')) return false;   
 
         return true;
     };
@@ -201,7 +212,7 @@ const TabAdvancedSearch: React.FC = () => {
             });
 
         // 2. ETF PRICE
-        // Filter: Exclude HalfYear, Intl, Monthly, Bond
+        // Filter: Strict Pre-Market Filter
         const targets = basicInfo.filter(filterPreMarket); 
 
         const allEtfDates: string[] = Array.from<string>(new Set(priceData.map(p => p.date))).sort().reverse().slice(0, 10);
@@ -230,7 +241,7 @@ const TabAdvancedSearch: React.FC = () => {
         if (mainTab !== 'POST_MARKET') return { basic: [], todayEx: [], filled: [], unfilled: [] };
 
         // 1. BASIC INFO
-        // Filter: Exclude HalfYear, Intl
+        // Filter: Exclude HalfYear, Intl (Keep Monthly & Bond)
         const filteredBasic = basicInfo.filter(filterExcludeHalfYearAndIntl);
 
         const basicList = filteredBasic.map(etf => {
