@@ -529,6 +529,10 @@ const TabPerformance: React.FC = () => {
         setShowAddModal(true);
     };
 
+    // Calculate Summary Stats
+    const summaryShares = positions.reduce((acc, pos) => acc + pos.totalQty, 0);
+    const summaryCost = positions.reduce((acc, pos) => acc + pos.totalCost, 0);
+
     // --- RENDER ---
     return (
         <div className="flex flex-col h-full bg-blue-50">
@@ -630,13 +634,20 @@ const TabPerformance: React.FC = () => {
                 
                 {/* LEFT PANEL: Master List (Shared for HOLDINGS & DIVIDEND) */}
                 <div className="w-[360px] flex-none bg-white rounded-xl shadow-sm border border-blue-200 flex flex-col overflow-hidden">
-                    <div className="p-3 bg-blue-50 border-b border-blue-100 flex justify-between items-center gap-2">
-                        <h3 className="font-bold text-blue-900 text-lg flex items-center gap-2">
-                            <Wallet className="w-5 h-5" /> 庫存總覽
-                        </h3>
-                        <span className="bg-blue-200 text-blue-800 px-2 py-0.5 rounded text-sm font-bold">
-                            {positions.length} 檔
-                        </span>
+                    {/* Header Summary Dashboard */}
+                    <div className="p-2 bg-blue-50 border-b border-blue-100 grid grid-cols-3 gap-2 shrink-0">
+                        <div className="flex flex-col items-center justify-center bg-white p-2 rounded-lg border border-blue-100 shadow-sm">
+                            <span className="text-xs font-bold text-gray-400">檔數</span>
+                            <span className="text-base font-bold text-blue-800 font-mono">{positions.length}</span>
+                        </div>
+                        <div className="flex flex-col items-center justify-center bg-white p-2 rounded-lg border border-blue-100 shadow-sm">
+                            <span className="text-xs font-bold text-gray-400">持有股數</span>
+                            <span className="text-base font-bold text-gray-800 font-mono">{fmtMoney(summaryShares)}</span>
+                        </div>
+                        <div className="flex flex-col items-center justify-center bg-white p-2 rounded-lg border border-blue-100 shadow-sm">
+                            <span className="text-xs font-bold text-gray-400">持有金額</span>
+                            <span className="text-sm font-bold text-blue-600 font-mono">{fmtMoney(summaryCost)}</span>
+                        </div>
                     </div>
 
                     <div className="flex-1 overflow-y-auto p-2 space-y-2 bg-gray-50/50">
