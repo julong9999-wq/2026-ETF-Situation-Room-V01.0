@@ -228,6 +228,7 @@ const TabPerformance: React.FC = () => {
         const source = transactions.filter(t => t.type === 'Buy');
 
         if (summaryViewMode === 'ACCOUNT') {
+            // Group by Broker + Category
             const groups = new Map<string, { broker: string, category: string, totalQty: number, totalCost: number, items: Map<string, any> }>();
             
             source.forEach(t => {
@@ -258,6 +259,7 @@ const TabPerformance: React.FC = () => {
             })).sort((a,b) => (a.group1 + a.group2).localeCompare(b.group1 + b.group2));
 
         } else {
+            // Group by Code (Stock)
             const groups = new Map<string, { code: string, name: string, totalQty: number, totalCost: number, items: Map<string, any> }>();
 
             source.forEach(t => {
